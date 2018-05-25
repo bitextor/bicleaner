@@ -8,7 +8,7 @@ indicating the likelihood of a pair of sentences being mutual translations (with
 
 Bicleaner works with Python3 only. Dependences for Bicleaner are in the requirements.txt file and can be installed with `pip`:
 
-`pip install -r requirements.txt`
+`pip3 install -r requirements.txt`
 
 
 ## Cleaning
