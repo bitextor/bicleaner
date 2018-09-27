@@ -32,6 +32,7 @@ __version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
 __version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
 
+
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
     logging.info("Processing arguments...")
