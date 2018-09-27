@@ -29,7 +29,7 @@ from bicleaner_hardrules import *
 
 __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
-
+__version__ = "Version 0.9 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
