@@ -47,7 +47,7 @@ python3 bicleaner-classifier-full.py [-h] -m METADATA [-s SOURCE_LANG]
 ### Parameters
 
 * positional arguments:
-  * input: Tab-separated files to be classified
+  * input: Tab-separated files to be classified  (line format: URL1 URL2 SOURCE_SENTENCE TARGET_SENTENCE, tab-separated)
   * output: Output of the classification (default: standard output)
 * optional arguments:
   * -h, --help: show this help message and exit
@@ -92,19 +92,26 @@ Each line of the new file will contain the same content as the input file, addin
 ### Test 
 
 A sample corpus is provided to test that bicleaner is working as expected. In order to run the test:
-* create a "lang" folder in the bicleaner sourcecode folder
-* move to the "lang" directory, and download the en-de language package (en-de.tar.gz from https://github.com/bitextor/bitextor-data/tree/master/bicleaner)
-* uncompress the language package by using `tar -xzvf en-de.tar.gz`
-* move to the parent directory and run the following command:
-```
-python3 bicleaner/bicleaner-classifier-full.py  \
+* `cd bicleaner/bicleaner`
+* `mkdir lang`
+* `cd lang`
+* `wget https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz`
+* `tar -xzvf en-de.tar.gz`
+* `cd ../..`
+* ```bash \
+  python3 bicleaner/bicleaner-classifier-full.py \
         test-corpus.en-de  \
         test-corpus.en-de.classified  \
         -m bicleaner/lang/en-de/training.en-de.yaml \
-        -b 100 
-```
+        -b 100
+  ```
+* ` awk -F'\t' ' $5 > 0 {print ;} ' ../bicleaner_pkg/test-corpus.en-de.classified | wc -l`
 
-** WIP **
+If the result from the last command is `3`,
+
+
+== WIP ==
+
 ## Training classifiers
 
 In case you need to train a new language model (i.e. because it is not available in the language packs provided in bitextor-data), 
