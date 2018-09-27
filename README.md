@@ -3,6 +3,7 @@
 Bicleaner is a tool in Python that allows to classify a parallel corpus, 
 indicating the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not  (with a value near to 0)
 
+Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them  (TL;DR: Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them (TL;DR: download the desired language package (i.e. `en-es.tar.gz`) and uncompress it (`tar -xzvf en-es.tar.gz`) in the folder "`lang`" in bicleaner's sourcecode folder)
 
 ## Requirements
 
@@ -88,10 +89,26 @@ classify it with the classifier indicated in the "training.en-es.yaml" metadata 
 writing the result of the classification in the "corpus.en-es.tabs.classified" file.
 Each line of the new file will contain the same content as the input file, adding a column with the score given by the Bicleaner classifier.
 
+### Test 
+
+A sample corpus is provided to test that bicleaner is working as expected. In order to run the test:
+* create a "lang" folder in the bicleaner sourcecode folder
+* move to the "lang" directory, and download the en-de language package (en-de.tar.gz from https://github.com/bitextor/bitextor-data/tree/master/bicleaner)
+* uncompress the language package by using `tar -xzvf en-de.tar.gz`
+* move to the parent directory and run the following command:
+```
+python3 bicleaner/bicleaner-classifier-full.py  \
+        test-corpus.en-de  \
+        test-corpus.en-de.classified  \
+        -m bicleaner/lang/en-de/training.en-de.yaml \
+        -b 100 
+```
+
+** WIP **
 ## Training classifiers
 
 In case you need to train a new language model (i.e. because it is not available in the language packs provided in bitextor-data), 
-you can use the `bicleaner-train.pyp` tool .
+you can use the `bicleaner-train.py` tool .
 `bicleaner-train.py` is a Python script that allows to train a classifier which predicts
 whether a pair of sentences are mutual translations or not.
 It can be used as follows:
