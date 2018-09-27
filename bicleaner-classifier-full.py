@@ -29,7 +29,7 @@ from bicleaner_hardrules import *
 
 __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
-
+__version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feaute_extract # Marta Bañón"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -141,7 +141,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     for i in filein:
                         parts = i.split("\t")
                         if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-                            features = feature_extract(i, source_tokenizer, target_tokenizer, args)
+                            features = feature_extract(parts[2], parts[3], source_tokenizer, target_tokenizer, args)
                             # print("SENTENCE PAIR: %%{}%%".format(i))
                             # print(Features(features)) # debug
                             feats.append([float(v) for v in features])
