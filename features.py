@@ -291,7 +291,7 @@ def feature_character_measurements(sentence):
     
 # Main feature function: uses program options to return a suitable set of
 # features at the output
-def feature_extract(row, tokenize_l, tokenize_r, args):
+def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     length_ratio = args.length_ratio
     dict12 = args.dict_sl_tl
     dict21 = args.dict_tl_sl
@@ -302,27 +302,27 @@ def feature_extract(row, tokenize_l, tokenize_r, args):
     lang1 = args.source_lang
     lang2 = args.target_lang
     
-    parts = row.strip().split("\t")
+#    parts = row.strip().split("\t")
 
-    if len(parts) == 1:
-        parts.append("")
+#    if len(parts) == 1:
+#        parts.append("")
         
     # Sentence tokenization, with and without capital letters
-    left_sentence_orig_tok  = [no_escaping(t) for t in tokenize_l(parts[0])][0:250]
-    right_sentence_orig_tok = [no_escaping(t) for t in tokenize_r(parts[1])][0:250]
+    left_sentence_orig_tok  = [no_escaping(t) for t in tokenize_l(srcsen)][0:250]
+    right_sentence_orig_tok = [no_escaping(t) for t in tokenize_r(trgsen)][0:250]
     left_sentence_tok =  [i.lower() for i in left_sentence_orig_tok]
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]
 
     features = []
      
-    features.append(feature_language(parts[0], lang1))
-    features.append(feature_language(parts[1], lang2))
-    features.append(feature_sentence_length(parts[0]))    
-    features.append(feature_sentence_length(parts[1]))    
-    features.extend(feature_character_class_dist(parts[0]))    
-    features.extend(feature_character_class_dist(parts[1]))    
-    features.extend(feature_character_measurements(parts[0]))
-    features.extend(feature_character_measurements(parts[1]))
+    features.append(feature_language(srcsen, lang1))
+    features.append(feature_language(trgsen, lang2))
+    features.append(feature_sentence_length(srcsen))    
+    features.append(feature_sentence_length(trgsen))    
+    features.extend(feature_character_class_dist(srcsen))    
+    features.extend(feature_character_class_dist(trgsen))    
+    features.extend(feature_character_measurements(srcsen))
+    features.extend(feature_character_measurements(trgsen))
     features.append(feature_sentence_length(left_sentence_tok))
     features.append(feature_sentence_length(right_sentence_tok))
     features.append(feature_length_poisson(left_sentence_tok, right_sentence_tok, length_ratio))
