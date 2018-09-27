@@ -26,7 +26,7 @@ The input file must contain at least four columns:
 The generated output file will contain the same lines and columns that the original input file, 
 adding an extra column containing the Bicleaner classifier score.
 
-This script is located in bicleaner-filter/src, and can be run with
+This script can be run with
 
 ```
 python3 bicleaner-classifier-full.py [-h] -m METADATA [-s SOURCE_LANG]
