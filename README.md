@@ -3,7 +3,7 @@
 Bicleaner is a tool in Python that allows to classify a parallel corpus, 
 indicating the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not  (with a value near to 0)
 
-Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them  (TL;DR: Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them (TL;DR: download the desired language package (i.e. `en-de.tar.gz`) and uncompress it (`tar -xzvf en-de.tar.gz`) in the folder "`lang`" in bicleaner's sourcecode folder)
+Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them  (TL;DR: Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them (TL;DR: download the desired language package (i.e. `en-de.tar.gz`) and uncompress it (`tar -xzvf en-de.tar.gz`) in the folder "`lang`" in src's sourcecode folder)
 
 ## Requirements
 
@@ -94,7 +94,7 @@ Each line of the new file will contain the same content as the input file, addin
 Running the provided testset is recommended to check that Bicleaner is working as expected. The testset can be run with Pytest:
 
 ```
-pytest  tests/bicleaner_test.py
+python3 -m pytest  tests/bicleaner_test.py -s
 ```
 If everything went ok, a "1 passed in xx.xx seconds" message will be shown.
 

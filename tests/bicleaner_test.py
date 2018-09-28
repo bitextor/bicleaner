@@ -8,14 +8,14 @@ import subprocess
 def bicleaner_test():
 	langpackurl = "https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz"
 	tar = "tar -xzf en-de.tar.gz"
-	bicleaner_cmd = "python3 bicleaner/bicleaner-classifier-full.py \
+	bicleaner_cmd = "python3 src/bicleaner-classifier-full.py \
       tests/test-corpus.en-de  \
       tests/test-corpus.en-de.classified  \
-      -m bicleaner/lang/en-de/training.en-de.yaml \
+      -m src/lang/en-de/training.en-de.yaml \
       -b 100  -q"
 	awk = "awk -F'\t' '$5 > 0 {print ;}' tests/test-corpus.en-de.classified"     
 
-	command = "cd bicleaner && mkdir -p lang && cd lang && wget -q {0} && {1}  && cd ../.. && {2}".format(langpackurl, tar, bicleaner_cmd)
+	command = "cd src && mkdir -p lang && cd lang && wget -q {0} && {1}  && cd ../.. && {2}".format(langpackurl, tar, bicleaner_cmd)
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 	p.wait()
 
