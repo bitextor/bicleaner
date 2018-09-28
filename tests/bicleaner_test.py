@@ -29,16 +29,20 @@ def bicleaner_test():
 	p.wait()
 
 	current = 0
-	passed = 0	
+	scores = []
+	
 	with open("tests/test-corpus.en-de.classified", "r") as classified_file:
 		for line in classified_file:	
+			print(line)
+
 			try:
 				url1, url2, source_sentence, target_sentence, score = line.split('\t')
-				if float(score) > 0.0:
-					passed=passed+1
+				scores.append(round(float(score), 1))					
 			except Exception as e:
+				print(e)
+				scores.append("-1")
 				continue
-	return passed			
+	return scores
 	
 #	out, err = p.communicate()
 #	return out[-1]
@@ -46,4 +50,8 @@ def bicleaner_test():
 	
 
 def test_results():
-	assert bicleaner_test() == 3
+	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
+	results = bicleaner_test()
+
+	for  i in range(len(expected)):
+		assert(results[i] == expected[i])
