@@ -3,13 +3,13 @@
 Bicleaner is a tool in Python that allows to classify a parallel corpus, 
 indicating the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not  (with a value near to 0)
 
-Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them  (TL;DR: Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them (TL;DR: download the desired language package (i.e. `en-es.tar.gz`) and uncompress it (`tar -xzvf en-es.tar.gz`) in the folder "`lang`" in bicleaner's sourcecode folder)
+Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them  (TL;DR: Although a training script (bicleaner-train.py) is provided, you may want to use the available ready-to-use language packages. Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them (TL;DR: download the desired language package (i.e. `en-de.tar.gz`) and uncompress it (`tar -xzvf en-de.tar.gz`) in the folder "`lang`" in bicleaner's sourcecode folder)
 
 ## Requirements
 
 Bicleaner works with Python3 only. Dependences for Bicleaner are in the requirements.txt file and can be installed with `pip`:
 
-`pip3 install -r requirements.txt`
+`python3 -m pip install -r requirements.txt`
 
 
 ## Cleaning
@@ -91,26 +91,12 @@ Each line of the new file will contain the same content as the input file, addin
 
 ### Test 
 
-A sample corpus is provided to test that bicleaner is working as expected. In order to run the test:
-* `cd bicleaner/bicleaner`
-* `mkdir lang`
-* `cd lang`
-* `wget https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz`
-* `tar -xzvf en-de.tar.gz`
-* `cd ../..`
-* ```bash \
-  python3 bicleaner/bicleaner-classifier-full.py \
-        test-corpus.en-de  \
-        test-corpus.en-de.classified  \
-        -m bicleaner/lang/en-de/training.en-de.yaml \
-        -b 100
-  ```
-* ` awk -F'\t' ' $5 > 0 {print ;} ' ../bicleaner_pkg/test-corpus.en-de.classified | wc -l`
+Running the provided testset is recommended to check that Bicleaner is working as expected. The testset can be run with Pytest:
 
-If the result from the last command is `3`,
-
-
-== WIP ==
+```
+pytest  tests/bicleaner_test.py
+```
+If everything went ok, a "1 passed in xx.xx seconds" message will be shown.
 
 ## Training classifiers
 
