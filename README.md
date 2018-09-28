@@ -95,6 +95,7 @@ Running the provided testset is recommended to check that Bicleaner is working a
 
 ```
 python3 -m pytest  tests/bicleaner_test.py -s
+
 ```
 If everything went ok, a "1 passed in xx.xx seconds" message will be shown.
 
