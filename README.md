@@ -94,7 +94,7 @@ Each line of the new file will contain the same content as the input file, addin
 Running the provided testset is recommended to check that Bicleaner is working as expected. The testset can be run with Pytest:
 
 ```
-pytest  tests/bicleaner_test.py
+python3 -m pip pytest -s tests/bicleaner_test.py
 ```
 If everything went ok, a "1 passed in xx.xx seconds" message will be shown.
 
