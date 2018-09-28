@@ -2,7 +2,6 @@ __author__ = "Marta Bañón"
 __version__ = "Version 0.1 # 28/09/2018 # Classifier test # Marta Bañón"
 
 import subprocess
-#from subprocess import check_output
 
 def setup_function():
 	langpackurl = "https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz"
@@ -17,22 +16,20 @@ def teardown_function():
 	p.wait()
 
 def bicleaner_test():
-
 	bicleaner_cmd = "python3 src/bicleaner-classifier-full.py \
       tests/test-corpus.en-de  \
       tests/test-corpus.en-de.classified  \
       -m src/lang/en-de/training.en-de.yaml \
       -b 100  -q"
-#	awk = "awk -F'\t' '$5 > 0 {print ;}' tests/test-corpus.en-de.classified"     
 
 	p = subprocess.Popen(bicleaner_cmd, shell=True, stdout=subprocess.PIPE)
 	p.wait()
 
-	current = 0
 	scores = []
 	
 	with open("tests/test-corpus.en-de.classified", "r") as classified_file:
 		for line in classified_file:	
+			line = line.rstrip("\n")
 			print(line)
 
 			try:
@@ -44,11 +41,6 @@ def bicleaner_test():
 				continue
 	return scores
 	
-#	out, err = p.communicate()
-#	return out[-1]
-#	return check_output(command)
-	
-
 def test_results():
 	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
 	results = bicleaner_test()
