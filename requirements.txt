@@ -1,8 +1,8 @@
-mosestokenizer==1.0.0
-pycld2==0.31
-regex==2018.1.10
-scikit-learn==0.19.1
-PyYAML==3.12
-numpy==1.14.0
-scipy==1.0.0
-pytest==3.8.1
+mosestokenizer>=1.0.0
+pycld2>=0.31
+regex>=2018.1.10
+scikit-learn>=0.19.1
+PyYAML>=3.12
+numpy>=1.14.0
+scipy>=1.0.0
+pytest>=3.8.1

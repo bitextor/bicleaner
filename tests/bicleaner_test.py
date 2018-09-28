@@ -2,6 +2,7 @@ __author__ = "Marta Bañón"
 __version__ = "Version 0.1 # 28/09/2018 # Classifier test # Marta Bañón"
 
 import subprocess
+import bicleaner
 
 def setup_function():
 	langpackurl = "https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz"
@@ -16,10 +17,10 @@ def teardown_function():
 	p.wait()
 
 def bicleaner_test():
-	bicleaner_cmd = "python3 src/bicleaner-classifier-full.py \
+	bicleaner_cmd = "python3 bicleaner/bicleaner-classifier-full.py \
       tests/test-corpus.en-de  \
       tests/test-corpus.en-de.classified  \
-      -m src/lang/en-de/training.en-de.yaml \
+      -m bicleaner/lang/en-de/training.en-de.yaml \
       -b 100  -q"
 
 	p = subprocess.Popen(bicleaner_cmd, shell=True, stdout=subprocess.PIPE)
