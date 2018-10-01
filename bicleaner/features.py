@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import math
 import pycld2

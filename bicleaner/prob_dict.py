@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+
 import logging
 import gzip
 import regex

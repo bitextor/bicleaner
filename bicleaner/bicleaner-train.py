@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from heapq import heappush, heappop
 from mosestokenizer import MosesTokenizer
 from multiprocessing import Queue, Process, Value, cpu_count

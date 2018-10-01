@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+
 __author__ = "Marta Bañón"
 __version__ = "Version 0.1 # 28/09/2018 # Classifier test # Marta Bañón"
 

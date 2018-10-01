@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -7,7 +9,7 @@ with open("requirements.txt") as rf:
     
 setuptools.setup(
     name="bicleaner",
-    version="0.9.2",
+    version="0.9.3",
     install_requires=requirements,
     license="GNU General Public License v3.0",
     author="Prompsit Language Engineering",
@@ -35,5 +37,9 @@ setuptools.setup(
         "Prompsit Language Engineering": "http://www.prompsit.com",
         "Bicrawler & Bicleaner": "https://bicrawler.com",
         "Paracrawl": "https://paracrawl.eu/"
-         }
+         },
+    scripts=[
+         "scripts/bicleaner-classify",
+         "scripts/bicleaner-train"
+         ]     
 )
