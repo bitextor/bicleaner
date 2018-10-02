@@ -1,7 +1,7 @@
 # bicleaner
 
-Bicleaner (bicleaner-classify) is a tool in Python that allows to classify a parallel corpus, 
-indicating the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not  (with a value near to 0)
+Bicleaner (bicleaner-classify) is a tool in Python that aims at detecting noisy sentence pairs in a parallel corpus. It
+indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
 Although a training tool (bicleaner-train) is provided, you may want to use the available ready-to-use language packages. 
 Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them.
@@ -38,8 +38,8 @@ Extra modules will be downloaded and installed/upgraded as well, if required.
 
 ## Cleaning
 
-`bicleaner-classify` is a Python tool that allows to classify a parallel corpus, 
-indicating the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not  (with a value near to 0)
+`bicleaner-classify` aims at detecting noisy sentence pairs in a parallel corpus. It
+indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
 The input file  (the parallel corpus to be classified) must contain at least four columns:
 
@@ -50,7 +50,7 @@ The input file  (the parallel corpus to be classified) must contain at least fou
 
 Any extra columns will be ignored.
 
-The generated output file will contain the same lines and columns that the original input file, 
+The generated output file will contain the same lines and columns that the original input file had, 
 adding an extra column containing the Bicleaner classifier score.
 
 This tool can be run with
