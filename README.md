@@ -35,6 +35,7 @@ Bicleaner works with Python3 and can be instaled with `pip`:
 
 Extra modules will be downloaded and installed/upgraded as well, if required.
 
+After installation, two binary files (`bicleaner-train` and `bicleaner-classify`) will be located in your python/installation/prefix/bin directory.
 
 ## Cleaning
 
