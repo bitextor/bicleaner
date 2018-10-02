@@ -3,7 +3,7 @@
 import bicleaner
 
 def main(argv):
-	bicleaner.bicleaner-train.main(argv)
+	bicleaner.bicleaner_train.main(argv)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
