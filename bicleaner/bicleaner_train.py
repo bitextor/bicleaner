@@ -368,7 +368,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                 with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
                     logging.debug("Filtering: creating temporary file {}".format(fileout.name))
                     for i in filein:
-                        srcsen,trgsen = s.split()[:2]
+                        srcsen,trgsen = i.split()[:2]
                         features = feature_extract(srcsen, trgsen, tokl, tokr, args)
                         
                         for j in features:
