@@ -7,6 +7,27 @@ Although a training script (bicleaner-train.py) is provided, you may want to use
 Please, visit https://github.com/bitextor/bitextor-data/tree/master/bicleaner to download the language packages and the documentation on how to use them 
 (TL;DR: download the desired language package (i.e. `en-de.tar.gz`) and uncompress it (`tar -xzvf en-de.tar.gz`) in the folder "`lang`" in bicleaner's sourcecode folder)
 
+## Citation 
+
+If you find Bicleaner useful, please consider citing the following paper:
+
+> V. M. Sánchez-Cartagena, M. Bañón, S. Ortiz-Rojas and G. Ramírez-Sánchez,\
+> "Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task",\
+>in *Proceedings of the Third Conference on Machine Translation, Volume 2: Shared Task Papers*.\
+>Brussels, Belgium: Association for Computational Linguistics, October 2018
+
+```
+@InProceedings{prompsit:2018:WMT,
+  author    = { V\'{i}ctor M. S\'{a}nchez-Cartagena and Marta Ba{\~n}\'{o}n and Sergio Ortiz-Rojas and Gema Ram\'{i}rez-S\'{a}nchez},
+  title     = {Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task},
+  booktitle = {Proceedings of the Third Conference on Machine Translation, Volume 2: Shared Task Papers},
+  month     = {October},
+  year      = {2018},
+  address   = {Brussels, Belgium},
+  publisher = {Association for Computational Linguistics}
+}
+```
+
 ## Requirements
 
 Bicleaner works with Python3 only. Dependences for Bicleaner are in the requirements.txt file and can be installed with `pip`:
