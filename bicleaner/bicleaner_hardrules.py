@@ -14,8 +14,12 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from util import logging_setup
 
+#Allows to load modules while inside or outside the package
+try:
+    from .util import logging_setup
+except (SystemError, ImportError):
+    from util import logging_setup
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")

@@ -10,12 +10,12 @@ import bicleaner
 def setup_function():
 	langpackurl = "https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz"
 	tar = "tar -xzf en-de.tar.gz"
-	command = "cd src && mkdir -p lang && cd lang && wget -q {0} && {1}  && cd ../..".format(langpackurl, tar)	
+	command = "cd bicleaner && mkdir -p lang && cd lang && wget -q {0} && {1}  && cd ../..".format(langpackurl, tar)	
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 	p.wait()
 
 def teardown_function():
-	command = "rm -r src/lang && rm tests/test-corpus.en-de.classified"
+	command = "rm -r bicleaner/lang && rm tests/test-corpus.en-de.classified"
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 	p.wait()
 

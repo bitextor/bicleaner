@@ -20,9 +20,15 @@ import random
 import sklearn
 import sys
 
-from features import feature_extract
-from prob_dict import ProbabilisticDictionary
-from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+#Allows to load modules while inside or outside the package  
+try:
+    from .features import feature_extract
+    from .prob_dict import ProbabilisticDictionary
+    from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+except (SystemError, ImportError):
+    from features import feature_extract
+    from prob_dict import ProbabilisticDictionary
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -514,12 +520,13 @@ def perform_training(args):
     logging.info("Elapsed time {:.2f} s".format(elapsed_time))
 
 # Main function: setup logging and calling the main loop
-def main():
+def main(args):
     # Parameter parsing
-    args = initialization()
+#    args = initialization()
 
     # Filtering
     perform_training(args)
 
 if __name__ == '__main__':
-    main()
+    args = initialization()
+    main(args)

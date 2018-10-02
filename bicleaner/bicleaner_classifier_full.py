@@ -21,11 +21,17 @@ from timeit import default_timer
 
 from mosestokenizer import MosesTokenizer
 
-from features import feature_extract, Features
-from prob_dict import ProbabilisticDictionary
-from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-
-from bicleaner_hardrules import *
+#Allows to load modules while inside or outside the package
+try:
+    from .features import feature_extract, Features
+    from .prob_dict import ProbabilisticDictionary
+    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from .bicleaner_hardrules import *
+except (ImportError, SystemError):
+    from features import feature_extract, Features
+    from prob_dict import ProbabilisticDictionary
+    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from bicleaner_hardrules import *
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -108,13 +114,13 @@ def initialization():
         args.clf = joblib.load(args.classifier)
 
     except:     
-        curpath = os.path.abspath(os.path.dirname(sys.argv[0]))
-        
+#        curpath = os.path.abspath(os.path.dirname(sys.argv[0]))
+        yamlpath = os.path.dirname(os.path.abspath(preliminary_args.metadata.name))
         #If load from yaml fails, or yaml not present:
         if args.source_lang != None and args.target_lang != None:
-            args.dict_sl_tl = ProbabilisticDictionary(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/dict-"+args.source_lang+".gz")
-            args.dict_tl_sl = ProbabilisticDictionary(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/dict-"+args.target_lang+".gz")
-            args.clf=joblib.load(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/"+args.source_lang+"-"+args.target_lang+".classifier")
+            args.dict_sl_tl = ProbabilisticDictionary(yamlpath+"/dict-"+args.source_lang+".gz")
+            args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/dict-"+args.target_lang+".gz")
+            args.clf=joblib.load(yamlpath+"/"+args.source_lang+"-"+args.target_lang+".classifier")
         else:
             print("Error: If not using a metadata file (-m), source language (-s) and target language (-t) should be explicitly provided")
             sys.exit(1)

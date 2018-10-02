@@ -3,17 +3,21 @@
 import sys
 import traceback
 import logging
-#import util
-import bicleaner
+import bicleaner.util as util
+#import bicleaner.features as features
+import bicleaner.bicleaner_classifier_full as classifier
+
+
+#import bicleaner
 
 #from bicleaner import util, bicleaner_classifier_full
-from bicleaner import  * 
+
 
 def main(argv):
 	try:
-        	bicleaner.util.logging_setup()
-	        args = bicleaner.bicleaner_classifier_full.initialization() # Parsing parameters
-	        bicleaner.bicleaner_classifier_full.main(args)  # Running main program
+        	util.logging_setup()
+	        args = classifier.initialization() # Parsing parameters
+	        classifier.main(args)  # Running main program
 	except Exception as ex:
         	tb = traceback.format_exc()
 	        logging.error(tb)
