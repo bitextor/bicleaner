@@ -35,7 +35,7 @@ Bicleaner works with Python3 and can be instaled with `pip`:
 
 Extra modules will be downloaded and installed/upgraded as well, if required.
 
-After installation, two binary files (`bicleaner-train` and `bicleaner-classify`) will be located in your python/installation/prefix/bin directory.
+After installation, two binary files (`bicleaner-train` and `bicleaner-classify`) will be located in your `python/installation/prefix`/bin directory.
 
 ## Cleaning
 
@@ -81,11 +81,11 @@ bicleaner-classify [-h] -m METADATA [-s SOURCE_LANG]
 * Mandatory:
   * -m METADATA, --metadata METADATA: Training metadata (YAML file). Take into account that explicit command line arguments will overwrite the values from metadata file (default: None)
 * Optional:
-  * --tmp_dir TMP_DIR: Temporary directory where creating the temporary files of this program (default: user's temp dir)
+  * --tmp_dir TMP_DIR: Temporary directory where creating the temporary files of this program (default: default system temp dir, defined by the environment variable TMPDIR in Unix)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of processes to use (default: all CPUs minus one)
   * --normalize_by_length: Normalize by length in qmax dict feature 
-  * --treat_oovs: Special treatment for OOVs in qmax dict feature
+  * --treat_oovs: Special treatment for Out-Of-Vocabulary words in qmax dict feature
   * --qmax_limit: Number of max target words to be taken into account, sorted by length (default: 20)
   * --disable_features_quest: Disable less important features
   * -g GOOD_EXAMPLES, --good_examples GOOD_EXAMPLES: Number of good examples (default: 50000)
@@ -106,9 +106,7 @@ bicleaner-classify [-h] -m METADATA [-s SOURCE_LANG]
 bicleaner-classify  \
         corpus.en-es.raw  \
         corpus.en-es.classifed  \
-        -m training.en-es.yaml \
-        -b 100  \
-        --tmp_dir /home/user/tmp 
+        -m training.en-es.yaml 
 ```
 
 This will read the "corpus.en-es.raw" file, 
@@ -119,7 +117,7 @@ Each line of the new file will contain the same content as the input file, addin
 
 ## Training classifiers
 
-In case you need to train a new language model (i.e. because it is not available in the language packs provided in [bitextor-data](https://github.com/bitextor/bitextor-data/tree/master/bicleaner)), 
+In case you need to train a new classifier (i.e. because it is not available in the language packs provided in [bitextor-data](https://github.com/bitextor/bitextor-data/tree/master/bicleaner)), 
 you can use `bicleaner-train` .
 `bicleaner-train` is a Python3 tool that allows to train a classifier which predicts 
 whether a pair of sentences are mutual translations or not.
