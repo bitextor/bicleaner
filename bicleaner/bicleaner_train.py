@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from heapq import heappush, heappop
 from mosestokenizer import MosesTokenizer
 from multiprocessing import Queue, Process, Value, cpu_count
@@ -18,9 +20,15 @@ import random
 import sklearn
 import sys
 
-from features import feature_extract
-from prob_dict import ProbabilisticDictionary
-from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+#Allows to load modules while inside or outside the package  
+try:
+    from .features import feature_extract
+    from .prob_dict import ProbabilisticDictionary
+    from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+except (SystemError, ImportError):
+    from features import feature_extract
+    from prob_dict import ProbabilisticDictionary
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -115,9 +123,9 @@ def initialization():
     groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
     groupO.add_argument('-g', '--good_examples',  type=check_positive_or_zero, default=50000, help="Number of good examples")
     groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
-    groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=2000, help="Number of good test examples")
-    groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=2000, help="Number of wrong test examples")
-    groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="svm", help="Classifier type")
+    groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
+    groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
+    groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=check_positive, default=max(1, cpu_count()-1), help="Number of process to use")
@@ -131,7 +139,6 @@ def initialization():
     args = parser.parse_args()
     # Logging
     logging_setup(args)
-
     return args
 
 # Training function: receives two file descriptors, input and test, and a
@@ -243,7 +250,7 @@ def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
         if total_size == 0:
             raise Exception("The input file {} is empty".format(input.name))
-        elif not wrong_examples_file and  total_size < n_aligned + n_misaligned:
+        elif not wrong_examples_file and  total_size < max(n_aligned, n_misaligned):
             raise Exception("Aborting... The input file {} has less lines than required by the numbers of good ({}) and wrong ({}) examples. Total lines required: {}".format(input.name, n_aligned, n_misaligned, n_aligned + n_misaligned))
 
         try:
@@ -360,7 +367,8 @@ def worker_process(i, jobs_queue, output_queue, args):
                 with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
                     logging.debug("Filtering: creating temporary file {}".format(fileout.name))
                     for i in filein:
-                        srcsen,trgsen = s.split()[:2]
+                        srcsen,trgsen = i.split("\t")[:2]
+#                        print(str(srcsen) + " --- " + str(trgsen))
                         features = feature_extract(srcsen, trgsen, tokl, tokr, args)
                         
                         for j in features:
@@ -512,12 +520,13 @@ def perform_training(args):
     logging.info("Elapsed time {:.2f} s".format(elapsed_time))
 
 # Main function: setup logging and calling the main loop
-def main():
+def main(args):
     # Parameter parsing
-    args = initialization()
+#    args = initialization()
 
     # Filtering
     perform_training(args)
 
 if __name__ == '__main__':
-    main()
+    args = initialization()
+    main(args)

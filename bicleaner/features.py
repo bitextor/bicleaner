@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import math
 import pycld2
@@ -6,7 +8,12 @@ import regex
 import random
 import string
 
-from util import no_escaping, regex_alpha
+#Allows to load modules while inside or outside the package
+try:
+    from .util import no_escaping, regex_alpha
+except (SystemError, ImportError):
+    from util import no_escaping, regex_alpha
+    
 from collections import Counter
 
 re_repetition          = re.compile(r'((\w)\2{2,})')

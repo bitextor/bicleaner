@@ -1,7 +1,13 @@
+#!/usr/bin/env python
 import logging
 import gzip
 import regex
-from util import regex_alpha
+
+#Allows to load modules while inside or outside the package
+try:
+    from .util import regex_alpha
+except (SystemError, ImportError):
+    from util import regex_alpha
 
 
 # Probabilistic dictionary class

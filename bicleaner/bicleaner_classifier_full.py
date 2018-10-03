@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import argparse
@@ -19,17 +21,25 @@ from timeit import default_timer
 
 from mosestokenizer import MosesTokenizer
 
-from features import feature_extract, Features
-from prob_dict import ProbabilisticDictionary
-from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-
-from bicleaner_hardrules import *
+#Allows to load modules while inside or outside the package
+try:
+    from .features import feature_extract, Features
+    from .prob_dict import ProbabilisticDictionary
+    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from .bicleaner_hardrules import *
+except (ImportError, SystemError):
+    from features import feature_extract, Features
+    from prob_dict import ProbabilisticDictionary
+    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from bicleaner_hardrules import *
 
 #import cProfile  # search for "profile" throughout the file
 
 __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
+__version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
 __version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
+__version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -39,32 +49,30 @@ def initialization():
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     # Mandatory parameters
     ## Input file. Try to open it to check if it exists
-
-    parser.add_argument('input', type=argparse.FileType('rt'), default=None, help="Tab-separated files to be classified")
-
-        
+    parser.add_argument('input', type=argparse.FileType('rt'), default=None, help="Tab-separated files to be classified")      
     parser.add_argument('output', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help="Output of the classification")
+    parser.add_argument('metadata', type=argparse.FileType('r'), default=None, help="Training metadata (YAML file)")    
 
     ## Parameters required
-    groupM = parser.add_argument_group('Mandatory')
-    groupM.add_argument('-m', '--metadata', type=argparse.FileType('r'), required=True, help="Training metadata (YAML file). Take into account that explicit command line arguments will overwrite the values from metadata file")    
+    #groupM = parser.add_argument_group('Mandatory')
+
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-s", "--source_lang", type=str, help="Source language (SL) of the input")
-    groupO.add_argument("-t", "--target_lang", type=str, help="Target language (TL) of the input")
+    #groupO.add_argument("-s", "--source_lang", type=str, help="Source language (SL) of the input")
+    #groupO.add_argument("-t", "--target_lang", type=str, help="Target language (TL) of the input")
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
-    groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
-    groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
-    groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=20, help="Number of max target words to be taken into account, sorted by length")    
-    groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
-    groupO.add_argument('-g', '--good_examples',  type=check_positive_or_zero, default=50000, help="Number of good examples")
-    groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
-    groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=2000, help="Number of good test examples")
-    groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=2000, help="Number of wrong test examples")
+    #groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
+    #groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
+    #groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=20, help="Number of max target words to be taken into account, sorted by length")    
+    #groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
+    #groupO.add_argument('-g', '--good_examples',  type=check_positive_or_zero, default=50000, help="Number of good examples")
+    #groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
+    #groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=2000, help="Number of good test examples")
+    #groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=2000, help="Number of wrong test examples")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     
@@ -77,10 +85,49 @@ def initialization():
 
     # Validating & parsing
     # Checking if metadata is specified
-    preliminary_args = parser.parse_args()
-    if preliminary_args.metadata != None:
-        # If so, we load values from metadata
-        metadata_yaml = yaml.load(preliminary_args.metadata)
+    args = parser.parse_args()
+    logging_setup(args)
+
+
+    
+    try: 
+        yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
+
+        metadata_yaml = yaml.load(args.metadata)      
+
+        args.source_lang=metadata_yaml["source_lang"]
+        args.target_lang=metadata_yaml["target_lang"]
+        
+
+        try:
+            args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
+        except:            
+            args.clf=joblib.load(metadata_yaml["classifier"])
+        
+#        args.clf.n_jobs = None    
+        args.classifier_type=metadata_yaml["classifier_type"]
+
+
+        try:
+            args.dict_sl_tl = ProbabilisticDictionary(yamlpath + "/" + metadata_yaml["source_dictionary"])
+        except:
+            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
+        try:            
+            args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["target_dictionary"])        
+        except:
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
+        
+                
+        args.normalize_by_length = metadata_yaml["normalize_by_length"]
+        args.treat_oovs = metadata_yaml["treat_oovs"]
+        args.qmax_limit = metadata_yaml["qmax_limit"]
+        args.disable_features_quest = metadata_yaml["disable_features_quest"]
+        args.good_examples = metadata_yaml["good_examples"]
+        args.wrong_examples = metadata_yaml["wrong_examples"]
+        args.good_test_examples = metadata_yaml["good_test_examples"]
+        args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
+        args.length_ratio = metadata_yaml["length_ratio"]
+        
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
@@ -89,31 +136,10 @@ def initialization():
         logging.debug(metadata_yaml)
         parser.set_defaults(**metadata_yaml)   
    
-   
-    # Then we build again the parameters to overwrite the metadata values if their options were explicitly specified in command line arguments
-    args = parser.parse_args()
-    logging_setup(args)
-    
-    # Extra-checks for args here
-
-    try:
-        # Load dictionaries
-        args.dict_sl_tl = ProbabilisticDictionary(args.source_dictionary)
-        args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
-        # Load classifier
-        args.clf = joblib.load(args.classifier)
-
-    except:     
-        curpath = os.path.abspath(os.path.dirname(sys.argv[0]))
-        
-        #If load from yaml fails, or yaml not present:
-        if args.source_lang != None and args.target_lang != None:
-            args.dict_sl_tl = ProbabilisticDictionary(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/dict-"+args.source_lang+".gz")
-            args.dict_tl_sl = ProbabilisticDictionary(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/dict-"+args.target_lang+".gz")
-            args.clf=joblib.load(curpath+"/lang/"+args.source_lang+"-"+args.target_lang+"/"+args.source_lang+"-"+args.target_lang+".classifier")
-        else:
-            print("Error: If not using a metadata file (-m), source language (-s) and target language (-t) should be explicitly provided")
-            sys.exit(1)
+    except:
+        print("Error loading metadata")
+        traceback.print_exc()
+        sys.exit(1)
     
     # Ensure that directory exists; if not, create it
     if not os.path.exists(args.tmp_dir):
