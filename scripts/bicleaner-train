@@ -4,7 +4,6 @@ import sys
 import bicleaner.bicleaner_train as train
 
 def main(argv):
-    print(argv)
     args = train.initialization()
     train.main(args)
 

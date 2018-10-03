@@ -94,16 +94,30 @@ def initialization():
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
         metadata_yaml = yaml.load(args.metadata)      
-        
-        args.clf=joblib.load(yamlpath+"/"+metadata_yaml["classifier"])
-        args.classifier_type=metadata_yaml["classifier_type"]
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-
-        args.dict_sl_tl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["source_dictionary"])
-        args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["target_dictionary"])        
         
+
+        try:
+            args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
+        except:            
+            args.clf=joblib.load(metadata_yaml["classifier"])
+        
+#        args.clf.n_jobs = None    
+        args.classifier_type=metadata_yaml["classifier_type"]
+
+
+        try:
+            args.dict_sl_tl = ProbabilisticDictionary(yamlpath + "/" + metadata_yaml["source_dictionary"])
+        except:
+            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
+        try:            
+            args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["target_dictionary"])        
+        except:
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
+        
+                
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
@@ -124,6 +138,7 @@ def initialization():
    
     except:
         print("Error loading metadata")
+        traceback.print_exc()
         sys.exit(1)
     
     # Ensure that directory exists; if not, create it
