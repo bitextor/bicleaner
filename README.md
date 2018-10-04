@@ -15,7 +15,7 @@ If you find Bicleaner useful, please consider citing the following paper:
 >in *Proceedings of the Third Conference on Machine Translation, Volume 2: Shared Task Papers*.\
 >Brussels, Belgium: Association for Computational Linguistics, October 2018
 
-```
+```latex
 @InProceedings{prompsit:2018:WMT,
   author    = { V\'{i}ctor M. S\'{a}nchez-Cartagena and Marta Ba{\~n}\'{o}n and Sergio Ortiz-Rojas and Gema Ram\'{i}rez-S\'{a}nchez},
   title     = {Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task},
@@ -56,7 +56,7 @@ adding an extra column containing the Bicleaner classifier score.
 
 This tool can be run with
 
-```
+```bash
 bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
                           [-p PROCESSES] [-d DISCARDED_TUS]
                           [--threshold THRESHOLD] [-q] [--debug]
@@ -86,7 +86,7 @@ bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
 
 ### Example
 
-```
+```bash
 bicleaner-classify  \
         corpus.en-es.raw  \
         corpus.en-es.classifed  \
@@ -98,6 +98,16 @@ classify it with the classifier indicated in the "training.en-es.yaml" metadata 
 writing the result of the classification in the "corpus.en-es.classified" file.
 Each line of the new file will contain the same content as the input file, adding a column with the score given by the Bicleaner classifier.
 
+### Automatic test
+
+We included a small test corpus and a script to check that your Bicleaner classifier is working as expected. 
+In order to use it, just run:
+
+```bash
+python3 -m pytest -s tests/bicleaner_test.py
+```
+
+This will download a language pack, classify the test corpus, and check the resulting classified corpus. If everything went as expected, the output will be "q passed in XX.XX seconds". Every downloaded data will be removed at at the end of the testing session.
 
 ## Training classifiers
 
@@ -108,7 +118,7 @@ whether a pair of sentences are mutual translations or not.
 It can be used as follows:
 
 
-```
+```bash
  bicleaner-train [-h] -m METADATA -c CLASSIFIER -s SOURCE_LANG -t
                           TARGET_LANG -d SOURCE_DICTIONARY -D
                           TARGET_DICTIONARY [--normalize_by_length]
@@ -159,7 +169,7 @@ It can be used as follows:
 
 ### Example
 
-```shell
+```bash
 bicleaner-train \
           corpus.en-cs.train\
           --treat_oovs \
@@ -182,7 +192,7 @@ The classifier data will be stored in en-cs.classifier, with the metadata in tra
 
 The generated .yaml file provides the following information, that is useful to get a sense on how good or bad was the training  (and is also a needed input file for classifying):
 
-```
+```yml
 classifier: en-cs.classifier
 classifier_type: random_forest
 source_lang: en
