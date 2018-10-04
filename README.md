@@ -107,7 +107,7 @@ In order to use it, just run:
 python3 -m pytest -s tests/bicleaner_test.py
 ```
 
-This will download a language pack, classify the test corpus, and check the resulting classified corpus. If everything went as expected, the output will be "q passed in XX.XX seconds". Every downloaded data will be removed at at the end of the testing session.
+This will download the required language pack, classify the provided test corpus, and check the resulting classification scores. If everything went as expected, the output will be "q passed in XX.XX seconds".  All downloaded data will be removed at the end of the testing session.
 
 ## Training classifiers
 
