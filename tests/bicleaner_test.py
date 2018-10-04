@@ -23,7 +23,7 @@ def teardown_function():
 
 def bicleaner_test():
 	print("Running test body...")
-	bicleaner_cmd = "python3 bicleaner/bicleaner_classifier_full.py \
+	bicleaner_cmd = "bicleaner-classify  \
       tests/test-corpus.en-de  \
       tests/test-corpus.en-de.classified  \
       test_langpacks/en-de/training.en-de.yaml -q"
