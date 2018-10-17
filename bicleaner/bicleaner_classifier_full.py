@@ -63,7 +63,7 @@ def initialization():
     #groupO.add_argument("-t", "--target_lang", type=str, help="Target language (TL) of the input")
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
-    groupO.add_argument('-b', '--block_size', type=int, default=10000, help="Sentence pairs per block")
+    groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
     #groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     #groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
@@ -274,20 +274,20 @@ def reduce_process(output_queue, args):
         nblock, filein_name = heapq.heappop(h)
         last_block += 1
 
-        with open(filein_name, 'r') as filein:
-            for i in filein:
-                parts = i.split("\t")
-                if len(parts) == 3:
-                    pred = float(parts[2].strip())
-                    args.output.write(i.strip("\n"))
-                    if pred < args.threshold:
-                        args.output.write("\tdiscard\n")
-                    else:
-                        args.output.write("\tkeep\n")
-
-                    if args.discarded_tus:
-                        args.discarded_tus.write(i)
-            filein.close()
+   #       with open(filein_name, 'r') as filein:
+    #        for i in filein:
+    #            parts = i.split("\t")
+    #            if len(parts) == 3:
+    #                pred = float(parts[2].strip())
+    #                args.output.write(i.strip("\n"))
+    #                if pred < args.threshold:
+    #                    args.output.write("\tdiscard\n")
+    #                else:
+    #                    args.output.write("\tkeep\n")
+#
+#                    if args.discarded_tus:
+#                        args.discarded_tus.write(i)
+#            filein.close()
 
         os.unlink(filein_name)
 

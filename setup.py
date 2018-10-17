@@ -9,7 +9,7 @@ with open("requirements.txt") as rf:
     
 setuptools.setup(
     name="bicleaner",
-    version="0.10.3",
+    version="0.10.4",
     install_requires=requirements,
     license="GNU General Public License v3.0",
     author="Prompsit Language Engineering",
