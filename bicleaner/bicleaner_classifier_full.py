@@ -40,6 +40,8 @@ __version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
 __version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
 __version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
+__version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
+
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -217,12 +219,7 @@ def mapping_process(args, jobs_queue):
             mytemp = NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir)
             logging.debug("Mapping: creating temporary filename {0}".format(mytemp.name))
         mytemp.write(line)
-#        parts = line.strip().split("\t")
-#        
-#        if len(parts) == 2:
-#            mytemp.write(line)
-#        else:
-#            logging.debug("Line not included in process: {}".format(line))
+
         nline += 1
 
     if nline > 0:
@@ -243,17 +240,8 @@ def reduce_process(output_queue, args):
 
             with open(filein_name, 'r') as filein:
                 for i in filein:
-#                    parts = i.split("\t")
-
                     args.output.write(i)
-#                    if len(parts) == 3:
-#                        pred = float(parts[2].strip())
-#                        args.output.write(i.strip("\n"))
-#                        if pred < args.threshold:
-#                            args.output.write("\tdiscard\n")
-#                        else:
-#                            args.output.write("\tkeep\n")
-#
+
                     if args.discarded_tus:
                         args.discarded_tus.write(i)
                 filein.close()
@@ -273,21 +261,6 @@ def reduce_process(output_queue, args):
     while len(h) > 0 and h[0][0] == last_block:
         nblock, filein_name = heapq.heappop(h)
         last_block += 1
-
-   #       with open(filein_name, 'r') as filein:
-    #        for i in filein:
-    #            parts = i.split("\t")
-    #            if len(parts) == 3:
-    #                pred = float(parts[2].strip())
-    #                args.output.write(i.strip("\n"))
-    #                if pred < args.threshold:
-    #                    args.output.write("\tdiscard\n")
-    #                else:
-    #                    args.output.write("\tkeep\n")
-#
-#                    if args.discarded_tus:
-#                        args.discarded_tus.write(i)
-#            filein.close()
 
         os.unlink(filein_name)
 
