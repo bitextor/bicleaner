@@ -40,6 +40,7 @@ setuptools.setup(
          },
     scripts=[
          "scripts/bicleaner-classify",
-         "scripts/bicleaner-train"
+         "scripts/bicleaner-train",
+         "scripts/bicleaner-classify-lite"         
          ]     
 )

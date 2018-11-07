@@ -29,11 +29,7 @@ except (ImportError, SystemError):
 #import cProfile  # search for "profile" throughout the file
 
 __author__ = "Sergio Ortiz Rojas"
-__version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
-__version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
-__version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
-__version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
-__version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
+__version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
 
 
 nline = 0
