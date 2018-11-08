@@ -147,7 +147,7 @@ def classify(args):
                 buf_sent.append((0, i))
             
             if (nline % batch_size) == 0:
-                predictions = args.clf.predict_proba(np.array(buf_feat))
+                predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
                 p = iter(predictions)
                 
                 for k, l in buf_sent:
@@ -164,7 +164,7 @@ def classify(args):
                 buf_sent = []
 
         if len(buf_sent) > 0:
-            predictions = args.clf.predict_proba(np.array(buf_feat))
+            predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
             p = iter(predictions)
                 
             for k, l in buf_sent:
