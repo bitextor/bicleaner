@@ -131,23 +131,51 @@ def initialization():
 
 def classify(args):
     global nline
+    batch_size = 10000
+    buf_sent = []
+    buf_feat = []
+    
     with MosesTokenizer(args.source_lang) as source_tokenizer, MosesTokenizer(args.target_lang) as target_tokenizer:
         for i in args.input:
             nline += 1
             parts = i.split("\t")
             if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                buf_sent.append((1, i))
                 features = feature_extract(parts[2], parts[3], source_tokenizer, target_tokenizer, args)
-                # print("SENTENCE PAIR: %%{}%%".format(i))
-                # print(Features(features)) # debug
-                predictions = args.clf.predict_proba(np.array([[float(v) for v in features]]))
-                for p in predictions:
-                    args.output.write(i.strip())
-                    args.output.write("\t")
-                    args.output.write(str(p[1]))
-                    args.output.write("\n")
+                buf_feat.append([float(v) for v in features])
             else:
-                args.output.write(i.strip("\n"))
-                args.output.write("\t0\n")
+                buf_sent.append((0, i))
+            
+            if (nline % batch_size) == 0:
+                predictions = args.clf.predict_proba(np.array(buf_feat))
+                p = iter(predictions)
+                
+                for k, l in buf_sent:
+                    if k == 1:
+                        args.output.write(l.strip())
+                        args.output.write("\t")
+                        args.output.write(str(next(p)[1]))
+                        args.output.write("\n")
+                    else:
+                        args.output.write(l.strip("\n"))
+                        args.output.write("\t0\n")
+
+                buf_feat = []
+                buf_sent = []
+
+        if len(buf_sent) > 0:
+            predictions = args.clf.predict_proba(np.array(buf_feat))
+            p = iter(predictions)
+                
+            for k, l in buf_sent:
+                if k == 1:
+                    args.output.write(l.strip())
+                    args.output.write("\t")
+                    args.output.write(str(next(p)[1]))
+                    args.output.write("\n")
+                else:
+                    args.output.write(l.strip("\n"))
+                    args.output.write("\t0\n")
 
 # Filtering input texts
 def perform_classification(args):
