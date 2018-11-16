@@ -147,6 +147,7 @@ def classify(args):
                 buf_sent.append((0, i))
             
             if (nline % batch_size) == 0:
+                args.clf.set_params(n_jobs = 1)
                 predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
                 p = iter(predictions)
                 
