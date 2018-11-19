@@ -30,7 +30,7 @@ except (ImportError, SystemError):
 
 __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
-
+__version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
 
 nline = 0
 
