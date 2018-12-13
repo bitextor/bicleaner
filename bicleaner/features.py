@@ -315,8 +315,8 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 #        parts.append("")
         
     # Sentence tokenization, with and without capital letters
-    left_sentence_orig_tok  = [no_escaping(t) for t in tokenize_l(srcsen)][0:250]
-    right_sentence_orig_tok = [no_escaping(t) for t in tokenize_r(trgsen)][0:250]
+    left_sentence_orig_tok  = [no_escaping(t) for t in tokenize_l.process(srcsen)][0:250]
+    right_sentence_orig_tok = [no_escaping(t) for t in tokenize_r.process(trgsen)][0:250]
     left_sentence_tok =  [i.lower() for i in left_sentence_orig_tok]
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]
 
