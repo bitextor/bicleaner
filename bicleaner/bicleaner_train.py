@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from heapq import heappush, heappop
+from mosestokenizer import MosesTokenizer
 from multiprocessing import Queue, Process, Value, cpu_count
 from sklearn import neighbors
 from sklearn import svm
@@ -24,12 +25,10 @@ try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .external_processor import ExternalTextProcessor
 except (SystemError, ImportError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
-    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from external_processor import ExternalTextProcessor
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -84,8 +83,8 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     # Writing it by hand (not using YAML libraries) to preserve the order
     out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
-    out.write("source_tokeniser_path: {}\n".format(myargs.source_tokeniser_path))
-    out.write("target_tokeniser_path: {}\n".format(myargs.target_tokeniser_path))
+    out.write("source_lang: {}\n".format(myargs.source_lang))
+    out.write("target_lang: {}\n".format(myargs.target_lang))
     out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
     out.write("target_dictionary: {}\n".format(os.path.abspath(myargs.target_dictionary.name)))
     out.write("normalize_by_length: {}\n".format(myargs.normalize_by_length))
@@ -112,10 +111,8 @@ def initialization():
     groupM = parser.add_argument_group("Mandatory")
     groupM.add_argument('-m', '--metadata', type=argparse.FileType('w'), required=True, help="Training metadata (YAML file)")
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
-    groupM.add_argument('-s', '--source_lang',  required=True, help="Source language")
-    groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
-    groupM.add_argument('-S', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
-    groupM.add_argument('-T', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
+    groupM.add_argument('-s', '--source_lang',  required=True, help="Source language code")
+    groupM.add_argument('-t', '--target_lang', required=True, help="Target language code")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
 
@@ -359,34 +356,34 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
-    while True:
-        job = jobs_queue.get()
-        if job:
-            logging.debug("Job {}".format(job.__repr__()))
-            nblock, filein_name, label = job
+    with MosesTokenizer(args.source_lang) as tokl, \
+         MosesTokenizer(args.target_lang) as tokr:
+        while True:
+            job = jobs_queue.get()
+            if job:
+                logging.debug("Job {}".format(job.__repr__()))
+                nblock, filein_name, label = job
 
-            with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
-                logging.debug("Filtering: creating temporary file {}".format(fileout.name))
-                for i in filein:
-                    srcsen,trgsen = i.split("\t")[:2]
-#                    print(str(srcsen) + " --- " + str(trgsen))
-                    features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
-                    
-                    for j in features:
-                        fileout.write("{}".format(j))
-                        fileout.write("\t")
-                    fileout.write("{}".format(label))
-                    fileout.write("\n")
-                ojob = (nblock, fileout.name)
-                fileout.close()
-                filein.close()
-                output_queue.put(ojob)
-            os.unlink(filein_name)
-        else:
-            logging.debug("Exiting worker")
-            break
+                with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
+                    logging.debug("Filtering: creating temporary file {}".format(fileout.name))
+                    for i in filein:
+                        srcsen,trgsen = i.split("\t")[:2]
+#                        print(str(srcsen) + " --- " + str(trgsen))
+                        features = feature_extract(srcsen, trgsen, tokl, tokr, args)
+                        
+                        for j in features:
+                            fileout.write("{}".format(j))
+                            fileout.write("\t")
+                        fileout.write("{}".format(label))
+                        fileout.write("\n")
+                    ojob = (nblock, fileout.name)
+                    fileout.close()
+                    filein.close()
+                    output_queue.put(ojob)
+                os.unlink(filein_name)
+            else:
+                logging.debug("Exiting worker")
+                break
 
 # Divides the input among processors to speed up the throughput
 def map_process(input, block_size, jobs_queue, label, first_block=0):

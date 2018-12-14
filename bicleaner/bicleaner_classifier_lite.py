@@ -12,7 +12,7 @@ import numpy as np
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 
-
+from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package
 try:
@@ -20,13 +20,11 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
-    from .external_processor import ExternalTextProcessor
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
-    from external_processor import ExternalTextProcessor
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -74,8 +72,8 @@ def initialization():
 
         metadata_yaml = yaml.load(args.metadata)      
 
-        args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]
+        args.source_lang=metadata_yaml["source_lang"]
+        args.target_lang=metadata_yaml["target_lang"]
         
 
         try:
@@ -136,23 +134,40 @@ def classify(args):
     batch_size = 10000
     buf_sent = []
     buf_feat = []
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
-    for i in args.input:
-        nline += 1
-        parts = i.split("\t")
-        if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-            buf_sent.append((1, i))
-            features = feature_extract(parts[2], parts[3], source_tokeniser, target_tokeniser, args)
-            buf_feat.append([float(v) for v in features])
-        else:
-            buf_sent.append((0, i))
-        
-        if (nline % batch_size) == 0:
-            args.clf.set_params(n_jobs = 1)
+    
+    with MosesTokenizer(args.source_lang) as source_tokenizer, MosesTokenizer(args.target_lang) as target_tokenizer:
+        for i in args.input:
+            nline += 1
+            parts = i.split("\t")
+            if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                buf_sent.append((1, i))
+                features = feature_extract(parts[2], parts[3], source_tokenizer, target_tokenizer, args)
+                buf_feat.append([float(v) for v in features])
+            else:
+                buf_sent.append((0, i))
+            
+            if (nline % batch_size) == 0:
+                args.clf.set_params(n_jobs = 1)
+                predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
+                p = iter(predictions)
+                
+                for k, l in buf_sent:
+                    if k == 1:
+                        args.output.write(l.strip())
+                        args.output.write("\t")
+                        args.output.write(str(next(p)[1]))
+                        args.output.write("\n")
+                    else:
+                        args.output.write(l.strip("\n"))
+                        args.output.write("\t0\n")
+
+                buf_feat = []
+                buf_sent = []
+
+        if len(buf_sent) > 0:
             predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
             p = iter(predictions)
-             
+                
             for k, l in buf_sent:
                 if k == 1:
                     args.output.write(l.strip())
@@ -162,23 +177,6 @@ def classify(args):
                 else:
                     args.output.write(l.strip("\n"))
                     args.output.write("\t0\n")
-
-            buf_feat = []
-            buf_sent = []
-
-    if len(buf_sent) > 0:
-        predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
-        p = iter(predictions)
-            
-        for k, l in buf_sent:
-            if k == 1:
-                args.output.write(l.strip())
-                args.output.write("\t")
-                args.output.write(str(next(p)[1]))
-                args.output.write("\n")
-            else:
-                args.output.write(l.strip("\n"))
-                args.output.write("\t0\n")
 
 # Filtering input texts
 def perform_classification(args):
