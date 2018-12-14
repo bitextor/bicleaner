@@ -19,19 +19,20 @@ from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 
-from external_processor import ExternalTextProcessor
-
 #Allows to load modules while inside or outside the package
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
+    from .external_processor import ExternalTextProcessor
+
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
+    from external_processor import ExternalTextProcessor
 
 #import cProfile  # search for "profile" throughout the file
 

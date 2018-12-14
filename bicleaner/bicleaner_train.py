@@ -24,10 +24,12 @@ try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from .external_processor import ExternalTextProcessor
 except (SystemError, ImportError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
-    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from external_processor import ExternalTextProcessor
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -110,8 +112,10 @@ def initialization():
     groupM = parser.add_argument_group("Mandatory")
     groupM.add_argument('-m', '--metadata', type=argparse.FileType('w'), required=True, help="Training metadata (YAML file)")
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
-    groupM.add_argument('-s', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
-    groupM.add_argument('-t', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
+    groupM.add_argument('-s', '--source_lang',  required=True, help="Source language")
+    groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
+    groupM.add_argument('-S', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
+    groupM.add_argument('-T', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
 
@@ -355,33 +359,34 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    with ExternalTextProcessor(args.source_tokeniser_path.split(' ')) as source_tokeniser, ExternalTextProcessor(args.target_tokeniser_path.split(' ')) as target_tokeniser:
-        while True:
-            job = jobs_queue.get()
-            if job:
-                logging.debug("Job {}".format(job.__repr__()))
-                nblock, filein_name, label = job
+    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
+    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
+    while True:
+        job = jobs_queue.get()
+        if job:
+            logging.debug("Job {}".format(job.__repr__()))
+            nblock, filein_name, label = job
 
-                with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
-                    logging.debug("Filtering: creating temporary file {}".format(fileout.name))
-                    for i in filein:
-                        srcsen,trgsen = i.split("\t")[:2]
-#                        print(str(srcsen) + " --- " + str(trgsen))
-                        features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
-                        
-                        for j in features:
-                            fileout.write("{}".format(j))
-                            fileout.write("\t")
-                        fileout.write("{}".format(label))
-                        fileout.write("\n")
-                    ojob = (nblock, fileout.name)
-                    fileout.close()
-                    filein.close()
-                    output_queue.put(ojob)
-                os.unlink(filein_name)
-            else:
-                logging.debug("Exiting worker")
-                break
+            with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
+                logging.debug("Filtering: creating temporary file {}".format(fileout.name))
+                for i in filein:
+                    srcsen,trgsen = i.split("\t")[:2]
+#                    print(str(srcsen) + " --- " + str(trgsen))
+                    features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
+                    
+                    for j in features:
+                        fileout.write("{}".format(j))
+                        fileout.write("\t")
+                    fileout.write("{}".format(label))
+                    fileout.write("\n")
+                ojob = (nblock, fileout.name)
+                fileout.close()
+                filein.close()
+                output_queue.put(ojob)
+            os.unlink(filein_name)
+        else:
+            logging.debug("Exiting worker")
+            break
 
 # Divides the input among processors to speed up the throughput
 def map_process(input, block_size, jobs_queue, label, first_block=0):
