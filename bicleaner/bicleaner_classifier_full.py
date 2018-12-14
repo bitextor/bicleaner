@@ -19,20 +19,19 @@ from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 
+from mosestokenizer import MosesTokenizer
+
 #Allows to load modules while inside or outside the package
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
-    from .external_processor import ExternalTextProcessor
-
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
-    from external_processor import ExternalTextProcessor
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -98,8 +97,6 @@ def initialization():
 
         metadata_yaml = yaml.load(args.metadata)      
 
-        args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
         
@@ -158,54 +155,53 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
-    while True:
-        job = jobs_queue.get()
-        if job:
-            logging.debug("Job {0}".format(job.__repr__()))
-            nblock, filein_name = job
-            ojob = None
-            with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
-                logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
-                feats = []
+    with MosesTokenizer(args.source_lang) as source_tokenizer, MosesTokenizer(args.target_lang) as target_tokenizer:
+        while True:
+            job = jobs_queue.get()
+            if job:
+                logging.debug("Job {0}".format(job.__repr__()))
+                nblock, filein_name = job
+                ojob = None
+                with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
+                    logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
+                    feats = []
 
-                for i in filein:
-                    parts = i.split("\t")
-                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-                        features = feature_extract(parts[2], parts[3], source_tokeniser, target_tokeniser, args)
-                        # print("SENTENCE PAIR: %%{}%%".format(i))
-                        # print(Features(features)) # debug
-                        feats.append([float(v) for v in features])
+                    for i in filein:
+                        parts = i.split("\t")
+                        if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                            features = feature_extract(parts[2], parts[3], source_tokenizer, target_tokenizer, args)
+                            # print("SENTENCE PAIR: %%{}%%".format(i))
+                            # print(Features(features)) # debug
+                            feats.append([float(v) for v in features])
+                        
+
+                    predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
+                    filein.seek(0)
+
+                    piter = iter(predictions)
+                    for i in filein:
+                        parts = i.split("\t")
+                        if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                            p = next(piter)
+                            fileout.write(i.strip())
+                            fileout.write("\t")
+                            fileout.write(str(p[1]))
+                            fileout.write("\n")
+                        else:
+                            fileout.write(i.strip("\n"))
+                            fileout.write("\t0\n")
+
+                    ojob = (nblock, fileout.name)
+                    filein.close()
+                    fileout.close()
+                 
+                if ojob:                    
+                    output_queue.put(ojob)
                     
-
-                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
-                filein.seek(0)
-
-                piter = iter(predictions)
-                for i in filein:
-                    parts = i.split("\t")
-                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-                        p = next(piter)
-                        fileout.write(i.strip())
-                        fileout.write("\t")
-                        fileout.write(str(p[1]))
-                        fileout.write("\n")
-                    else:
-                        fileout.write(i.strip("\n"))
-                        fileout.write("\t0\n")
-
-                ojob = (nblock, fileout.name)
-                filein.close()
-                fileout.close()
-             
-            if ojob:                    
-                output_queue.put(ojob)
-                
-            os.unlink(filein_name)
-        else:
-            logging.debug("Exiting worker")
-            break
+                os.unlink(filein_name)
+            else:
+                logging.debug("Exiting worker")
+                break
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")
