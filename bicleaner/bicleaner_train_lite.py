@@ -340,11 +340,7 @@ def perform_training(args):
                 for j in features:
                     fileout.write("{}".format(j))
                     fileout.write("\t")
-<<<<<<< HEAD
                 fileout.write("{}".format(1))
-=======
-                fileout.write("{}".format(label))
->>>>>>> e75b2f233990749efc64f5afb67c2f6f27ed4105
                 fileout.write("\n")
             fileout.flush()    
             
