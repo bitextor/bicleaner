@@ -18,6 +18,7 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
+from toolwrapper import ToolWrapper
 
 #Allows to load modules while inside or outside the package
 try:
@@ -25,14 +26,12 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
-    from .external_processor import ExternalTextProcessor
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
-    from external_processor import ExternalTextProcessor
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -158,8 +157,8 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
+    source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     while True:
         job = jobs_queue.get()
         if job:

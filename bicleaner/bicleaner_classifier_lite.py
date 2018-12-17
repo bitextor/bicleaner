@@ -11,7 +11,7 @@ import numpy as np
 
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-
+from toolwrapper import ToolWrapper
 
 
 #Allows to load modules while inside or outside the package
@@ -20,13 +20,11 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
-    from .external_processor import ExternalTextProcessor
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
-    from external_processor import ExternalTextProcessor
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -136,8 +134,8 @@ def classify(args):
     batch_size = 10000
     buf_sent = []
     buf_feat = []
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
+    source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     for i in args.input:
         nline += 1
         parts = i.split("\t")

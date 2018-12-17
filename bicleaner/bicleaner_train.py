@@ -18,18 +18,17 @@ import os
 import random
 import sklearn
 import sys
+from toolwrapper import ToolWrapper
 
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .external_processor import ExternalTextProcessor
 except (SystemError, ImportError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from external_processor import ExternalTextProcessor
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -86,6 +85,8 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
     out.write("source_tokeniser_path: {}\n".format(myargs.source_tokeniser_path))
     out.write("target_tokeniser_path: {}\n".format(myargs.target_tokeniser_path))
+    out.write("source_lang: {}\n".format(myargs.source_lang))
+    out.write("target_lang: {}\n".format(myargs.target_lang))
     out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
     out.write("target_dictionary: {}\n".format(os.path.abspath(myargs.target_dictionary.name)))
     out.write("normalize_by_length: {}\n".format(myargs.normalize_by_length))
@@ -359,8 +360,8 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ExternalTextProcessor(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ExternalTextProcessor(args.target_tokeniser_path.split(' '))
+    source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     while True:
         job = jobs_queue.get()
         if job:
@@ -371,6 +372,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                 logging.debug("Filtering: creating temporary file {}".format(fileout.name))
                 for i in filein:
                     srcsen,trgsen = i.split("\t")[:2]
+                    trgsen = trgsen.strip()
 #                    print(str(srcsen) + " --- " + str(trgsen))
                     features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
                     
@@ -386,6 +388,8 @@ def worker_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
+            source_tokeniser.close()
+            target_tokeniser.close()
             break
 
 # Divides the input among processors to speed up the throughput
