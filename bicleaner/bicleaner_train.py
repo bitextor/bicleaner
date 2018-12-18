@@ -239,7 +239,7 @@ def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
         count = 0
 
         for line in input:
-            parts = line.strip().split("\t")
+            parts = line.rstrip("\n").split("\t")
             if len(parts) >= 2:
                 offsets.append(count)
                 count += len(bytearray(line, "UTF-8"))
