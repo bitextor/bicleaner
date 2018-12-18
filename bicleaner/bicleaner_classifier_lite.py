@@ -161,6 +161,24 @@ def classify(args):
                     args.output.write(l.strip("\n"))
                     args.output.write("\t0\n")
 
+            buf_feat = []
+            buf_sent = []
+
+    if len(buf_sent) > 0:
+        predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
+        p = iter(predictions)
+            
+        for k, l in buf_sent:
+            if k == 1:
+                args.output.write(l.strip())
+                args.output.write("\t")
+                args.output.write(str(next(p)[1]))
+                args.output.write("\n")
+            else:
+                args.output.write(l.strip("\n"))
+                args.output.write("\t0\n")
+                
+                
 # Filtering input texts
 def perform_classification(args):
     global nline

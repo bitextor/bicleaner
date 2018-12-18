@@ -41,7 +41,7 @@ __version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Mar
 __version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
 __version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
 __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
-
+__version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -174,32 +174,6 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         # print("SENTENCE PAIR: %%{}%%".format(i))
                         # print(Features(features)) # debug
                         feats.append([float(v) for v in features])
-                    
-
-                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
-                filein.seek(0)
-
-                piter = iter(predictions)
-                for i in filein:
-                    parts = i.split("\t")
-                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-                        p = next(piter)
-                        fileout.write(i.strip())
-                        fileout.write("\t")
-                        fileout.write(str(p[1]))
-                        fileout.write("\n")
-                    else:
-                        fileout.write(i.strip("\n"))
-                        fileout.write("\t0\n")
-
-                ojob = (nblock, fileout.name)
-                filein.close()
-                fileout.close()
-             
-            if ojob:                    
-                output_queue.put(ojob)
-                
-            os.unlink(filein_name)
                     
 
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []

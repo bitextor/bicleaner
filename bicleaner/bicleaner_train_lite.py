@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from heapq import heappush, heappop
-from mosestokenizer import MosesTokenizer
 from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier
@@ -9,6 +8,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
+from toolwrapper import ToolWrapper
+
 
 import argparse
 import logging
@@ -34,6 +35,7 @@ __author__ = "Sergio Ortiz-Rojas"
 __version__ = "Version 0.1 # December 2017 # Initial version # Sergio Ortiz-Rojas"
 __version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong examples from a file # Jorge Ferrández-Tordera"
 __version__ = "Version 0.3 # 14/12/2018 # Lite version # Marta Bañón"
+__version__ = "Version 0.4 # 18/12/2018 # Changed to generalized tokenizer # Marta Bañón"
 
 # Calculate precision, recall and accuracy over the 0.0,1.0,0.1 histogram of
 # good and  wrong alignments
@@ -83,6 +85,8 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     # Writing it by hand (not using YAML libraries) to preserve the order
     out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
+    out.write("source_tokeniser_path: {}\n".format(myargs.source_tokeniser_path))
+    out.write("target_tokeniser_path: {}\n".format(myargs.target_tokeniser_path))    
     out.write("source_lang: {}\n".format(myargs.source_lang))
     out.write("target_lang: {}\n".format(myargs.target_lang))
     out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
@@ -113,6 +117,8 @@ def initialization():
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
     groupM.add_argument('-s', '--source_lang',  required=True, help="Source language code")
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language code")
+    groupM.add_argument('-S', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
+    groupM.add_argument('-T', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
 
@@ -233,7 +239,7 @@ def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
         count = 0
 
         for line in input:
-            parts = line.strip().split("\t")
+            parts = line.rstrip("\n").split("\t")
             if len(parts) >= 2:
                 offsets.append(count)
                 count += len(bytearray(line, "UTF-8"))
@@ -327,8 +333,8 @@ def perform_training(args):
     
     features_file = NamedTemporaryFile( delete=False)
     
-    with MosesTokenizer(args.source_lang) as tokl, \
-         MosesTokenizer(args.target_lang) as tokr:
+    with ToolWrapper(args.source_tokeniser_path.split(' ')) as tokl, \
+        ToolWrapper(args.target_tokeniser_path.split(' ')) as tokr:
         with open(good_sentences.name, 'r') as gsf, \
         open(wrong_sentences.name, 'r') as wsf, \
         open(features_file.name, 'w+') as fileout:
