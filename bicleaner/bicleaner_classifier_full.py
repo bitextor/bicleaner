@@ -97,8 +97,6 @@ def initialization():
 
         metadata_yaml = yaml.load(args.metadata)      
 
-        args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
         
@@ -176,6 +174,32 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         # print("SENTENCE PAIR: %%{}%%".format(i))
                         # print(Features(features)) # debug
                         feats.append([float(v) for v in features])
+                    
+
+                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
+                filein.seek(0)
+
+                piter = iter(predictions)
+                for i in filein:
+                    parts = i.split("\t")
+                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                        p = next(piter)
+                        fileout.write(i.strip())
+                        fileout.write("\t")
+                        fileout.write(str(p[1]))
+                        fileout.write("\n")
+                    else:
+                        fileout.write(i.strip("\n"))
+                        fileout.write("\t0\n")
+
+                ojob = (nblock, fileout.name)
+                filein.close()
+                fileout.close()
+             
+            if ojob:                    
+                output_queue.put(ojob)
+                
+            os.unlink(filein_name)
                     
 
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
