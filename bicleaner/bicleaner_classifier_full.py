@@ -99,7 +99,8 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        
+        args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
+        args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
 
         try:
             args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
