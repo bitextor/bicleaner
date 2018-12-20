@@ -19,6 +19,7 @@ import random
 import sklearn
 import sys
 from toolwrapper import ToolWrapper
+from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package  
 try:

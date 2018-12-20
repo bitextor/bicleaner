@@ -60,7 +60,7 @@ This tool can be run with
 bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
                           [-p PROCESSES] [-d DISCARDED_TUS]
                           [--threshold THRESHOLD] [-q] [--debug]
-                          [--logfile LOGFILE] [-v]
+                          [--logfile LOGFILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH] [-v]
                           input [output] metadata
 ```
 
@@ -78,6 +78,8 @@ bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
   * -p PROCESSES, --processes PROCESSES: Number of processes to use (default: all CPUs minus one)
   * -d DISCARDED_TUS, --discarded_tus DISCARDED_TUS: TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file. (default: None)
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
+  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
   * --debug: Debug logging mode (default: False)
@@ -130,7 +132,7 @@ It can be used as follows:
                           [--classifier_type {svm,nn,nn1,adaboost,random_forest}]
                           [--dump_features DUMP_FEATURES] [-b BLOCK_SIZE]
                           [-p PROCESSES]
-                          [--wrong_examples_file WRONG_EXAMPLES_FILE] [-q]
+                          [--wrong_examples_file WRONG_EXAMPLES_FILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH] [-q]
                           [--debug] [--logfile LOGFILE]
                           [input]
 ```                          
@@ -161,6 +163,8 @@ It can be used as follows:
   * --dump_features DUMP_FEATURES: Dump training features to file (default: None)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE: Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of process to use (default: all CPUs minus one)
+  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
   * --wrong_examples_file WRONG_EXAMPLES_FILE: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
