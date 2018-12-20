@@ -7,3 +7,4 @@ numpy==1.14.0
 scipy==1.0.0
 pytest==3.8.1
 toolwrapper==0.3.0
+mosestokenizer==1.0.0

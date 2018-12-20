@@ -9,7 +9,7 @@ from sklearn.externals import joblib
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 from toolwrapper import ToolWrapper
-
+from mosestokenizer import MosesTokenizer
 
 import argparse
 import logging
@@ -85,8 +85,6 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     # Writing it by hand (not using YAML libraries) to preserve the order
     out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
-    out.write("source_tokeniser_path: {}\n".format(myargs.source_tokeniser_path))
-    out.write("target_tokeniser_path: {}\n".format(myargs.target_tokeniser_path))    
     out.write("source_lang: {}\n".format(myargs.source_lang))
     out.write("target_lang: {}\n".format(myargs.target_lang))
     out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
@@ -117,12 +115,12 @@ def initialization():
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
     groupM.add_argument('-s', '--source_lang',  required=True, help="Source language code")
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language code")
-    groupM.add_argument('-S', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
-    groupM.add_argument('-T', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
 
     groupO = parser.add_argument_group('Options')
+    groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
+    groupO.add_argument('-T', '--target_tokeniser_path', help="Target language tokeniser absolute path")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=20, help="Number of max target words to be taken into account, sorted by length")
@@ -332,36 +330,42 @@ def perform_training(args):
     args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
     
     features_file = NamedTemporaryFile( delete=False)
-    
-    with ToolWrapper(args.source_tokeniser_path.split(' ')) as tokl, \
-        ToolWrapper(args.target_tokeniser_path.split(' ')) as tokr:
-        with open(good_sentences.name, 'r') as gsf, \
-        open(wrong_sentences.name, 'r') as wsf, \
-        open(features_file.name, 'w+') as fileout:
+    if args.source_tokeniser_path:
+        tokl = ToolWrapper(args.source_tokeniser_path.split(' '))
+    else:
+        tokl = MosesTokenizer(args.source_lang)
+    if args.target_tokeniser_path:
+        tokr = ToolWrapper(args.target_tokeniser_path.split(' '))
+    else:
+        tokr = MosesTokenizer(args.target_lang)
+    with open(good_sentences.name, 'r') as gsf, \
+    open(wrong_sentences.name, 'r') as wsf, \
+    open(features_file.name, 'w+') as fileout:
 
-            for i in gsf:
-                srcsen,trgsen = i.split("\t")[:2]
-#                print(str(i) + " ---" + str(srcsen) + " --- " + str(trgsen))
-                features = feature_extract(srcsen, trgsen, tokl, tokr, args)
-                for j in features:
-                    fileout.write("{}".format(j))
-                    fileout.write("\t")
-                fileout.write("{}".format(1))
-                fileout.write("\n")
-            fileout.flush()    
-            
-            for i in wsf:
-                srcsen,trgsen = i.split("\t")[:2]
-#                print(str(i) + " ---" + str(srcsen) + " --- " + str(trgsen))
-                features = feature_extract(srcsen, trgsen, tokl, tokr, args)
-                for j in features:
-                    fileout.write("{}".format(j))
-                    fileout.write("\t")
-                fileout.write("{}".format(0))
-                fileout.write("\n")
-            fileout.flush()        
-
-       
+        for i in gsf:
+            srcsen,trgsen = i.split("\t")[:2]
+#            print(str(i) + " ---" + str(srcsen) + " --- " + str(trgsen))
+            features = feature_extract(srcsen, trgsen, tokl, tokr, args)
+            for j in features:
+                fileout.write("{}".format(j))
+                fileout.write("\t")
+            fileout.write("{}".format(1))
+            fileout.write("\n")
+        fileout.flush()    
+        
+        for i in wsf:
+            srcsen,trgsen = i.split("\t")[:2]
+#            print(str(i) + " ---" + str(srcsen) + " --- " + str(trgsen))
+            features = feature_extract(srcsen, trgsen, tokl, tokr, args)
+            for j in features:
+                fileout.write("{}".format(j))
+                fileout.write("\t")
+            fileout.write("{}".format(0))
+            fileout.write("\n")
+        fileout.flush()        
+    tokl.close()
+    tokr.close()
+   
     features_file.seek(0)
     
     

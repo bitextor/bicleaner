@@ -83,8 +83,6 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     # Writing it by hand (not using YAML libraries) to preserve the order
     out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
-    out.write("source_tokeniser_path: {}\n".format(myargs.source_tokeniser_path))
-    out.write("target_tokeniser_path: {}\n".format(myargs.target_tokeniser_path))
     out.write("source_lang: {}\n".format(myargs.source_lang))
     out.write("target_lang: {}\n".format(myargs.target_lang))
     out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
@@ -115,12 +113,12 @@ def initialization():
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
     groupM.add_argument('-s', '--source_lang',  required=True, help="Source language")
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
-    groupM.add_argument('-S', '--source_tokeniser_path',  required=True, help="Source language tokeniser path")
-    groupM.add_argument('-T', '--target_tokeniser_path', required=True, help="Target language tokeniser path")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
 
     groupO = parser.add_argument_group('Options')
+    groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
+    groupO.add_argument('-T', '--target_tokeniser_path', help="Target language tokeniser absolute path")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=20, help="Number of max target words to be taken into account, sorted by length")
@@ -360,8 +358,14 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+    if args.source_tokeniser_path:
+        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    else:
+        source_tokeniser = MosesTokenizer(args.source_lang)
+    if args.target_tokeniser_path:
+        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+    else:
+        target_tokeniser = MosesTokenizer(args.target_lang)
     while True:
         job = jobs_queue.get()
         if job:

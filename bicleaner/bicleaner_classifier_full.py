@@ -19,6 +19,7 @@ from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 from toolwrapper import ToolWrapper
+from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package
 try:
@@ -61,8 +62,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    #groupO.add_argument("-s", "--source_lang", type=str, help="Source language (SL) of the input")
-    #groupO.add_argument("-t", "--target_lang", type=str, help="Target language (TL) of the input")
+    groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
+    groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
@@ -99,8 +100,10 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
+        if "source_tokeniser_path" in metadata_yaml:
+            args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
+        if "target_tokeniser_path" in metadata_yaml:
+            args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
 
         try:
             args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
@@ -156,8 +159,14 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+    if args.source_tokeniser_path:
+        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    else:
+        source_tokeniser = MosesTokenizer(args.source_lang)
+    if args.target_tokeniser_path:
+        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+    else:
+        target_tokeniser = MosesTokenizer(args.target_lang)
     while True:
         job = jobs_queue.get()
         if job:
