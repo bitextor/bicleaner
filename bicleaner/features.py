@@ -8,6 +8,7 @@ import regex
 import random
 import string
 
+
 #Allows to load modules while inside or outside the package
 try:
     from .util import no_escaping, regex_alpha
