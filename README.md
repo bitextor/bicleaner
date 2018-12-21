@@ -1,3 +1,4 @@
+
 # bicleaner
 
 Bicleaner (bicleaner-classify) is a tool in Python that aims at detecting noisy sentence pairs in a parallel corpus. It
@@ -35,7 +36,7 @@ Bicleaner works with Python3 and can be instaled with `pip`:
 
 Extra modules will be downloaded and installed/upgraded as well, if required.
 
-After installation, two binary files (`bicleaner-train` and `bicleaner-classify`) will be located in your `python/installation/prefix`/bin directory.
+After installation, four binary files (`bicleaner-train`,  `bicleaner-train-lite`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix`/bin directory.
 
 ## Cleaning
 
@@ -218,3 +219,9 @@ recall_histogram: [1.0000000, 1.0000000, 0.9998000, 0.9980000, 0.9897000, 0.9680
 accuracy_histogram: [0.5000000, 0.5001500, 0.6557500, 0.8523000, 0.9636000, 0.9785500, 0.9603500, 0.8816500, 0.5194500, 0.5000000]
 length_ratio: 0.9049934
 ```
+
+## Lite versions
+
+Although `bicleaner-train` and `bicleaner-classify` make use of parallelization  by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread versions of Bicleaner scripts are provided: `bicleaner-train-lite` and `bicleaner-classify-lite`. The usage is exactly the same as for the full versions, but omitting the blocksize (-b) and processes (-p) parameter.
+
+
