@@ -30,9 +30,10 @@ If you find Bicleaner useful, please consider citing the following paper:
 
 ## Installation & Requirements
 
-Bicleaner works with Python3 and can be instaled with `pip`:
+Bicleaner works with 
+3 and can be instaled with `pip`:
 
-`python3 -m pip install bicleaner`
+`python3.5 -m pip install bicleaner`
 
 Extra modules will be downloaded and installed/upgraded as well, if required.
 
@@ -107,7 +108,7 @@ We included a small test corpus and a script to check that your Bicleaner classi
 In order to use it, just run:
 
 ```bash
-python3 -m pytest -s tests/bicleaner_test.py
+python3.5 -m pytest -s tests/bicleaner_test.py
 ```
 
 This will download the required language pack, classify the provided test corpus, and check the resulting classification scores. If everything went as expected, the output will be "q passed in XX.XX seconds".  All downloaded data will be removed at the end of the testing session.
