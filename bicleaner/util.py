@@ -6,6 +6,9 @@ import logging
 import re
 import regex
 import sys
+from os import path
+
+from toolwrapper import ToolWrapper
 
 # variables used by the no_escaping function
 replacements = {"&amp;":  "&",
@@ -77,3 +80,45 @@ def logging_setup(args = None):
             logger.setLevel(logging.DEBUG)
 
 
+class MosesTokenizer(ToolWrapper):
+    """A module for interfacing with ``tokenizer.perl`` from Moses.
+
+    This class communicates with tokenizer.perl process via pipes. When the
+    MosesTokenizer object is no longer needed, the close() method should be
+    called to free system resources. The class supports the context manager
+    interface. If used in a with statement, the close() method is invoked
+    automatically.
+
+    >>> tokenize = MosesTokenizer('en')
+    >>> tokenize('Hello World!')
+    ['Hello', 'World', '!']
+    """
+
+    def __init__(self, lang="en", old_version=False):
+        self.lang = lang
+        program = path.join(
+            path.dirname(__file__),
+            "tokenizer-" + ("v1.0" if old_version else "v1.1") + ".perl"
+        )
+        argv = ["perl", program, "-q", "-no-escape", "-l", self.lang]
+        if not old_version:
+            # -b = disable output buffering
+            # -a = aggressive hyphen splitting
+            argv.extend(["-b", "-a"])
+        super().__init__(argv)
+
+    def __str__(self):
+        return "MosesTokenizer(lang=\"{lang}\")".format(lang=self.lang)
+
+    def __call__(self, sentence):
+        """Tokenizes a single sentence.
+
+        Newline characters are not allowed in the sentence to be tokenized.
+        """
+        assert isinstance(sentence, str)
+        sentence = sentence.rstrip("\n")
+        assert "\n" not in sentence
+        if not sentence:
+            return []
+        self.writeline(sentence)
+        return self.readline().split()
