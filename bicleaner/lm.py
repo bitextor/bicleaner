@@ -1,6 +1,7 @@
 import kenlm
 from enum import Enum
 from util import MosesTokenizer
+from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
 import shutil
@@ -8,6 +9,7 @@ import os
 import argparse
 import logging
 import numpy
+import regex
 
 class LMType(Enum):
     #Needed for argparse
@@ -16,6 +18,25 @@ class LMType(Enum):
     
     def __str__(self):
         return self.value
+
+
+class UnicodeWordClassifier:
+    regex_basic_latin      = regex.compile("^[\p{InBasic_Latin}]+$")
+    regex_latin_supplement = regex.compile("^[\p{InLatin-1_Supplement}\p{InBasic_Latin}]+$")
+    regex_latin_extended = regex.compile("^[\p{InLatin-1_Supplement}\p{InBasic_Latin}\p{InLatin_Extended-A}\p{InLatin_Extended-B}]+$")
+    regex_arabic           = regex.compile("^[\p{Arabic}]+$")
+    regex_greek            = regex.compile("^[\p{Greek}]+$")
+    regex_cyrillic         = regex.compile("^[\p{Cyrillic}]+$")
+    regexes =[ ('BASIC_LATIN',regex_basic_latin) , ('LATIN_SUPPLEMENT',regex_latin_supplement) ,  ('LATIN_EXTENDED',regex_latin_extended),
+              ('ARABIC',regex_arabic), ('GREEK',regex_greek), ('CYRILIC',regex_cyrillic)]
+    
+    @classmethod
+    def classify_word(cls,word):
+        for name,r in cls.regexes:
+            if r.match(word):
+                return name
+        return "OTHER"
+            
 
 class LMFluencyFilter:
     
@@ -27,6 +48,8 @@ class LMFluencyFilter:
         
         self.language=language
         self.tokenizer=MosesTokenizer(self.language)
+        self.normalizer=MosesPunctuationNormalizer(self.language)
+        self.splitter=MosesSentenceSplitter(self.language, more=False)
         self.type=lm_type
     
     @classmethod
@@ -36,14 +59,15 @@ class LMFluencyFilter:
     @classmethod
     def _replace_placeholder(cls,t):
         if t.isalpha():
+            unicodeGroup = UnicodeWordClassifier.classify_word(t)
             if t.islower():
-                return "TOKEN:ALPHA:LOWER"
+                return "TOKEN:ALPHA:LOWER:"+unicodeGroup
             elif t.istitle():
-                return "TOKEN:ALPHA:TITLE"
+                return "TOKEN:ALPHA:TITLE:"+unicodeGroup
             elif t.isupper():
-                return "TOKEN:ALPHA:UPPER"
+                return "TOKEN:ALPHA:UPPER:"+unicodeGroup
             else:
-                return "TOKEN:ALPHA:MIXED"
+                return "TOKEN:ALPHA:MIXED:"+unicodeGroup
         else:
             if t.isnumeric():
                 return "TOKEN:NUMERIC"
@@ -61,10 +85,13 @@ class LMFluencyFilter:
         self.lm_path=lm_path
         self.lm=kenlm.LanguageModel(self.lm_path)
     
+    def _sentence_split(self,sentence:str):
+        return self.splitter([sentence])
+    
     def _tokenize(self, sentence):
+        sentence=self.normalizer(sentence)
         if self.type != LMType.CHARACTER:
-            self.tokenizer.writeline(sentence)
-            tokline=self.tokenizer.readline().rstrip("\n")
+            tokline=" ".join(self.tokenizer(sentence))
         else:
             tokline=" ".join([ "SPACE" if c == " " else c for c in sentence  ])
         return tokline
@@ -84,9 +111,11 @@ class LMFluencyFilter:
         with open(text_path) as input_f:
             for line in input_f:
                 line=line.rstrip("\n")
-                tokline=self._tokenize(line)
-                tokenized_f.write(tokline)
-                tokenized_f.write("\n")
+                sentences=self._sentence_split(line)
+                for s in sentences:
+                    tokline=self._tokenize(s)
+                    tokenized_f.write(tokline)
+                    tokenized_f.write("\n")
         tokenized_f.close()
             
         #Perform placeholder replacement if needed
@@ -139,10 +168,14 @@ class LMFluencyFilter:
     
     def score(self, sentence:str):
         #We need to preprocess the sentence in the same way as when training the LM
-        processed_sentence=self._introduce_placeholders(self._tokenize(sentence))
-        logging.debug("Scoring: {}".format(processed_sentence))
+        sents= self._sentence_split(sentence)
+        processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
+        logging.debug("Scoring: {}".format(processed_sents))
         #TODO: we will estimate threshold later
-        return self._raw_score(processed_sentence)
+        raw_scores= [self._raw_score(s) for s in processed_sents]
+        
+        #Normalize score
+        return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
 
 
 if __name__ == "__main__":
