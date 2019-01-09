@@ -1,6 +1,5 @@
 import kenlm
 from enum import Enum
-from enum import auto
 from mosestokenizer import MosesTokenizer
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
@@ -8,6 +7,7 @@ import shutil
 import os
 import argparse
 import logging
+import numpy
 
 class LMType(Enum):
     #Needed for argparse
@@ -125,9 +125,17 @@ class LMFluencyFilter:
         
     def _raw_score(self, sentence:str):
         return self.lm.score(sentence)
-    
-    def estimate_threshold(self):
-        pass
+   
+    @classmethod 
+    def estimate_threshold(cls,filter_a,filter_b, dev_corpus_a:str,  dev_corpus_b:str):
+        scores=[]
+        with open(dev_corpus_a) as corpus_a_f, open(dev_corpus_b) as corpus_b_f:
+            for linea,lineb in zip(corpus_a_f,corpus_b_f):
+                linea=linea.rstrip("\n")
+                lineb=lineb.rstrip("\n")
+                scores.append(filter_a.score(linea)+filter_b.score(lineb))
+        return numpy.mean(scores),numpy.std(scores)
+        
     
     def score(self, sentence:str):
         #We need to preprocess the sentence in the same way as when training the LM
@@ -136,14 +144,19 @@ class LMFluencyFilter:
         #TODO: we will estimate threshold later
         return self._raw_score(processed_sentence)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--language",required=True)
+    parser.add_argument("--language_b")
     parser.add_argument("--lm_type",type=lambda t: LMType[t], choices=list(LMType),required=True)
     parser.add_argument("--train",action='store_true')
     parser.add_argument("--score",action='store_true')
+    parser.add_argument("--stats",action='store_true')
     parser.add_argument("--corpus")
+    parser.add_argument("--corpus_b")
     parser.add_argument("--lm_file")
+    parser.add_argument("--lm_file_b")
     
     parser.add_argument("--debug",action='store_true')
     
@@ -165,3 +178,10 @@ if __name__ == "__main__":
             for line in corpus_f:
                 line=line.rstrip("\n")
                 print(ff.score(line))
+    if args.stats:
+        ff.load_lm(args.lm_file)
+        ff_b=LMFluencyFilter(args.lm_type, args.language_b)
+        ff_b.load_lm(args.lm_file_b)
+        mean,stdev=LMFluencyFilter.estimate_threshold(ff,ff_b,args.corpus,args.corpus_b)
+        print("{} {}".format(mean,stdev))
+
