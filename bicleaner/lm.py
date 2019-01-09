@@ -1,6 +1,6 @@
 import kenlm
 from enum import Enum
-from mosestokenizer import MosesTokenizer
+from util import MosesTokenizer
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
 import shutil
