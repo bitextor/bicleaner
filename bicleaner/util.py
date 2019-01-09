@@ -100,7 +100,7 @@ class MosesTokenizer(ToolWrapper):
             path.dirname(__file__),
             "tokenizer-" + ("v1.0" if old_version else "v1.1") + ".perl"
         )
-        argv = ["perl", program, "-q", "-no-escape", "-l", self.lang]
+        argv = ["perl", program, "-q", "-no-escape"  , "-l", self.lang]
         if not old_version:
             # -b = disable output buffering
             # -a = aggressive hyphen splitting
