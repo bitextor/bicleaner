@@ -135,7 +135,7 @@ class LMFluencyFilter:
         if self.type == LMType.CHARACTER:
             params="-o 7 --discount_fallback"
         else:
-            params="-o 7"
+            params="-o 7 --discount_fallback"
     
         self._estimate_kenlm(placeholderized_f.name, lm_file.name,params)
         self.lm_path=lm_file.name
