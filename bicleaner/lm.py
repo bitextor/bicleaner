@@ -262,12 +262,12 @@ if __name__ == "__main__":
         stats = DualLMStats()
         with open(args.stats_file_clean) as stats_f:
             content=stats_f.readline().strip()
-            stats.clean_mean=float(content.split("\t")[0])
-            stats.clean_stddev=float(content.split("\t")[1])
+            stats.clean_mean=float(content.split(" ")[0])
+            stats.clean_stddev=float(content.split(" ")[1])
         with open(args.stats_file_noisy) as stats_f:
             content=stats_f.readline().strip()
-            stats.noisy_mean=float(content.split("\t")[0])
-            stats.noisy_stddev=float(content.split("\t")[1])
+            stats.noisy_mean=float(content.split(" ")[0])
+            stats.noisy_stddev=float(content.split(" ")[1])
         ff.load(args.lm_file, args.lm_file_b, stats)
         
         with open(args.corpus) as corpus_f:
