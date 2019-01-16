@@ -273,5 +273,6 @@ if __name__ == "__main__":
         with open(args.corpus) as corpus_f:
             for line in corpus_f:
                 line=line.rstrip("\n")
-                print(ff.score(line))
+                parts=line.split("\t")
+                print(ff.score(parts[0],parts[1]))
 
