@@ -183,17 +183,17 @@ class DualLMStats:
         self.clean_stddev=0.0
         self.noisy_mean=0.0
         self.noisy_stddev=0.0
-    
+
     def perplexity_to_score(self, perp: float):
         upper_limit=self.clean_mean+self.clean_stddev
         middle_point=self.clean_mean + (self.noisy_mean - self.clean_mean )/2
         lower_limit=self.noisy_mean-self.noisy_stddev
-        
+
         if perp > upper_limit:
             return 1.0
         if perp < lower_limit:
             return 0.0
-        if perp > middle_point:
+        if perp < middle_point:
             return 0.5 - ( (perp - middle_point) / ( lower_limit - middle_point ) )*0.5
         else:
             return 1-  ((perp - upper_limit) /( middle_point - upper_limit ) )*0.5 
@@ -221,6 +221,7 @@ if __name__ == "__main__":
     parser.add_argument("--score",action='store_true')
     parser.add_argument("--stats",action='store_true')
     parser.add_argument("--score_dual",action='store_true')
+    parser.add_argument("--normalize_score",action='store_true')
     parser.add_argument("--corpus")
     parser.add_argument("--corpus_b")
     parser.add_argument("--lm_file")
@@ -275,4 +276,20 @@ if __name__ == "__main__":
                 line=line.rstrip("\n")
                 parts=line.split("\t")
                 print(ff.score(parts[0],parts[1]))
-
+    
+    if args.normalize_score:
+        stats = DualLMStats()
+        with open(args.stats_file_clean) as stats_f:
+            content=stats_f.readline().strip()
+            stats.clean_mean=float(content.split(" ")[0])
+            stats.clean_stddev=float(content.split(" ")[1])
+        with open(args.stats_file_noisy) as stats_f:
+            content=stats_f.readline().strip()
+            stats.noisy_mean=float(content.split(" ")[0])
+            stats.noisy_stddev=float(content.split(" ")[1])
+        
+        with open(args.corpus) as corpus_f:
+            for line in corpus_f:
+                line=line.rstrip("\n")
+                parts=line.split("\t")
+                print(stats.perplexity_to_score(float(parts[-1])))
