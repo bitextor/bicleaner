@@ -178,25 +178,27 @@ class LMFluencyFilter:
         return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
 
 class DualLMStats:
-    def __init__(self):
-        self.clean_mean=0.0
-        self.clean_stddev=0.0
-        self.noisy_mean=0.0
-        self.noisy_stddev=0.0
+    def __init__(self,clean_mean:float, clean_stddev:float, noisy_mean:float, noisy_stddev: float):
+        self.clean_mean=clean_mean
+        self.clean_stddev=clean_stddev
+        self.noisy_mean=noisy_mean
+        self.noisy_stddev=noisy_stddev
+        self._compute_limits()
+
+    def _compute_limits(self):
+        self.upper_limit=self.clean_mean+self.clean_stddev
+        self.middle_point=self.clean_mean + (self.noisy_mean - self.clean_mean )/2
+        self.lower_limit=self.noisy_mean-self.noisy_stddev
 
     def perplexity_to_score(self, perp: float):
-        upper_limit=self.clean_mean+self.clean_stddev
-        middle_point=self.clean_mean + (self.noisy_mean - self.clean_mean )/2
-        lower_limit=self.noisy_mean-self.noisy_stddev
-
-        if perp > upper_limit:
+        if perp > self.upper_limit:
             return 1.0
-        if perp < lower_limit:
+        if perp < self.lower_limit:
             return 0.0
-        if perp < middle_point:
-            return 0.5 - ( (perp - middle_point) / ( lower_limit - middle_point ) )*0.5
+        if perp < self.middle_point:
+            return 0.5 - ( (perp - self.middle_point) / ( self.lower_limit - self.middle_point ) )*0.5
         else:
-            return 1-  ((perp - upper_limit) /( middle_point - upper_limit ) )*0.5 
+            return 1-  ((perp - self.upper_limit) /( self.middle_point - self.upper_limit ) )*0.5 
 
 class DualLMFluencyFilter:
     def __init__(self, lm_type:LMType , sl:str, tl:str):
@@ -260,15 +262,15 @@ if __name__ == "__main__":
     
     if args.score_dual:
         ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b)
-        stats = DualLMStats()
         with open(args.stats_file_clean) as stats_f:
             content=stats_f.readline().strip()
-            stats.clean_mean=float(content.split(" ")[0])
-            stats.clean_stddev=float(content.split(" ")[1])
+            clean_mean=float(content.split(" ")[0])
+            clean_stddev=float(content.split(" ")[1])
         with open(args.stats_file_noisy) as stats_f:
             content=stats_f.readline().strip()
-            stats.noisy_mean=float(content.split(" ")[0])
-            stats.noisy_stddev=float(content.split(" ")[1])
+            noisy_mean=float(content.split(" ")[0])
+            noisy_stddev=float(content.split(" ")[1])
+        stats = DualLMStats(clean_mean, clean_stddev, noisy_mean, noisy_stddev)
         ff.load(args.lm_file, args.lm_file_b, stats)
         
         with open(args.corpus) as corpus_f:
@@ -278,15 +280,16 @@ if __name__ == "__main__":
                 print(ff.score(parts[0],parts[1]))
     
     if args.normalize_score:
-        stats = DualLMStats()
+        
         with open(args.stats_file_clean) as stats_f:
             content=stats_f.readline().strip()
-            stats.clean_mean=float(content.split(" ")[0])
-            stats.clean_stddev=float(content.split(" ")[1])
+            clean_mean=float(content.split(" ")[0])
+            clean_stddev=float(content.split(" ")[1])
         with open(args.stats_file_noisy) as stats_f:
             content=stats_f.readline().strip()
-            stats.noisy_mean=float(content.split(" ")[0])
-            stats.noisy_stddev=float(content.split(" ")[1])
+            noisy_mean=float(content.split(" ")[0])
+            noisy_stddev=float(content.split(" ")[1])
+        stats = DualLMStats(clean_mean, clean_stddev, noisy_mean, noisy_stddev)
         
         with open(args.corpus) as corpus_f:
             for line in corpus_f:
