@@ -171,12 +171,46 @@ class LMFluencyFilter:
         sents= self._sentence_split(sentence)
         processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
         logging.debug("Scoring: {}".format(processed_sents))
-        #TODO: we will estimate threshold later
+        
         raw_scores= [self._raw_score(s) for s in processed_sents]
         
         #Normalize score
         return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
 
+class DualLMStats:
+    def __init__(self):
+        self.clean_mean=0.0
+        self.clean_stddev=0.0
+        self.noisy_mean=0.0
+        self.noisy_stddev=0.0
+    
+    def perplexity_to_score(self, perp: float):
+        upper_limit=self.clean_mean+self.clean_stddev
+        middle_point=self.clean_mean + (self.noisy_mean - self.clean_mean )/2
+        lower_limit=self.noisy_mean-self.noisy_stddev
+        
+        if perp > upper_limit:
+            return 1.0
+        if perp < lower_limit:
+            return 0.0
+        if perp > middle_point:
+            return 0.5 - ( (perp - middle_point) / ( lower_limit - middle_point ) )*0.5
+        else:
+            return 1-  ((perp - upper_limit) /( middle_point - upper_limit ) )*0.5 
+
+class DualLMFluencyFilter:
+    def __init__(self, lm_type:LMType , sl:str, tl:str):
+        self.sl_filter=LMFluencyFilter(lm_type,sl)
+        self.tl_filter=LMFluencyFilter(lm_type,tl)
+        self.scoring_stats=None
+    
+    def load(self,sl_lm_path:str,tl_lm_path:str,stats: DualLMStats):
+        self.sl_filter.load_lm(sl_lm_path)
+        self.tl_filter.load_lm(tl_lm_path)
+        self.scoring_stats=stats
+    
+    def score(self, sentence_sl: str, sentence_tl: str):
+        return self.scoring_stats.perplexity_to_score(self.sl_filter.score(sentence_sl)+self.tl_filter.score(sentence_tl))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -186,10 +220,13 @@ if __name__ == "__main__":
     parser.add_argument("--train",action='store_true')
     parser.add_argument("--score",action='store_true')
     parser.add_argument("--stats",action='store_true')
+    parser.add_argument("--score_dual",action='store_true')
     parser.add_argument("--corpus")
     parser.add_argument("--corpus_b")
     parser.add_argument("--lm_file")
     parser.add_argument("--lm_file_b")
+    parser.add_argument("--stats_file_clean")
+    parser.add_argument("--stats_file_noisy")
     
     parser.add_argument("--debug",action='store_true')
     
@@ -198,23 +235,43 @@ if __name__ == "__main__":
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     
-    ff = LMFluencyFilter(args.lm_type, args.language)
     
     if args.train:
+        ff = LMFluencyFilter(args.lm_type, args.language)
         ff.train_lm(args.corpus)
         ff.copy_lm(args.lm_file)
         ff.cleanup()
     
     if args.score:
+        ff = LMFluencyFilter(args.lm_type, args.language)
         ff.load_lm(args.lm_file)
         with open(args.corpus) as corpus_f:
             for line in corpus_f:
                 line=line.rstrip("\n")
                 print(ff.score(line))
     if args.stats:
+        ff = LMFluencyFilter(args.lm_type, args.language)
         ff.load_lm(args.lm_file)
         ff_b=LMFluencyFilter(args.lm_type, args.language_b)
         ff_b.load_lm(args.lm_file_b)
         mean,stdev=LMFluencyFilter.estimate_threshold(ff,ff_b,args.corpus,args.corpus_b)
         print("{} {}".format(mean,stdev))
+    
+    if args.score_dual:
+        ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b)
+        stats = DualLMStats()
+        with open(args.stats_file_clean) as stats_f:
+            content=stats_f.readline().strip()
+            stats.clean_mean=float(content.split("\t")[0])
+            stats.clean_stddev=float(content.split("\t")[1])
+        with open(args.stats_file_noisy) as stats_f:
+            content=stats_f.readline().strip()
+            stats.noisy_mean=float(content.split("\t")[0])
+            stats.noisy_stddev=float(content.split("\t")[1])
+        ff.load(args.lm_file, args.lm_file_b, stats)
+        
+        with open(args.corpus) as corpus_f:
+            for line in corpus_f:
+                line=line.rstrip("\n")
+                print(ff.score(line))
 
