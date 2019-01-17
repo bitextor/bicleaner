@@ -25,12 +25,14 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .lm import DualLMFluencyFilter,LMType, DualLMStats
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from lm import DualLMFluencyFilter,LMType, DualLMStats
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
@@ -204,7 +206,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         feats.append([float(v) for v in features])
                         
                         if args.lm_filter:
-                            lm_scores.append(lm_filter.score(sl_sentence,tl_sentence))
+                            lm_scores.append(args.lm_filter.score(sl_sentence,tl_sentence))
                         
                         valid_sentences.append(True)
                     else:
@@ -227,7 +229,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         if args.lm_filter:
                             lm_score=next(lmiter)
                             fileout.write("\t")
-                            fileout.write(lm_score)
+                            fileout.write(str(lm_score))
                         fileout.write("\n")
                     else:
                         fileout.write(i.strip("\n"))
