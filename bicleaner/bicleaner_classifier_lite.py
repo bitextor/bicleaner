@@ -18,11 +18,13 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .lm import DualLMFluencyFilter,LMType, DualLMStats
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from lm import DualLMFluencyFilter,LMType, DualLMStats
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
@@ -31,6 +33,7 @@ except (ImportError, SystemError):
 __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
+__version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sánchez-Cartagena"
 
 nline = 0
 
@@ -113,6 +116,16 @@ def initialization():
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
+        
+        #Load LM stuff if model was trained with it 
+        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
+            lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']] ,args.source_lang, args.target_lang)
+            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
+            lmFilter.load(metadata_yaml['source_lm'], metadata_yaml['target_lm'] ,stats)
+            args.lm_filter=lmFilter
+        else:
+            args.lm_filter=None
+        
         logging.debug("YAML")
         logging.debug(metadata_yaml)
         parser.set_defaults(**metadata_yaml)   
@@ -149,27 +162,46 @@ def classify(args):
     for i in args.input:
         nline += 1
         parts = i.split("\t")
-        if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-            buf_sent.append((1, i))
-            features = feature_extract(parts[2], parts[3], source_tokeniser, target_tokeniser, args)
+        
+        sl_sentence=None
+        tl_sentence=None
+        if len(parts) >= 4:
+            sl_sentence=parts[2]
+            tl_sentence=parts[3]
+       
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+            lmScore=None
+            if args.lm_filter:
+                lmScore=args.lm_filter.score(sl_sentence,tl_sentence)            
+            buf_sent.append((1, i,lmScore))
+            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
             buf_feat.append([float(v) for v in features])
         else:
-            buf_sent.append((0, i))
+            lmScore=None
+            if args.lm_filter:
+                lmScore=0
+            buf_sent.append((0, i, lmScore))
         
         if (nline % batch_size) == 0:
             args.clf.set_params(n_jobs = 1)
             predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
             p = iter(predictions)
                 
-            for k, l in buf_sent:
+            for k, l, lmScore in buf_sent:
                 if k == 1:
                     args.output.write(l.strip())
                     args.output.write("\t")
                     args.output.write(str(next(p)[1]))
+                    if lmScore != None:
+                        args.output.write("\t")
+                        args.output.write(str(lmScore))
                     args.output.write("\n")
                 else:
                     args.output.write(l.strip("\n"))
-                    args.output.write("\t0\n")
+                    args.output.write("\t0")
+                    if lmScore != None:
+                        args.output.write("\t0")
+                    args.output.write("\n")
 
             buf_feat = []
             buf_sent = []
