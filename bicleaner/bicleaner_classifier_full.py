@@ -25,12 +25,14 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .lm import DualLMFluencyFilter,LMType, DualLMStats
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from lm import DualLMFluencyFilter,LMType, DualLMStats
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
@@ -43,6 +45,7 @@ __version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_e
 __version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
 __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
 __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
+__version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -139,6 +142,16 @@ def initialization():
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
+        
+        #Load LM stuff if model was trained with it 
+        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
+            lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']] ,args.source_lang, args.target_lang)
+            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
+            lmFilter.load(metadata_yaml['source_lm'], metadata_yaml['target_lm'] ,stats)
+            args.lm_filter=lmFilter
+        else:
+            args.lm_filter=None
+        
         logging.debug("YAML")
         logging.debug(metadata_yaml)
         parser.set_defaults(**metadata_yaml)   
@@ -177,31 +190,54 @@ def classifier_process(i, jobs_queue, output_queue, args):
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
                 feats = []
+                lm_scores=[]
 
+                valid_sentences=[]
                 for i in filein:
                     parts = i.split("\t")
-                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
-                        features = feature_extract(parts[2], parts[3], source_tokeniser, target_tokeniser, args)
+                    sl_sentence=None
+                    tl_sentence=None
+                    if len(parts) >= 4:
+                        sl_sentence=parts[2]
+                        tl_sentence=parts[3]
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
                         # print("SENTENCE PAIR: %%{}%%".format(i))
                         # print(Features(features)) # debug
                         feats.append([float(v) for v in features])
+                        
+                        if args.lm_filter:
+                            lm_scores.append(args.lm_filter.score(sl_sentence,tl_sentence))
+                        
+                        valid_sentences.append(True)
+                    else:
+                        valid_sentences=False
                     
 
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
 
                 piter = iter(predictions)
-                for i in filein:
-                    parts = i.split("\t")
-                    if len(parts) >= 4 and len(parts[2].strip()) != 0 and len(parts[3].strip()) != 0 and wrong_tu(parts[2].strip(),parts[3].strip(), args)== False:
+                if args.lm_filter:
+                    lmiter=iter(lm_scores)
+                for i, valid_sentence in zip(filein,valid_sentences):                    
+                    if valid_sentence:
                         p = next(piter)
+                        
                         fileout.write(i.strip())
                         fileout.write("\t")
                         fileout.write(str(p[1]))
+                        if args.lm_filter:
+                            lm_score=next(lmiter)
+                            fileout.write("\t")
+                            fileout.write(str(lm_score))
                         fileout.write("\n")
                     else:
                         fileout.write(i.strip("\n"))
-                        fileout.write("\t0\n")
+                        fileout.write("\t0")
+                        if args.lm_filter:
+                            fileout.write("\t0")
+                        fileout.write("\n")
 
                 ojob = (nblock, fileout.name)
                 filein.close()
