@@ -145,12 +145,18 @@ def initialization():
         
         #Load LM stuff if model was trained with it 
         if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']] ,args.source_lang, args.target_lang)
+            args.source_lm=metadata_yaml['source_lm']
+            args.target_lm=metadata_yaml['target_lm']
+            args.lm_type=LMType[metadata_yaml['lm_type']]
             stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            lmFilter.load(metadata_yaml['source_lm'], metadata_yaml['target_lm'] ,stats)
-            args.lm_filter=lmFilter
+            args.lm_filter_stats=stats
         else:
-            args.lm_filter=None
+            args.source_lm=None
+            args.target_lm=None
+            args.lm_type=None
+            args.lm_filter_stats=None
+            
+            
         
         logging.debug("YAML")
         logging.debug(metadata_yaml)
@@ -181,6 +187,13 @@ def classifier_process(i, jobs_queue, output_queue, args):
         target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     else:
         target_tokeniser = MosesTokenizer(args.target_lang)
+    
+    #Load LM for fluency scoring
+    lm_filter=None
+    if args.source_lm and args.target_lm:
+        lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
+        lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
+    
     while True:
         job = jobs_queue.get()
         if job:
@@ -206,8 +219,8 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         # print(Features(features)) # debug
                         feats.append([float(v) for v in features])
                         
-                        if args.lm_filter:
-                            lm_scores.append(args.lm_filter.score(sl_sentence,tl_sentence))
+                        if lm_filter:
+                            lm_scores.append(lm_filter.score(sl_sentence,tl_sentence))
                         
                         valid_sentences.append(True)
                     else:
@@ -218,7 +231,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 filein.seek(0)
 
                 piter = iter(predictions)
-                if args.lm_filter:
+                if lm_filter:
                     lmiter=iter(lm_scores)
                 for i, valid_sentence in zip(filein,valid_sentences):                    
                     if valid_sentence:
@@ -227,7 +240,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         fileout.write(i.strip())
                         fileout.write("\t")
                         fileout.write(str(p[1]))
-                        if args.lm_filter:
+                        if lm_filter:
                             lm_score=next(lmiter)
                             fileout.write("\t")
                             fileout.write(str(lm_score))
@@ -235,7 +248,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         fileout.write(i.strip("\n"))
                         fileout.write("\t0")
-                        if args.lm_filter:
+                        if lm_filter:
                             fileout.write("\t0")
                         fileout.write("\n")
 
