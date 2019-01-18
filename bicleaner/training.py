@@ -1,5 +1,7 @@
 import logging
 import os
+import random
+import math
 from tempfile import TemporaryFile, NamedTemporaryFile
 import typing
 
@@ -29,7 +31,7 @@ def shuffle_lm_training_text(input: typing.TextIO,dev_size: int ) -> (str,str,st
             temp_tl.write(line_tl)
             temp_tl.write("\n")
         temp_sl.flush()
-        temp_tl.fluh()
+        temp_tl.flush()
         temp_sl.seek(0)
         temp_tl.seek(0)
         
@@ -70,14 +72,14 @@ def train_fluency_filter(args):
     #  - Validation set for estimating perplexity of clean text
     # Input noisy corpus used as validation set for estimating perplexity of noisy text
     
-    if not ( args.noisy_examples_file_sl and args.noisy_examples_file_tl and args.lm_file_sl and lm_file_tl  ):
+    if not ( args.noisy_examples_file_sl and args.noisy_examples_file_tl and args.lm_file_sl and args.lm_file_tl  ):
         return None
     
     lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
      
     try:
         ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang)
-        stats=ff.train(self,lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
+        stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
     finally:
         os.remove(lm_train_path_sl)
         os.remove(lm_train_path_tl)
@@ -243,11 +245,11 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
     
     if lm_stats != None:
-        out.write("source_lm: {}\n".format(args.lm_file_sl))
-        out.write("target_lm: {}\n".format(args.lm_file_tl))
+        out.write("source_lm: {}\n".format(os.path.abspath(myargs.lm_file_sl)))
+        out.write("target_lm: {}\n".format(os.path.abspath(myargs.lm_file_tl)))
         out.write("lm_type: {}\n".format(str(LMType.CHARACTER)))
-        out.write("clean_mean_perp: {}\n".format(stats.clean_mean) )
-        out.write("clean_stddev_perp: {}\n".format(stats.clean_stddev) )
-        out.write("noisy_mean_perp: {}\n".format(stats.noisy_mean) )
-        out.write("noisy_stddev_perp: {}\n".format(stats.noisy_stddev) )
+        out.write("clean_mean_perp: {}\n".format(lm_stats.clean_mean) )
+        out.write("clean_stddev_perp: {}\n".format(lm_stats.clean_stddev) )
+        out.write("noisy_mean_perp: {}\n".format(lm_stats.noisy_mean) )
+        out.write("noisy_stddev_perp: {}\n".format(lm_stats.noisy_stddev) )
         

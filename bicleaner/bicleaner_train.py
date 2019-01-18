@@ -21,15 +21,19 @@ import sys
 from toolwrapper import ToolWrapper
 from mosestokenizer import MosesTokenizer
 
+#Allows to load modules while inside or outside the package 
+
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
-    from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup, shuffle, repr_right, write_metadata
+    from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 except (SystemError, ImportError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
-    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup, shuffle, repr_right, write_metadata
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter 
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -301,7 +305,7 @@ def perform_training(args):
     
     stats=None
     with open(input.name) as input_f:
-        args.input=args.input_f
+        args.input=input_f
         stats=train_fluency_filter(args)
 
         # Shuffle and get length ratio

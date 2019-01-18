@@ -71,8 +71,8 @@ def initialization():
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
     
     #For LM filtering
-    groupO.add_argument('--noisy_examples_file_sl', type=argparse.FileType('r'), default=None, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
-    groupO.add_argument('--noisy_examples_file_tl', type=argparse.FileType('r'), default=None, help="File with noisy text in the TL. These are used to estimate the perplexity of noisy text.")
+    groupO.add_argument('--noisy_examples_file_sl',  type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
+    groupO.add_argument('--noisy_examples_file_tl',  type=str, help="File with noisy text in the TL. These are used to estimate the perplexity of noisy text.")
     groupO.add_argument('--lm_dev_size', type=check_positive_or_zero, default=2000, help="Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text.")
     groupO.add_argument('--lm_file_sl', type=str, help="SL language model output file.")
     groupO.add_argument('--lm_file_tl', type=str, help="TL language model output file.")
@@ -181,8 +181,9 @@ def perform_training(args):
     
     stats=None
     with open(input.name) as input_f:
-        args.input=args.input_f
+        args.input=input_f
         stats=train_fluency_filter(args)
+        args.input.seek(0)
 
         # Shuffle and get length ratio
         total_size, length_ratio, good_sentences, wrong_sentences = shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)

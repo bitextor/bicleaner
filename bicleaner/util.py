@@ -10,6 +10,7 @@ from os import path
 import typing
 import random
 
+from tempfile import TemporaryFile
 from toolwrapper import ToolWrapper
 
 # variables used by the no_escaping function
@@ -82,6 +83,7 @@ def logging_setup(args = None):
             logger.setLevel(logging.DEBUG)
 
 def shuffle_file(input: typing.TextIO, output: typing.TextIO):
+    offsets=[]
     with TemporaryFile("w+") as temp:
         count = 0
         for line in input:
