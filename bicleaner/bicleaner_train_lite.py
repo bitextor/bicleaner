@@ -25,10 +25,12 @@ try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 except (SystemError, ImportError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
-    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
+    from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
+    from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -36,73 +38,8 @@ __version__ = "Version 0.1 # December 2017 # Initial version # Sergio Ortiz-Roja
 __version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong examples from a file # Jorge Ferrández-Tordera"
 __version__ = "Version 0.3 # 14/12/2018 # Lite version # Marta Bañón"
 __version__ = "Version 0.4 # 18/12/2018 # Changed to generalized tokenizer # Marta Bañón"
+__version__ = "Version 0.5 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
 
-# Calculate precision, recall and accuracy over the 0.0,1.0,0.1 histogram of
-# good and  wrong alignments
-def precision_recall(hgood, hwrong):
-    precision = []
-    recall    = []
-    accuracy  = []
-    total = sum(hgood) + sum(hwrong)
-
-    for i in range(len(hgood)):
-        tp = sum(hgood[i:])   # true positives
-        fp = sum(hwrong[i:])  # false positives
-        fn = sum(hgood[:i])   # false negatives
-        tn = sum(hwrong[:i])  # true negatives
-        try:
-            precision.append(tp*1.0/(tp+fp))     # precision = tp/(tp+fp)
-        except ZeroDivisionError:
-            precision.append(math.nan)
-        try:
-            recall.append(tp*1.0/(tp+fn))        # recall = tp/(tp+fn)
-        except ZeroDivisionError:
-            recall.append(math.nan)
-        try:
-            accuracy.append((tp+tn)*1.0/total)   # accuracy = (tp+tn) / total
-        except ZeroDivisionError:
-            accuracy.append(math.nan)
-
-    return precision, recall, accuracy
-
-
-def repr_right(numeric_list, numeric_fmt = "{:1.7f}"):
-    result_str = ["["]
-    for i in range(len(numeric_list)):
-        result_str.append(numeric_fmt.format(numeric_list[i]))
-        if i < (len(numeric_list)-1):
-            result_str.append(", ")
-        else:
-            result_str.append("]")
-    return "".join(result_str)
-    
-# Write YAML with the training parameters and quality estimates
-def write_metadata(myargs, length_ratio, hgood, hwrong):
-    out = myargs.metadata
-
-    precision, recall, accuracy = precision_recall(hgood, hwrong)
-
-    # Writing it by hand (not using YAML libraries) to preserve the order
-    out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
-    out.write("classifier_type: {}\n".format(myargs.classifier_type))
-    out.write("source_lang: {}\n".format(myargs.source_lang))
-    out.write("target_lang: {}\n".format(myargs.target_lang))
-    out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
-    out.write("target_dictionary: {}\n".format(os.path.abspath(myargs.target_dictionary.name)))
-    out.write("normalize_by_length: {}\n".format(myargs.normalize_by_length))
-    out.write("treat_oovs: {}\n".format(myargs.treat_oovs))
-    out.write("qmax_limit: {}\n".format(myargs.qmax_limit))
-    out.write("disable_features_quest: {}\n".format(myargs.disable_features_quest))
-    out.write("good_examples: {}\n".format(myargs.good_examples))
-    out.write("wrong_examples: {}\n".format(myargs.wrong_examples))
-    out.write("good_test_examples: {}\n".format(myargs.good_test_examples))
-    out.write("wrong_test_examples: {}\n".format(myargs.wrong_test_examples))
-    out.write("good_test_histogram: {}\n".format(hgood.__repr__()))
-    out.write("wrong_test_histogram: {}\n".format(hwrong.__repr__()))
-    out.write("precision_histogram: {}\n".format(repr_right(precision)))
-    out.write("recall_histogram: {}\n".format(repr_right(recall)))
-    out.write("accuracy_histogram: {}\n".format(repr_right(accuracy)))
-    out.write("length_ratio: {:1.7f}\n".format(length_ratio))
     
 # Argument parsing
 def initialization():
@@ -132,7 +69,14 @@ def initialization():
     groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
-
+    
+    #For LM filtering
+    groupO.add_argument('--noisy_examples_file_sl', type=argparse.FileType('r'), default=None, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
+    groupO.add_argument('--noisy_examples_file_tl', type=argparse.FileType('r'), default=None, help="File with noisy text in the TL. These are used to estimate the perplexity of noisy text.")
+    groupO.add_argument('--lm_dev_size', type=check_positive_or_zero, default=2000, help="Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text.")
+    groupO.add_argument('--lm_file_sl', type=str, help="SL language model output file.")
+    groupO.add_argument('--lm_file_tl', type=str, help="TL language model output file.")
+    
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
@@ -142,6 +86,8 @@ def initialization():
     # Logging
     logging_setup(args)
     return args
+
+
 
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
@@ -219,109 +165,29 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     return hgood[0].tolist(), hwrong[0].tolist()
 
-# Random shuffle corpora to ensure fairness of training and estimates.
-def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
-    logging.info("Shuffle starts")
-    good_sentences  = TemporaryFile("w+")
-    wrong_sentences = TemporaryFile("w+")
-    total_size   = 0
-    length_ratio = 0
-
-    with TemporaryFile("w+") as temp:
-        logging.info("Indexing file")
-        # (1) Calculate the number of lines, length_ratio, offsets
-        offsets = []
-        nline = 0
-        ssource = 0
-        starget = 0
-        count = 0
-
-        for line in input:
-            parts = line.rstrip("\n").split("\t")
-            if len(parts) >= 2:
-                offsets.append(count)
-                count += len(bytearray(line, "UTF-8"))
-                ssource += len(parts[0])
-                starget += len(parts[1])
-                nline += 1
-                temp.write(line)
-
-        temp.flush()
-        
-        total_size = nline
-
-        if total_size == 0:
-            raise Exception("The input file {} is empty".format(input.name))
-        elif not wrong_examples_file and  total_size < max(n_aligned, n_misaligned):
-            raise Exception("Aborting... The input file {} has less lines than required by the numbers of good ({}) and wrong ({}) examples. Total lines required: {}".format(input.name, n_aligned, n_misaligned, n_aligned + n_misaligned))
-
-        try:
-            length_ratio = (ssource * 1.0)/(starget * 1.0) # It was (starget * 1.0)/(ssource * 1.0)
-        except ZeroDivisionError:
-            length_ratio = math.nan
-
-        logging.info("Shuffling good sentences")
-        # (2) Get good sentences
-        random.shuffle(offsets)
-
-        for i in offsets[0:n_aligned]:
-            temp.seek(i)
-            good_sentences.write(temp.readline())
-
-        logging.info("Shuffling wrong sentences")
-        # (3) Get wrong sentences
-        if wrong_examples_file:
-            # The file is already shuffled
-            logging.info("Using wrong examples from file {} instead the synthetic method".format(wrong_examples_file.name))
-            
-            count = 0
-            for i in wrong_examples_file:
-                wrong_sentences.write(i)
-                count += 1
-                if count == n_misaligned:
-                    break
-            
-            
-            
-        else:
-            wrong_lines = min(total_size, n_misaligned)
-            if (wrong_lines > 0):
-                offsets_copy = offsets[:]
-                random.shuffle(offsets)
-                random.shuffle(offsets_copy)
-                for i in range(wrong_lines):
-                    temp.seek(offsets[i])
-                    line = temp.readline()
-                    parts = line.rstrip("\n").split("\t")
-                    wrong_sentences.write(parts[0])
-                    wrong_sentences.write("\t")
-                    temp.seek(offsets_copy[i])
-                    line = temp.readline()
-                    parts = line.rstrip("\n").split("\t")
-                    wrong_sentences.write(parts[1])
-                    wrong_sentences.write("\n")
-            else:
-                logging.warning("Number of misaligned examples is 0")
-        temp.close()
-    logging.info("Shuffling ends")
-
-    good_sentences.seek(0)
-    wrong_sentences.seek(0)
-
-    return total_size, length_ratio, good_sentences, wrong_sentences
-
-
-
 
 # Main loop of the program
 def perform_training(args):
     global nline
     time_start = default_timer()
     logging.info("Starting process")
+    
+    #Read input to a named temporary file
+    #We may need to read it multiple times and that would be problematic if it is sys.stdin
+    input = NamedTemporaryFile(mode="w",delete=False)
+    for line in args.input:
+        input.write(line)
+    input.close()
+    
+    stats=None
+    with open(input.name) as input_f:
+        args.input=args.input_f
+        stats=train_fluency_filter(args)
 
-
-    # Shuffle and get length ratio
-    total_size, length_ratio, good_sentences, wrong_sentences = shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        # Shuffle and get length ratio
+        total_size, length_ratio, good_sentences, wrong_sentences = shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+    os.remove(input.name)
+    
     args.length_ratio = length_ratio
      
 
@@ -407,7 +273,7 @@ def perform_training(args):
 
     logging.info("End training")
 
-    write_metadata(args, length_ratio, hgood, hwrong)
+    write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
     # Stats

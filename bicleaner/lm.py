@@ -213,6 +213,20 @@ class DualLMFluencyFilter:
     
     def score(self, sentence_sl: str, sentence_tl: str):
         return self.scoring_stats.perplexity_to_score(self.sl_filter.score(sentence_sl)+self.tl_filter.score(sentence_tl))
+    
+    def train(self,lm_train_sl:str, lm_train_tl:str,clean_sl:str,clean_tl:str, noisy_sl:str,noisy_tl:str, lm_out_sl:str, lm_out_tl:str) -> DualLMStats :
+        try:
+            self.sl_filter.train_lm(lm_train_sl)
+            self.tl_filter.train_lm(lm_train_tl)
+            clean_mean,clean_stddev = LMFluencyFilter.estimate_threshold(self.sl_filter, self.tl_filter, clean_sl, clean_tl)
+            noisy_mean, noisy_stddev = LMFluencyFilter.estimate_threshold(self.sl_filter, self.tl_filter, noisy_sl,noisy_tl)
+            stats=DualLMStats(clean_mean,clean_stddev, noisy_mean, noisy_stddev)
+            self.sl_filter.copy_lm(lm_out_sl)
+            self.tl_filter.copy_lm(lm_out_tl)
+        finally:
+            self.sl_filter.cleanup()
+            self.tl_filter.cleanup()
+        return stats
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

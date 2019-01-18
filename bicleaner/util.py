@@ -7,6 +7,8 @@ import re
 import regex
 import sys
 from os import path
+import typing
+import random
 
 from toolwrapper import ToolWrapper
 
@@ -79,7 +81,22 @@ def logging_setup(args = None):
         if args.debug:
             logger.setLevel(logging.DEBUG)
 
-
+def shuffle_file(input: typing.TextIO, output: typing.TextIO):
+    with TemporaryFile("w+") as temp:
+        count = 0
+        for line in input:
+            offsets.append(count)
+            count += len(bytearray(line, "UTF-8"))
+            temp.write(line)
+        temp.flush()
+        
+        random.shuffle(offsets)
+        
+        for offset in offsets:
+            temp.seek(offset)
+            output.write(temp.readline())
+        
+        
 class MosesTokenizer(ToolWrapper):
     """A module for interfacing with ``tokenizer.perl`` from Moses.
 
