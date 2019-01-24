@@ -8,6 +8,8 @@ import regex
 import random
 import string
 
+FEATURES_VERSION = 2
+
 #Allows to load modules while inside or outside the package
 try:
     from .util import no_escaping, regex_alpha
@@ -111,7 +113,7 @@ def feature_length_poisson(slsentence, tlsentence, ratio):
 
 # Qmax: probability product of correspondences found (using max probabilty
 # rather than alignment).
-def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oovs, dict_ttos, limit = 20):
+def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oovs, dict_ttos, fv, limit = 20):
     logresult = 0
     
     slwords_s_a = set()
@@ -129,7 +131,10 @@ def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oo
     if treat_oovs:
         for tlword in tlwords2[0:limit]:
             if tlword not in dict_ttos:
-                pass
+                if fv >= 2:
+                    logresult += math.log(0.0000001)
+                else:
+                    pass # old behavior (it was a bug)
             else:
                 t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
                 t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
@@ -144,7 +149,11 @@ def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oo
             
 
     if normalize_by_length:
-        logresult = float(logresult)/float(max(len(tlwords), limit))
+        if fv >= 2:
+            logresult = float(logresult)/float(min(len(tlwords), limit))
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult)/float(max(len(tlwords), limit))
 
     return math.exp(logresult)
 
@@ -308,6 +317,7 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     disable_features_quest = args.disable_features_quest
     lang1 = args.source_lang
     lang2 = args.target_lang
+    fv    = args.fv
     
 #    parts = row.strip().split("\t")
 
@@ -336,9 +346,9 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     features.append(feature_sentence_length(right_sentence_tok))
     features.append(feature_length_poisson(left_sentence_tok, right_sentence_tok, length_ratio))
     features.append(feature_length_poisson(right_sentence_tok, left_sentence_tok, 1.0/length_ratio))
-    features.append(feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, qmax_limit))
+    features.append(feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv, qmax_limit))
     features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
-    features.append(feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, qmax_limit))
+    features.append(feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv, qmax_limit))
     features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     if disable_features_quest:
         # Average token length
