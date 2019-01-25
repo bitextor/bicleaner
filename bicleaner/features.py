@@ -317,7 +317,7 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     disable_features_quest = args.disable_features_quest
     lang1 = args.source_lang
     lang2 = args.target_lang
-    fv    = args.fv
+    fv    = args.features_version
     
 #    parts = row.strip().split("\t")
 
