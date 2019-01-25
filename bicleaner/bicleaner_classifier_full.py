@@ -133,6 +133,7 @@ def initialization():
         args.good_test_examples = metadata_yaml["good_test_examples"]
         args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
         args.length_ratio = metadata_yaml["length_ratio"]
+        args.fv = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
         
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))

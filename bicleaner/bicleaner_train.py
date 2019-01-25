@@ -23,11 +23,11 @@ from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package  
 try:
-    from .features import feature_extract
+    from .features import feature_extract, FEATURES_VERSION
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
 except (SystemError, ImportError):
-    from features import feature_extract
+    from features import feature_extract, FEATURES_VERSION
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
 
@@ -102,6 +102,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong):
     out.write("recall_histogram: {}\n".format(repr_right(recall)))
     out.write("accuracy_histogram: {}\n".format(repr_right(accuracy)))
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
+    out.write("features_version: {}\n".format(FEATURES_VERSION))
     
 # Argument parsing
 def initialization():
