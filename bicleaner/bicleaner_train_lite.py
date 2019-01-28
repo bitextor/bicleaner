@@ -26,7 +26,7 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
 except (SystemError, ImportError):
-    from features import feature_extract
+    from features import feature_extract, FEATURES_VERSION
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup    
 
