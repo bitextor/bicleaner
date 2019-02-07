@@ -9,7 +9,6 @@ import bicleaner
 
 def setup_function():
 	print("Running test setup...")
-#	langpackurl = "https://github.com/bitextor/bitextor-data/raw/master/bicleaner/en-de.tar.gz"
 	langpackurl = "https://github.com/bitextor/bitextor-data/releases/download/bicleaner-v1.0/en-de.tar.gz"
 	tar = "tar -xzf en-de.tar.gz"
 	command = "mkdir -p test_langpacks && cd test_langpacks && wget -q {0} && {1}  && cd ../..".format(langpackurl, tar)	
@@ -50,7 +49,7 @@ def bicleaner_test():
 	
 def test_results():
 
-	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
+	expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0]
 	results = bicleaner_test()
 	print("Checking test results...")
 	for  i in range(len(expected)):
