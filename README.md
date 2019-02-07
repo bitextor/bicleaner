@@ -71,7 +71,8 @@ This tool can be run with
 bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
                           [-p PROCESSES] [-d DISCARDED_TUS]
                           [--threshold THRESHOLD] [-q] [--debug]
-                          [--logfile LOGFILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH] [-v]
+                          [--logfile LOGFILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH]
+                          [--lm_threshold LM_THRESHOLD] [--keep_lm_result] [-v]
                           input [output] metadata
 ```
 
@@ -91,6 +92,8 @@ bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
   * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
   * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
+  * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
   * --debug: Debug logging mode (default: False)
