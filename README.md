@@ -144,9 +144,11 @@ In order to train a new classifier, you must provide:
 * A clean parallel corpus (100k pairs of sentences is the recommended size)
 * SL-to-TL and TL-to-SL probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs
 
-Optionally, if you want the classifier to include an improved fluency filter based on language models, you must provide:
+Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
 * A monolingual corpus made ONLY of noisy sentences in the TL (100k sentences is the recommended size)
+
+Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
 In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, Bicleaner contains a set of heuristic rules that can be used to extract very noisy sentences from a corpus.
 
