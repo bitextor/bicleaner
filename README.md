@@ -127,7 +127,7 @@ This will download the required language pack, classify the provided test corpus
 
 ## Training classifiers
 
-In case you need to train a new classifier (i.e. because it is not available in the language packs provided in [bitextor-data](https://github.com/bitextor/bitextor-data/tree/master/bicleaner)), 
+In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.0)), 
 you can use `bicleaner-train` .
 `bicleaner-train` is a Python3 tool that allows to train a classifier which predicts 
 whether a pair of sentences are mutual translations or not.
