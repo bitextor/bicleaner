@@ -32,16 +32,22 @@ If you find Bicleaner useful, please consider citing the following paper:
 
 Bicleaner works with Python 3.5 and can be instaled with `pip`:
 
-`python3.5 -m pip install bicleaner`
+```bash
+python3.5 -m pip install bicleaner
+```
 
 Bicleaner requires the KenLM Python bindings with support for 7-gram language models. You can easily install
 them by running the following command, that will install the February 2019 version of KenLM with 7-gram support enabled.
 
-`python3.5 -m pip install https://github.com/vitaka/kenlm/archive/master.zip`
+```bash
+python3.5 -m pip install https://github.com/vitaka/kenlm/archive/master.zip
+```
 
-If you need a more updated version, please clone KenLM from https://github.com/kpu/kenlm, edit the file setup.py, replace -DKENLM_MAX_ORDER=6 with -DKENLM_MAX_ORDER=7 and run:
+If you need a more updated version, please clone KenLM from https://github.com/kpu/kenlm, edit the file `setup.py`, replace `-DKENLM_MAX_ORDER=6` with `-DKENLM_MAX_ORDER=7` and run:
 
-`python3.5 setup.py install`
+```bash
+python3.5 setup.py install
+```
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
