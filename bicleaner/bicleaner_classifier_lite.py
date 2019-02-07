@@ -58,6 +58,8 @@ def initialization():
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
+    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
+    groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -84,7 +86,7 @@ def initialization():
             args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]
 
         try:
-            args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
+            args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
         except:            
             args.clf=joblib.load(metadata_yaml["classifier"])
         
@@ -93,11 +95,11 @@ def initialization():
 
 
         try:
-            args.dict_sl_tl = ProbabilisticDictionary(yamlpath + "/" + metadata_yaml["source_dictionary"])
+            args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["source_dictionary"]))
         except:
             args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
         try:            
-            args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["target_dictionary"])        
+            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))        
         except:
             args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
         
@@ -122,7 +124,19 @@ def initialization():
         if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
             lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']] ,args.source_lang, args.target_lang)
             stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            lmFilter.load(metadata_yaml['source_lm'], metadata_yaml['target_lm'] ,stats)
+            
+            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
+            if os.path.isfile(fullpath_source_lm):
+                source_lm= fullpath_source_lm
+            else:
+                source_lm= metadata_yaml['source_lm']
+            
+            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
+            if os.path.isfile(fullpath_target_lm):
+                target_lm=fullpath_target_lm
+            else:
+                target_lm=metadata_yaml['target_lm']
+            lmFilter.load(source_lm, target_lm ,stats)
             args.lm_filter=lmFilter
         else:
             args.lm_filter=None
@@ -173,10 +187,13 @@ def classify(args):
         if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
             lmScore=None
             if args.lm_filter:
-                lmScore=args.lm_filter.score(sl_sentence,tl_sentence)            
-            buf_sent.append((1, i,lmScore))
-            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-            buf_feat.append([float(v) for v in features])
+                lmScore=args.lm_filter.score(sl_sentence,tl_sentence)
+            if lmScore < args.lm_threshold and not args.keep_lm_result:
+                buf_sent.append((0, i,lmScore))
+            else:
+                buf_sent.append((1, i,lmScore))
+                features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                buf_feat.append([float(v) for v in features])
         else:
             lmScore=None
             if args.lm_filter:
@@ -193,14 +210,14 @@ def classify(args):
                     args.output.write(l.strip())
                     args.output.write("\t")
                     args.output.write(str(next(p)[1]))
-                    if lmScore != None:
+                    if lmScore != None and args.keep_lm_result:
                         args.output.write("\t")
                         args.output.write(str(lmScore))
                     args.output.write("\n")
                 else:
                     args.output.write(l.strip("\n"))
                     args.output.write("\t0")
-                    if lmScore != None:
+                    if lmScore != None and args.keep_lm_result:
                         args.output.write("\t0")
                     args.output.write("\n")
 
@@ -211,15 +228,21 @@ def classify(args):
         predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
         p = iter(predictions)
             
-        for k, l in buf_sent:
+        for k, l, lmScore in buf_sent:
             if k == 1:
                 args.output.write(l.strip())
                 args.output.write("\t")
                 args.output.write(str(next(p)[1]))
+                if lmScore != None and args.keep_lm_result:
+                    args.output.write("\t")
+                    args.output.write(str(lmScore))
                 args.output.write("\n")
             else:
                 args.output.write(l.strip("\n"))
-                args.output.write("\t0\n")
+                args.output.write("\t0")
+                if lmScore != None and args.keep_lm_result:
+                    args.output.write("\t0")
+                args.output.write("\n")
                 
                 
 # Filtering input texts

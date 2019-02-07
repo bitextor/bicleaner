@@ -81,6 +81,8 @@ def initialization():
     #groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=2000, help="Number of wrong test examples")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
+    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
+    groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -109,7 +111,7 @@ def initialization():
             args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
 
         try:
-            args.clf=joblib.load(yamlpath + "/" + metadata_yaml["classifier"])
+            args.clf=joblib.load( os.path.join(yamlpath , metadata_yaml["classifier"]))
         except:            
             args.clf=joblib.load(metadata_yaml["classifier"])
         
@@ -118,11 +120,11 @@ def initialization():
 
 
         try:
-            args.dict_sl_tl = ProbabilisticDictionary(yamlpath + "/" + metadata_yaml["source_dictionary"])
+            args.dict_sl_tl = ProbabilisticDictionary( os.path.join( yamlpath, metadata_yaml["source_dictionary"]))
         except:
             args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
         try:            
-            args.dict_tl_sl = ProbabilisticDictionary(yamlpath+"/"+metadata_yaml["target_dictionary"])        
+            args.dict_tl_sl = ProbabilisticDictionary( os.path.join( yamlpath , metadata_yaml["target_dictionary"]))        
         except:
             args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
         
@@ -145,8 +147,19 @@ def initialization():
         
         #Load LM stuff if model was trained with it 
         if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            args.source_lm=metadata_yaml['source_lm']
-            args.target_lm=metadata_yaml['target_lm']
+            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
+            if os.path.isfile(fullpath_source_lm):
+                args.source_lm= fullpath_source_lm
+            else:
+                args.source_lm= metadata_yaml['source_lm']
+            
+            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
+            if os.path.isfile(fullpath_target_lm):
+                args.target_lm=fullpath_target_lm
+            else:
+                args.target_lm=metadata_yaml['target_lm']
+            
+            
             args.lm_type=LMType[metadata_yaml['lm_type']]
             stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
             args.lm_filter_stats=stats
@@ -204,7 +217,13 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
                 feats = []
                 lm_scores=[]
-
+                
+                #Create the following arrays:
+                #valid_sentences: boolean, length of input. States whether each sentence passed
+                #  hard rules and lm fluency filtering
+                #feats: vector of tuples, input features to the classifier, length equals number
+                #  of sentences in the input that passed hard rules + lm fluency filtering
+                
                 valid_sentences=[]
                 for i in filein:
                     parts = i.split("\t")
@@ -214,17 +233,18 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         sl_sentence=parts[2]
                         tl_sentence=parts[3]
                     if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-                        # print("SENTENCE PAIR: %%{}%%".format(i))
-                        # print(Features(features)) # debug
-                        feats.append([float(v) for v in features])
-                        
+                        lm_score=None
                         if lm_filter:
-                            lm_scores.append(lm_filter.score(sl_sentence,tl_sentence))
-                        
-                        valid_sentences.append(True)
+                            lm_score=lm_filter.score(sl_sentence,tl_sentence)
+                        if lm_filter and lm_score < args.lm_threshold and not args.keep_lm_result:
+                            valid_sentences.append(False)
+                        else:
+                            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                            feats.append([float(v) for v in features])
+                            lm_scores.append(lm_score)        
+                            valid_sentences.append(True)
                     else:
-                        valid_sentences=False
+                        valid_sentences.append(False)
                     
 
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
@@ -240,7 +260,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         fileout.write(i.strip())
                         fileout.write("\t")
                         fileout.write(str(p[1]))
-                        if lm_filter:
+                        if lm_filter and args.keep_lm_result:
                             lm_score=next(lmiter)
                             fileout.write("\t")
                             fileout.write(str(lm_score))
@@ -248,7 +268,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         fileout.write(i.strip("\n"))
                         fileout.write("\t0")
-                        if lm_filter:
+                        if lm_filter and args.keep_lm_result:
                             fileout.write("\t0")
                         fileout.write("\n")
 
