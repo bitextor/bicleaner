@@ -38,7 +38,7 @@ def initialization():
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     parser.add_argument('input',  nargs='?', type=argparse.FileType('rt', errors="replace"), default=io.TextIOWrapper(sys.stdin.buffer, errors="replace"),  help="Tab-separated bilingual tagged file")
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
-    #parser.add_argument('annotated_output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Annotated output of the classification")
+    parser.add_argument('--annotated_output', type=argparse.FileType('wt'), help="Annotated output of the classification")
     
     groupM = parser.add_argument_group('Mandatory')
     groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
@@ -257,7 +257,8 @@ def worker_process(i, jobs_queue, output_queue, args):
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
                         fileout.write("{}\t{}\t0.0000000000000000\tdiscard\n".format(left, right))
-                        print("{}\t{}\t{}\n".format(left,right,wrong_tu_results))
+                        if args.annotated_output:
+                            args.annotated_output.write("{}\t{}\t{}\n".format(left,right,wrong_tu_results))
                     else:
                         fileout.write(i)
 
