@@ -1,6 +1,10 @@
 import kenlm
 from enum import Enum
-from util import MosesTokenizer
+try:
+    from .util import MosesTokenizer
+except (ImportError, SystemError):
+    from util import MosesTokenizer
+
 from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
