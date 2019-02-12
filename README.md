@@ -159,7 +159,7 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
 ```bash
 bicleaner-hardrules -s SOURCE_LANG -t TARGET_LANG --annotated_output OUTPUT_NOISY_FILE INPUT_FILE OUTPUT_ALL_FILE
 ```
-where INPUT_FILE contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  OUTPUT_NOISY_FILE will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and OUTPUT_ALL_FILE will contain all the input sentences. They noisy ones will contain an additional column with the word "discard".
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `OUTPUT_NOISY_FILE` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_ALL_FILE` will contain all the input sentences. They noisy ones will contain an additional column with the word "discard".
 
 You can them obtain the monolingual noisy corpora by "cutting" the appropriate column:
 ```bash
@@ -169,7 +169,7 @@ cut -f 2 OUTPUT_NOISY_FILE > MONOLINGUAL_NOISY.TARGET_LANG
 
 ### Parameters
 
-It can be used as follows. Note that the parameters --noisy_examples_file_sl, --noisy_examples_file_tl, --lm_file_sl, --lm_file_tl, are mandatory if you want to enable improved fluency filter based on language models (recommended).
+It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, `--noisy_examples_file_tl`, `--lm_file_sl`, `--lm_file_tl`, are mandatory if you want to enable improved fluency filter based on language models (recommended).
 
 
 ```bash
@@ -249,9 +249,9 @@ bicleaner-train \
           --classifier_type random_forest
 ```
 
-This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train and the probabilistic dictionaries dict-en.gz and dict-cs.gz. 
+This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train and the probabilistic dictionaries `dict-en.gz` and `dict-cs.gz`. 
 This training will use 50000 good and 50000 bad examples, and a block size of 1000 sentences.
-The classifier data will be stored in en-cs.classifier, with the metadata in training.en-cs.yaml. The improved fluency language model filter will not be included.
+The classifier data will be stored in `en-cs.classifier`, with the metadata in `training.en-cs.yaml`. The improved fluency language model filter will not be included.
 
 The generated .yaml file provides the following information, that is useful to get a sense on how good or bad was the training  (and is also a needed input file for classifying):
 
