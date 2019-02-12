@@ -159,7 +159,7 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
 ```bash
 bicleaner-hardrules -s SOURCE_LANG -t TARGET_LANG --annotated_output OUTPUT_NOISY_FILE INPUT_FILE OUTPUT_ALL_FILE
 ```
-where INPUT_FILE contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab and OUTPUT_NOISY_FILE will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied.
+where INPUT_FILE contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  OUTPUT_NOISY_FILE will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and OUTPUT_ALL_FILE will contain all the input sentences. They noisy ones will contain an additional column with the word "discard".
 
 You can them obtain the monolingual noisy corpora by "cutting" the appropriate column:
 ```bash
