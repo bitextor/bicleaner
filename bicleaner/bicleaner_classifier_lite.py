@@ -188,7 +188,7 @@ def classify(args):
             lmScore=None
             if args.lm_filter:
                 lmScore=args.lm_filter.score(sl_sentence,tl_sentence)
-            if lmScore < args.lm_threshold and not args.keep_lm_result:
+            if lmScore != None and lmScore < args.lm_threshold and not args.keep_lm_result:
                 buf_sent.append((0, i,lmScore))
             else:
                 buf_sent.append((1, i,lmScore))
