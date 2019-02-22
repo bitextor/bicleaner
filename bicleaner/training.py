@@ -75,16 +75,26 @@ def train_fluency_filter(args):
     if not ( args.noisy_examples_file_sl and args.noisy_examples_file_tl and args.lm_file_sl and args.lm_file_tl  ):
         return None
     
-    lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
+    
+    inputIsTmp=True
+    if args.lm_training_file_sl and args.lm_training_file_tl and args.lm_clean_examples_file_sl and args.lm_clean_examples_file_tl:
+        inputIsTmp=False
+        lm_train_path_sl=args.lm_training_file_sl
+        lm_train_path_tl=args.lm_training_file_tl 
+        lm_dev_clean_sl=args.lm_clean_examples_file_sl
+        lm_dev_clean_tl=args.lm_clean_examples_file_tl
+    else:
+        lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
      
     try:
         ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang)
         stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
     finally:
-        os.remove(lm_train_path_sl)
-        os.remove(lm_train_path_tl)
-        os.remove(lm_dev_clean_sl)
-        os.remove(lm_dev_clean_tl)
+        if inputIsTmp:
+            os.remove(lm_train_path_sl)
+            os.remove(lm_train_path_tl)
+            os.remove(lm_dev_clean_sl)
+            os.remove(lm_dev_clean_tl)
     return stats
     
 
@@ -243,7 +253,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("recall_histogram: {}\n".format(repr_right(recall)))
     out.write("accuracy_histogram: {}\n".format(repr_right(accuracy)))
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
-    out.write("features_version: {}\n".format(myargs.FEATURES_VERSION))
+    out.write("features_version: {}\n".format(myargs.features_version))
     
     if lm_stats != None:
         out.write("source_lm: {}\n".format(os.path.abspath(myargs.lm_file_sl)))
