@@ -31,7 +31,7 @@ regex_spaces_noise = regex.compile("([ ].){4,}[ ]")
 regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
-
+regex_escaped_unicode = regex.compile("\\u[a-fA-F0-9]{3,}")
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
 def initialization():
@@ -140,11 +140,21 @@ def c_unwanted(sentence):
 def c_inconditional(sentence):
     return len(regex_inconditional.findall(sentence)) < 1
 
+def c_no_literals(literals, sentence):
+    return not any(l in sentence for l in literals)
+
+def c_no_escaped_unicode(sentence):
+    return len(regex_escaped_unicode.findall(sentence)) == 0
+   
 def wrong_tu(left, right, args):
     if len(left) >= 1024:
         return "len(left) >= 1024"
     if len(right) >= 1024:
         return "len(right) >= 1024"
+    elif not c_no_literals(["Porn"], left):
+        return "c_no_literals(['Porn'], left)"
+    elif not c_no_literals(["Porn"], right):
+        return "c_no_literals(['Porn'], right)"
     elif not c_minimal_length(left):
         return "c_minimal_length(left)"
     elif not c_minimal_length(right):
@@ -189,11 +199,21 @@ def wrong_tu(left, right, args):
         return "c_inconditional(left)"
     elif not c_inconditional(right):
         return "c_inconditional(right)"
+    elif not c_no_escaped_unicode(left):
+        return "c_no_escaped_unicode(left)"
+    elif not c_no_escaped_unicode(right):
+        return "c_no_escaped_unicode(right)"
+    elif not c_no_literals(["{{", "%s", "}}"], left):
+        return 'c_no_literals(["{{", "%s", "}}"], left)'
+    elif not c_no_literals(["{{", "%s", "}}"], right):
+        return 'c_no_literals(["{{", "%s", "}}"], right)'
+    elif left.istitle() and right.istitle():
+        return 'left.istitle() and right.istitle()'
     elif not c_reliable_long_language(left, args.source_lang):
         return "c_reliable_long_language(left, sourcelang)"
     elif not c_reliable_long_language(right, args.target_lang):
         return "c_reliable_long_language(right, targetlang)"
-            
+                       
     return False
     
     
