@@ -31,7 +31,7 @@ regex_spaces_noise = regex.compile("([ ].){4,}[ ]")
 regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
-regex_escaped_unicode = regex.compile("\\u[a-fA-F0-9]{3,}")
+regex_escaped_unicode = regex.compile("[\\]u[a-fA-F0-9]{3,}")
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
 def initialization():
