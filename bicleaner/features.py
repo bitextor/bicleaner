@@ -150,7 +150,7 @@ def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oo
 
     if normalize_by_length:
         if fv >= 2:
-            logresult = float(logresult)/float(min(len(tlwords), limit))
+            logresult = float(logresult)/float(max(1, min(len(tlwords), limit))) # the max is to prevent zero division when tl sentence is empty        
         else:
             # old behavior (it was a bug)
             logresult = float(logresult)/float(max(len(tlwords), limit))
