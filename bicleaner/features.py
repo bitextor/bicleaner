@@ -103,8 +103,9 @@ def log_stirling(n):
 # and the Poisson probability distribution.
 def feature_length_poisson(slsentence, tlsentence, ratio):
     try:
-        sllen = len(slsentence)
-        tllen = len(tlsentence)
+        sllen = max(len(slsentence), 0.1)
+        tllen = max(len(tlsentence), 0.1)
+    
         #return  (math.exp(-sllen*ratio) * (sllen*ratio)**tllen )*1.0 / (math.factorial(tllen)*1.0) # original formula, replaced below for numerical stability
         return math.exp(-sllen*ratio + tllen*math.log(sllen*ratio) - log_stirling(tllen))
     except:
