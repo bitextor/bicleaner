@@ -37,16 +37,23 @@ python3.5 -m pip install bicleaner
 ```
 
 Bicleaner requires the KenLM Python bindings with support for 7-gram language models. You can easily install
-them by running the following command, that will install the February 2019 version of KenLM with 7-gram support enabled.
+them by running the following commands:
 
 ```bash
-python3.5 -m pip install https://github.com/vitaka/kenlm/archive/master.zip
-```
+  git clone https://github.com/kpu/kenlm
+```  
+In `kenlm/setup.py`, replace 
 
-If you need a more updated version, please clone KenLM from https://github.com/kpu/kenlm, edit the file `setup.py`, replace `-DKENLM_MAX_ORDER=6` with `-DKENLM_MAX_ORDER=7` and run:
+`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=6', '-std=c++11']`
+with 
+`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=7', '-std=c++11']`
 
 ```bash
-python3.5 setup.py install
+python kenlm/setup.py install
+cd kenlm/build
+cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
+make -j all install
+
 ```
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
@@ -73,12 +80,24 @@ adding an extra column containing the Bicleaner classifier score.
 This tool can be run with
 
 ```bash
-bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
-                          [-p PROCESSES] [-d DISCARDED_TUS]
-                          [--threshold THRESHOLD] [-q] [--debug]
-                          [--logfile LOGFILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH]
-                          [--lm_threshold LM_THRESHOLD] [--keep_lm_result] [-v]
-                          input [output] metadata
+bicleaner-classify [-h]
+                   [-S SOURCE_TOKENISER_PATH]
+                   [-T TARGET_TOKENISER_PATH] 
+                   [--tmp_dir TMP_DIR]
+                   [-b BLOCK_SIZE] 
+                   [-p PROCESSES] 
+                   [-d DISCARDED_TUS]
+                   [--threshold THRESHOLD]
+                   [--lm_threshold LM_THRESHOLD] 
+                   [--keep_lm_result]
+                   [-q] 
+                   [--debug] 
+                   [--logfile LOGFILE] 
+                   [-v]
+                   input 
+                   [output] 
+                   metadata
+
 ```
 
 ### Parameters
@@ -90,14 +109,14 @@ bicleaner-classify [-h] [--tmp_dir TMP_DIR] [-b BLOCK_SIZE]
 * optional arguments:
   * -h, --help: show this help message and exit
 * Optional:
+  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
   * --tmp_dir TMP_DIR: Temporary directory where creating the temporary files of this program (default: default system temp dir, defined by the environment variable TMPDIR in Unix)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of processes to use (default: all CPUs minus one)
   * -d DISCARDED_TUS, --discarded_tus DISCARDED_TUS: TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file. (default: None)
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
-  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
-  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
-  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
+ * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
@@ -157,7 +176,16 @@ In principle, if you want to use Bicleaner to clean a partially noisy corpus, it
 Given a parallel corpus, you can extract some of its noisiest sentences using heuristic rules by running the following command:
 
 ```bash
-bicleaner-hardrules -s SOURCE_LANG -t TARGET_LANG --annotated_output OUTPUT_NOISY_FILE INPUT_FILE OUTPUT_ALL_FILE
+  bicleaner-hardrules [-h]
+                      [--annotated_output ANNOTATED_OUTPUT] 
+                      -s SOURCE_LANG
+                      -t TARGET_LANG 
+                      [--tmp_dir TMP_DIR]
+                      [-b BLOCK_SIZE]
+                      [-p PROCESSES]
+                      [input]
+                      [output]
+
 ```
 where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `OUTPUT_NOISY_FILE` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_ALL_FILE` will contain all the input sentences. They noisy ones will contain an additional column with the word "discard".
 
@@ -173,25 +201,44 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
 
 
 ```bash
- bicleaner-train [-h] -m METADATA -c CLASSIFIER -s SOURCE_LANG -t
-                          TARGET_LANG -d SOURCE_DICTIONARY -D
-                          TARGET_DICTIONARY [--normalize_by_length]
-                          [--treat_oovs] [--qmax_limit QMAX_LIMIT]
-                          [--disable_features_quest] [-g GOOD_EXAMPLES]
-                          [-w WRONG_EXAMPLES]
-                          [--good_test_examples GOOD_TEST_EXAMPLES]
-                          [--wrong_test_examples WRONG_TEST_EXAMPLES]
-                          [--classifier_type {svm,nn,nn1,adaboost,random_forest}]
-                          [--dump_features DUMP_FEATURES] [-b BLOCK_SIZE]
-                          [-p PROCESSES]
-                          [--wrong_examples_file WRONG_EXAMPLES_FILE] [-S SL_TOKENIZER_PATH] [-T TL_TOKENIZER_PATH] 
-                          [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
-                          [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
-                          [--lm_dev_size LM_DEV_SIZE] [--lm_file_sl LM_FILE_SL]
-                          [--lm_file_tl LM_FILE_TL]
-                          [-q] [--debug] [--logfile LOGFILE]
-                          [input]
-```                          
+ bicleaner-train [-h]
+                 -m METADATA              
+                 -c CLASSIFIER 
+                 -s SOURCE_LANG 
+                 -t TARGET_LANG 
+                 -d SOURCE_DICTIONARY 
+                 -D TARGET_DICTIONARY               
+                 [-S SOURCE_TOKENISER_PATH]
+                 [-T TARGET_TOKENISER_PATH]
+                 [--normalize_by_length]
+                 [--treat_oovs]
+                 [--qmax_limit QMAX_LIMIT]
+                 [--disable_features_quest]
+                 [-g GOOD_EXAMPLES]
+                 [-w WRONG_EXAMPLES]
+                 [--good_test_examples GOOD_TEST_EXAMPLES]
+                 [--wrong_test_examples WRONG_TEST_EXAMPLES]
+                 [--classifier_type {svm,nn,nn1,adaboost,random_forest}]
+                 [--dump_features DUMP_FEATURES]
+                 [-b BLOCK_SIZE]
+                 [-p PROCESSES]
+                 [--wrong_examples_file WRONG_EXAMPLES_FILE]
+                 [--features_version FEATURES_VERSION]
+                 [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
+                 [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
+                 [--lm_dev_size LM_DEV_SIZE]
+                 [--lm_file_sl LM_FILE_SL]
+                 [--lm_file_tl LM_FILE_TL]
+                 [--lm_training_file_sl LM_TRAINING_FILE_SL]
+                 [--lm_training_file_tl LM_TRAINING_FILE_TL]
+                 [--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL]
+                 [--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL]
+                 [-q]
+                 [--debug]
+                 [--logfile LOGFILE]
+                 [input]
+                 
+                 ```                          
 
 * positional arguments:
   * input: Tab-separated bilingual input file (default: Standard input)(line format: SOURCE_SENTENCE TARGET_SENTENCE, tab-separated)
@@ -205,11 +252,8 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * -d SOURCE_DICTIONARY, --source_dictionary SOURCE_DICTIONARY: LR gzipped probabilistic dictionary 
   * -D TARGET_DICTIONARY, --target_dictionary TARGET_DICTIONARY: RL gzipped probabilistic dictionary
 * Options:
-  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy sentences in the SL
-  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy sentences in the TL
-  * --lm_file_sl LM_FILE_SL: Output file with the created SL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
-  * --lm_file_tl LM_FILE_TL: Output file with the created TL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
-  * --lm_dev_size SIZE:  Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)
+  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.  
   * --normalize_by_length: Normalize by length in qmax dict feature 
   * --treat_oovs: Special treatment for OOVs in qmax dict feature
   * --qmax_limit: Number of max target words to be taken into account, sorted by length (default: 20)
@@ -222,9 +266,17 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * --dump_features DUMP_FEATURES: Dump training features to file (default: None)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE: Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of process to use (default: all CPUs minus one)
-  * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
-  * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
   * --wrong_examples_file WRONG_EXAMPLES_FILE: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
+  * --features_version FEATURES_VERSION: Version of the feature (default: extracted from the features.py file)
+  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text.
+  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text.
+  * --lm_dev_size SIZE:  Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)
+  * --lm_file_sl LM_FILE_SL: Output file with the created SL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
+  * --lm_file_tl LM_FILE_TL: Output file with the created TL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
+  * --lm_training_file_sl LM_TRAINING_FILE_SL: SL text from which the SL LM is trained. If this parameter is not specified, SL LM is trained from the SL side of the input file, after removing --lm_dev_size sentences.
+  * --lm_training_file_tl LM_TRAINING_FILE_TL: TL text from which the TL LM is trained. If this parameter is not specified, TL LM is trained from the TL side of the input file, after removing --lm_dev_size sentences.
+  * --lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL: File with clean text in the SL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_sl and both files must not have common sentences. This option replaces --lm_dev_size.
+  * --lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL: File with clean text in the TL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_tl and both files must not have common sentences. This option replaces --lm_dev_size."
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
   * --debug: Debug logging mode (default: False)
@@ -268,14 +320,23 @@ qmax_limit: 20
 disable_features_quest: True
 good_examples: 50000
 wrong_examples: 50000
-good_test_examples: 2000
-wrong_test_examples: 2000
-good_test_histogram: [0, 2, 18, 83, 217, 450, 1596, 7245, 389, 0]
-wrong_test_histogram: [3, 3114, 3949, 2309, 516, 86, 22, 1, 0, 0]
-precision_histogram: [0.5000000, 0.5000750, 0.5922635, 0.7728047, 0.9406006, 0.9888651, 0.9975143, 0.9998690, 1.0000000, nan]
-recall_histogram: [1.0000000, 1.0000000, 0.9998000, 0.9980000, 0.9897000, 0.9680000, 0.9230000, 0.7634000, 0.0389000, 0.0000000]
-accuracy_histogram: [0.5000000, 0.5001500, 0.6557500, 0.8523000, 0.9636000, 0.9785500, 0.9603500, 0.8816500, 0.5194500, 0.5000000]
-length_ratio: 0.9049934
+good_test_examples: 10000
+wrong_test_examples: 10000
+good_test_histogram: [0, 7, 39, 45, 112, 172, 514, 2199, 6912, 0]
+wrong_test_histogram: [14, 4548, 4551, 747, 118, 18, 3, 1, 0, 0]
+precision_histogram: [0.5000000, 0.5003502, 0.6475925, 0.9181810, 0.9860683, 0.9977594, 0.9995846, 0.9998903, 1.0000000, nan]
+recall_histogram: [1.0000000, 1.0000000, 0.9993000, 0.9954000, 0.9909000, 0.9797000, 0.9625000, 0.9111000, 0.6912000, 0.0000000]
+accuracy_histogram: [0.5000000, 0.5007000, 0.7277500, 0.9533500, 0.9884500, 0.9887500, 0.9810500, 0.9555000, 0.8456000, 0.5000000]
+length_ratio: 1.0111087
+features_version: 2
+source_lm: en-cs.model.en
+target_lm: en-cs.model.cs
+lm_type: CHARACTER
+clean_mean_perp: -1.0744755342473238
+clean_stddev_perp: 0.18368996884800565
+noisy_mean_perp: -3.655791900929066
+noisy_stddev_perp: 0.9989343799121657
+
 ```
 
 ## Lite versions
