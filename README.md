@@ -238,7 +238,7 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
                  [--logfile LOGFILE]
                  [input]
                  
-                 ```                          
+```                          
 
 * positional arguments:
   * input: Tab-separated bilingual input file (default: Standard input)(line format: SOURCE_SENTENCE TARGET_SENTENCE, tab-separated)
