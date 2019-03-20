@@ -162,8 +162,8 @@ whether a pair of sentences are mutual translations or not and discards too nois
 In order to train a new classifier, you must provide:
 * A clean parallel corpus (100k pairs of sentences is the recommended size)
 * SL-to-TL and TL-to-SL gzipped probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs
-   * The SL-to-TL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by tab, in this order: TL word, SL word, probability.
-   * The TL-to-SL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by tab, in this order: SL word, TL word, probability.
+   * The SL-to-TL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: TL word, SL word, probability.
+   * The TL-to-SL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: SL word, TL word, probability.
    * We recommend filtering out entries with a very low probability: removing those with a probability 10 times lower than the maximum translation probability for each word speeds up the process and does not decrease accuracy.
    * Prior to inferring the probabilistic dictionaries, sentences must be tokenizer with the Moses tokenizer (with the `-a` flag) and lowercased.
    * You can uses Moses and MGIZA++ to obtain probabilistic dictionaries from a parallel corpus.
