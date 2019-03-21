@@ -277,7 +277,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
                         fileout.write("{}\t{}\t0.0000000000000000\tdiscard\n".format(left, right))
-                        if args.annotated_output:
+                        if args.annotated_output:                            
                             args.annotated_output.write("{}\t{}\t{}\n".format(left,right,wrong_tu_results))
                     else:
                         fileout.write(i)
@@ -285,10 +285,12 @@ def worker_process(i, jobs_queue, output_queue, args):
                 ojob = (nblock, fileout.name)
                 filein.close()
                 fileout.close()
-                 
+
+
             if ojob:                    
                 output_queue.put(ojob)
-                    
+            if args.annotated_output:
+                args.annotated_output.flush()                    
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
@@ -362,7 +364,10 @@ def perform_hardrules_filtering(args):
     # Reducer termination
     output_queue.put(None)
     reduce.join()
-
+    
+    if args.annotated_output:
+        args.annotated_output.close()
+        
     # Stats
     logging.info("Finished")
     elapsed_time = default_timer() - time_start
