@@ -188,16 +188,16 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
-                      [input]
-                      [output]
+                      [INPUT_FILE]
+                      [OUTPUT_FILE]
 
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `OUTPUT_NOISY_FILE` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_ALL_FILE` will contain all the input sentences. They noisy ones will contain an additional column with the word "discard".
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `ANNOTATED_OUTPUT` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_FILE` will contain all the input sentences. They noisy ones will contain two additional columns with the score "0.0000" and the word "discard".
 
-You can them obtain the monolingual noisy corpora by "cutting" the appropriate column:
+You can them obtain the monolingual noisy corpora by "cutting" the appropriate columns:
 ```bash
-cut -f 1 OUTPUT_NOISY_FILE > MONOLINGUAL_NOISY.SOURCE_LANG
-cut -f 2 OUTPUT_NOISY_FILE > MONOLINGUAL_NOISY.TARGET_LANG
+cut -f 1 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.SOURCE_LANG
+cut -f 2 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.TARGET_LANG
 ```
 
 ### Parameters
@@ -250,8 +250,8 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
 * optional arguments:
   * -h, --help: show this help message and exit
 * Mandatory:
-  * -m METADATA, --metadata METADATA: Training metadata (YAML file)
-  * -c CLASSIFIER, --classifier CLASSIFIER: Classifier data file that will be created after training. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
+  * -m METADATA, --metadata METADATA: Output training metadata (YAML file) that will be created after training.
+  * -c CLASSIFIER, --classifier CLASSIFIER: Classifier data file that will be created after training. 
   * -s SOURCE_LANG, --source_lang SOURCE_LANG: Source language code 
   * -t TARGET_LANG, --target_lang TARGET_LANG: Target language code
   * -d SOURCE_TO_TARGET_DICTIONARY, --source_dictionary SOURCE_TO_TARGET_DICTIONARY: SL-to-TL gzipped probabilistic dictionary 
