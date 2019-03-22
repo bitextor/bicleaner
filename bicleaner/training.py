@@ -14,12 +14,12 @@ except (SystemError, ImportError):
 
 
 def shuffle_lm_training_text(input: typing.TextIO,dev_size: int ) -> (str,str,str,str):
-    
+
     dev_sl=NamedTemporaryFile("w",delete=False)
     dev_tl=NamedTemporaryFile("w",delete=False)
     train_sl=NamedTemporaryFile("w",delete=False)
     train_tl=NamedTemporaryFile("w",delete=False)
-    
+
     with TemporaryFile("w+") as temp_sl, TemporaryFile("w+") as temp_tl, TemporaryFile("w+") as shuf_sl, TemporaryFile("w+") as shuf_tl:
         #Read tab-separated input and write its content into two different files
         for line in input:
@@ -34,36 +34,36 @@ def shuffle_lm_training_text(input: typing.TextIO,dev_size: int ) -> (str,str,st
         temp_tl.flush()
         temp_sl.seek(0)
         temp_tl.seek(0)
-        
+
         #Shuffle the independent files
         shuffle_file(temp_sl, shuf_sl)
         shuffle_file(temp_tl, shuf_tl)
-        
+
         #read them and split between dev and train
         shuf_sl.seek(0)
         shuf_tl.seek(0)
-            
+
         for i in range(dev_size):
             line=shuf_sl.readline()
             dev_sl.write(line)
-            
+
             line=shuf_tl.readline()
             dev_tl.write(line)
-        
+
         for line in shuf_sl:
             train_sl.write(line)
-        
+
         for line in shuf_tl:
             train_tl.write(line)
-            
+
     dev_sl.close()
     dev_tl.close()
     train_sl.close()
     train_tl.close()
-    
+
     return train_sl.name, train_tl.name, dev_sl.name, dev_tl.name
-      
-            
+
+
 
 def train_fluency_filter(args):
     # Prepare corpora:
@@ -71,21 +71,33 @@ def train_fluency_filter(args):
     #  - Training data for LM
     #  - Validation set for estimating perplexity of clean text
     # Input noisy corpus used as validation set for estimating perplexity of noisy text
-    
+
+    logging.info("Training LM-based fluency filter")
+
     if not ( args.noisy_examples_file_sl and args.noisy_examples_file_tl and args.lm_file_sl and args.lm_file_tl  ):
         return None
-    
-    
+
+
     inputIsTmp=True
     if args.lm_training_file_sl and args.lm_training_file_tl and args.lm_clean_examples_file_sl and args.lm_clean_examples_file_tl:
         inputIsTmp=False
         lm_train_path_sl=args.lm_training_file_sl
-        lm_train_path_tl=args.lm_training_file_tl 
+        lm_train_path_tl=args.lm_training_file_tl
         lm_dev_clean_sl=args.lm_clean_examples_file_sl
         lm_dev_clean_tl=args.lm_clean_examples_file_tl
+        logging.info("SL LM training corpus: {}".format(lm_train_path_sl))
+        logging.info("TL LM training corpus: {}".format(lm_train_path_tl))
+        logging.info("SL LM dev clean corpus: {}".format(lm_dev_clean_sl))
+        logging.info("TL LM dev clean corpus: {}".format(lm_dev_clean_tl))
+        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
+        logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
     else:
+        logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the Random Forest classifier), after randomly removing {} sentences".format(args.lm_dev_size))
+        logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the Random Forest classifier): {} sentences".format(args.lm_dev_size))
+        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
+        logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
         lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
-     
+
     try:
         ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang)
         stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
@@ -96,7 +108,7 @@ def train_fluency_filter(args):
             os.remove(lm_dev_clean_sl)
             os.remove(lm_dev_clean_tl)
     return stats
-    
+
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
@@ -126,7 +138,7 @@ def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
                 temp.write(line)
 
         temp.flush()
-        
+
         total_size = nline
 
         if total_size == 0:
@@ -152,14 +164,14 @@ def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
         if wrong_examples_file:
             # The file is already shuffled
             logging.info("Using wrong examples from file {} instead the synthetic method".format(wrong_examples_file.name))
-            
+
             count = 0
             for i in wrong_examples_file:
                 wrong_sentences.write(i)
                 count += 1
                 if count == n_misaligned:
                     break
-            
+
         else:
             wrong_lines = min(total_size, n_misaligned)
             if (wrong_lines > 0):
@@ -225,7 +237,7 @@ def repr_right(numeric_list, numeric_fmt = "{:1.7f}"):
         else:
             result_str.append("]")
     return "".join(result_str)
-    
+
 # Write YAML with the training parameters and quality estimates
 def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out = myargs.metadata
@@ -254,7 +266,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("accuracy_histogram: {}\n".format(repr_right(accuracy)))
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
     out.write("features_version: {}\n".format(myargs.features_version))
-    
+
     if lm_stats != None:
         out.write("source_lm: {}\n".format(os.path.abspath(myargs.lm_file_sl)))
         out.write("target_lm: {}\n".format(os.path.abspath(myargs.lm_file_tl)))
@@ -263,4 +275,3 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         out.write("clean_stddev_perp: {}\n".format(lm_stats.clean_stddev) )
         out.write("noisy_mean_perp: {}\n".format(lm_stats.noisy_mean) )
         out.write("noisy_stddev_perp: {}\n".format(lm_stats.noisy_stddev) )
-        
