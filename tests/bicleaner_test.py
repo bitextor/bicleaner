@@ -9,7 +9,7 @@ import bicleaner
 
 def setup_function():
 	print("Running test setup...")
-	langpackurl = "https://github.com/bitextor/bitextor-data/releases/download/bicleaner-v1.0/en-de.tar.gz"
+	langpackurl = "https://github.com/bitextor/bitextor-data/releases/download/bicleaner-v1.1/en-de.tar.gz"
 	tar = "tar -xzf en-de.tar.gz"
 	command = "mkdir -p test_langpacks && cd test_langpacks && wget -q {0} && {1}  && cd ../..".format(langpackurl, tar)	
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
