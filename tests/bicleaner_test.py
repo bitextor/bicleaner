@@ -54,21 +54,21 @@ def bicleaner_test(executable, training_yaml ):
 
 def test_full_process():
 
-	expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0]
+	expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.3, 0]
 	results = bicleaner_test("bicleaner-classify","en-de.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 	
 def test_full_process_nolm():
-	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
+	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.3, 0]
 	results = bicleaner_test("bicleaner-classify","en-de.nolm.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 
 def test_lite_process():
-        expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0]
+        expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.3, 0]
         results = bicleaner_test("bicleaner-classify-lite","en-de.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):
@@ -76,7 +76,7 @@ def test_lite_process():
 
 
 def test_lite_process_nolm():
-        expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
+        expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.3, 0]
         results = bicleaner_test("bicleaner-classify-lite","en-de.nolm.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):
