@@ -10,12 +10,12 @@ import bicleaner
 def setup_function():
 	print("Running test setup...")
 	langpackurl = "https://github.com/bitextor/bitextor-data/releases/download/bicleaner-v1.1/en-de.tar.gz"
-	tar = "tar -xzf en-de.tar.gz"
-	command = "mkdir -p test_langpacks && cd test_langpacks && wget -q {0} && {1}  && cd ../..".format(langpackurl, tar)	
+	tar = "tar -xzvf en-de.tar.gz"
+	command = "mkdir -p test_langpacks && cd test_langpacks && wget -q {0} && {1}  && cd ..".format(langpackurl, tar)	
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 	p.wait()
 
-	p = subprocess.Popen("cat test_langpacks/en-de/training.en-de.yaml |grep -v '_lm' | grep -v 'lm_type'  | grep -v '_perp' >  test_langpacks/en-de/training.en-de.nolm.yaml", shell=True, stdout=subprocess.PIPE)
+	p = subprocess.Popen("cat test_langpacks/en-de/en-de.yaml |grep -v '_lm' | grep -v 'lm_type'  | grep -v '_perp' >  test_langpacks/en-de/en-de.nolm.yaml", shell=True, stdout=subprocess.PIPE)
 	p.wait()
 	
 
@@ -55,21 +55,21 @@ def bicleaner_test(executable, training_yaml ):
 def test_full_process():
 
 	expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0]
-	results = bicleaner_test("bicleaner-classify","training.en-de.yaml")
+	results = bicleaner_test("bicleaner-classify","en-de.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 	
 def test_full_process_nolm():
 	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
-	results = bicleaner_test("bicleaner-classify","training.en-de.nolm.yaml")
+	results = bicleaner_test("bicleaner-classify","en-de.nolm.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 
 def test_lite_process():
         expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.4, 0]
-        results = bicleaner_test("bicleaner-classify-lite","training.en-de.yaml")
+        results = bicleaner_test("bicleaner-classify-lite","en-de.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):
                 assert(results[i] == expected[i])
@@ -77,7 +77,7 @@ def test_lite_process():
 
 def test_lite_process_nolm():
         expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.4, 0]
-        results = bicleaner_test("bicleaner-classify-lite","training.en-de.nolm.yaml")
+        results = bicleaner_test("bicleaner-classify-lite","en-de.nolm.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):
                 assert(results[i] == expected[i])
