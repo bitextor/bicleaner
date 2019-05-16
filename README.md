@@ -1,6 +1,9 @@
 
 # bicleaner
 
+![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
+
 Bicleaner (bicleaner-classify) is a tool in Python that aims at detecting noisy sentence pairs in a parallel corpus. It
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
@@ -348,4 +351,8 @@ noisy_stddev_perp: 0.9989343799121657
 
 Although `bicleaner-train` and `bicleaner-classify` make use of parallelization  by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread versions of Bicleaner scripts are provided: `bicleaner-train-lite` and `bicleaner-classify-lite`. The usage is exactly the same as for the full versions, but omitting the blocksize (-b) and processes (-p) parameter.
 
+___
 
+![Connecting Europe Facility](https://www.paracrawl.eu/images/logo_en_cef273x39.png)
+
+All documents and software contained in this repository reflect only the authors' view. The Innovation and Networks Executive Agency of the European Union is not responsible for any use that may be made of the information it contains.
