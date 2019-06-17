@@ -15,7 +15,7 @@ Please, visit https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v
 If you find Bicleaner useful, please consider citing the following paper:
 
 > V. M. Sánchez-Cartagena, M. Bañón, S. Ortiz-Rojas and G. Ramírez-Sánchez,\
-> "![Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task](http://www.statmt.org/wmt18/pdf/WMT116.pdf)",\
+> " ![Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task](http://www.statmt.org/wmt18/pdf/WMT116.pdf) ",\
 >in *Proceedings of the Third Conference on Machine Translation, Volume 2: Shared Task Papers*.\
 >Brussels, Belgium: Association for Computational Linguistics, October 2018
 
