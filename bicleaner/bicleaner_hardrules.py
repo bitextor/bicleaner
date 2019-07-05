@@ -176,7 +176,7 @@ def wrong_tu(left, right, args):
     elif not c_no_urls(right):
         return "c_no_urls(right)"
     elif not c_no_breadcrumbs(left):
-        return "c_no_bradcrumbs(left)"
+        return "c_no_breadcrumbs(left)"
     elif not c_no_breadcrumbs(right):
         return "c_no_breadcrumbs(right)"
     elif args.source_lang in safe_noise_detection_langs and not c_no_noise(left):
