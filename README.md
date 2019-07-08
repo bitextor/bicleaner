@@ -52,8 +52,9 @@ with
 `ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=7', '-std=c++11']`
 
 ```bash
-python kenlm/setup.py install
-cd kenlm/build
+cd kenlm
+python3.5 setup.py install
+cd build
 cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
 make -j all install
 
