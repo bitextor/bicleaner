@@ -46,6 +46,7 @@ __version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
 __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
 __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
 __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
@@ -252,11 +253,11 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         
                         fileout.write(i.strip())
                         fileout.write("\t")
-                        fileout.write(str(p[1]))
+                        fileout.write("{0:.3f}".format((p[1])))
                         if lm_filter and args.keep_lm_result:
                             lm_score=next(lmiter)
                             fileout.write("\t")
-                            fileout.write(str(lm_score))
+                            fileout.write("{0:.3f}".format(lm_score))
                         fileout.write("\n")
                     else:
                         fileout.write(i.strip("\n"))

@@ -34,6 +34,7 @@ __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
 __version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 
 nline = 0
 
@@ -209,10 +210,10 @@ def classify(args):
                 if k == 1:
                     args.output.write(l.strip())
                     args.output.write("\t")
-                    args.output.write(str(next(p)[1]))
+                    args.output.write("{0:.3f}".format((next(p)[1])))
                     if lmScore != None and args.keep_lm_result:
                         args.output.write("\t")
-                        args.output.write(str(lmScore))
+                        args.output.write("{0:.3f}".format(lmScore))
                     args.output.write("\n")
                 else:
                     args.output.write(l.strip("\n"))
@@ -232,10 +233,10 @@ def classify(args):
             if k == 1:
                 args.output.write(l.strip())
                 args.output.write("\t")
-                args.output.write(str(next(p)[1]))
+                args.output.write("{0:.3f}".format((next(p)[1])))
                 if lmScore != None and args.keep_lm_result:
                     args.output.write("\t")
-                    args.output.write(str(lmScore))
+                    args.output.write("{0:.3f}".format(lmScore))
                 args.output.write("\n")
             else:
                 args.output.write(l.strip("\n"))
