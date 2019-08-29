@@ -43,7 +43,7 @@ Bicleaner requires the KenLM Python bindings with support for 7-gram language mo
 them by running the following commands:
 
 ```bash
-python3.5 m pip install https://github.com/kpu/kenlm/archive/master.zip --install-option="--max_order 7"
+python3.5 -m pip install https://github.com/kpu/kenlm/archive/master.zip --install-option="--max_order 7"
 ```  
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
