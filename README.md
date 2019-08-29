@@ -43,23 +43,8 @@ Bicleaner requires the KenLM Python bindings with support for 7-gram language mo
 them by running the following commands:
 
 ```bash
-  git clone https://github.com/kpu/kenlm
+python3.5 -m pip install https://github.com/kpu/kenlm/archive/master.zip --install-option="--max_order 7"
 ```  
-In `kenlm/setup.py`, replace 
-
-`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=6', '-std=c++11']`
-with 
-`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=7', '-std=c++11']`
-
-```bash
-cd kenlm
-python3.5 setup.py install
-cd build
-cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
-make -j all install
-
-```
-
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
 After installation, four binary files (`bicleaner-train`,  `bicleaner-train-lite`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
