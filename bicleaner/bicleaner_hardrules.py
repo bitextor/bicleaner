@@ -23,15 +23,20 @@ except (SystemError, ImportError):
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")
+regex_punct = regex.compile("[[:punct:]]")
 regex_alpha = regex.compile("[[:alpha:]]")
 regex_url = regex.compile('((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]|\((:?[^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
-regex_breadcrumbs = regex.compile("([ ][-/»][ ]|[|<>→←]|[ ][:][:][ ])")
+regex_url2 = regex.compile('([a-z0-9.\-]+[.][a-z]{2,4})')
+#regex_breadcrumbs = regex.compile("([ ][-/»][ ]|[|<>→←]|[ ][:][:][ ])")
+regex_breadcrumbs1 = regex.compile("([ ][-][ ]|[<>])")
+regex_breadcrumbs2 = regex.compile("([ ][/»][ ]|[|→←•]|[/]|[¬*]|[:])")
 regex_unicode_noise = regex.compile("[\x80-\xFF]{3,}")
 regex_spaces_noise = regex.compile("([ ].){4,}[ ]")
 regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
+regex_uglyEOS = regex.compile("\.\.\.$")
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
 def initialization():
@@ -58,13 +63,18 @@ def initialization():
     return args
 
 def c_identical(left, right):
-    return left != right
+    return left.casefold() != right.casefold()
     
 def c_identical_wo_digits(left, right):
     left = regex_digit.sub("", left)
     right = regex_digit.sub("", right)
     return left != right
-    
+
+def c_identical_wo_punct(left, right):
+    left = regex_punct.sub("", left)
+    right = regex_punct.sub("", right)
+    return left != right
+        
 def c_minimal_length(sentence):
     """ Counts number of whitespace, requires > 2 """
     return len(regex_blank.findall(sentence)) > 2
@@ -121,9 +131,21 @@ def c_majority_alpha(sentence):
 
 def c_no_urls(sentence):
     return sum([len("".join(i)) for i in regex_url.findall(sentence)]) < 15
-    
-def c_no_breadcrumbs(sentence):
-    return len(regex_breadcrumbs.findall(sentence)) < 3
+
+def c_no_shorturls(sentence):
+    return sum([len("".join(i)) for i in regex_url2.findall(sentence)]) < 15    
+
+#def c_no_breadcrumbs(sentence):
+#    return len(regex_breadcrumbs.findall(sentence)) < 3
+
+def c_no_breadcrumbs1(sentence):
+    return len(regex_breadcrumbs1.findall(sentence)) < 3  
+
+def c_no_breadcrumbs2(sentence):
+    return len(regex_breadcrumbs2.findall(sentence)) < 2  
+
+def c_no_uglyEOS(sentence):
+    return len(regex_uglyEOS.findall(sentence)) < 1      
 
 def c_no_noise(sentence):
     return len(regex_unicode_noise.findall(sentence)) == 0
@@ -155,6 +177,10 @@ def wrong_tu(left, right, args):
         return "c_no_literals(['Porn'], left)"
     elif not c_no_literals(["Porn"], right):
         return "c_no_literals(['Porn'], right)"
+    elif not c_no_literals(["Re:"], left):
+        return "c_no_literals(['Re:'], left)"
+    elif not c_no_literals(["Re:"], right):
+        return "c_no_literals(['Re:'], right)"            
     elif not c_minimal_length(left):
         return "c_minimal_length(left)"
     elif not c_minimal_length(right):
@@ -165,6 +191,8 @@ def wrong_tu(left, right, args):
         return "c_identical"
     elif not c_identical_wo_digits(left, right):
         return "c_identical_wo_digits"    
+    elif not c_identical_wo_punct(left, right):
+        return "c_identical_wo_punct"    
     elif not c_different_language(left, right):
         return "c_different_language"
     elif not c_majority_alpha(left):
@@ -175,10 +203,22 @@ def wrong_tu(left, right, args):
         return "c_no_urls(left)"
     elif not c_no_urls(right):
         return "c_no_urls(right)"
-    elif not c_no_breadcrumbs(left):
-        return "c_no_breadcrumbs(left)"
-    elif not c_no_breadcrumbs(right):
-        return "c_no_breadcrumbs(right)"
+    #elif not c_no_breadcrumbs(left):    
+    #    return "c_no_breadcrumbs(left)"
+    #elif not c_no_breadcrumbs(right):
+    #    return "c_no_breadcrumbs(right)"
+    elif not c_no_shorturls(left):
+        return "c_no_shorturls(left)"
+    elif not c_no_shorturls(right):
+        return "c_no_shorturls(right)"
+    elif not c_no_breadcrumbs1(left):
+        return "c_no_breadcrumbs1(left)"
+    elif not c_no_breadcrumbs1(right):
+        return "c_no_breadcrumbs1(right)"
+    elif not c_no_breadcrumbs2(left):
+        return "c_no_breadcrumbs2(left)"
+    elif not c_no_breadcrumbs2(right):
+        return "c_no_breadcrumbs2(right)"       
     elif args.source_lang in safe_noise_detection_langs and not c_no_noise(left):
         return "args.source_lang in safe_noise_detection_langs and not c_no_noise(left)" 
     elif args.target_lang in safe_noise_detection_langs and not c_no_noise(right):
@@ -213,7 +253,10 @@ def wrong_tu(left, right, args):
         return "c_reliable_long_language(left, sourcelang)"
     elif not c_reliable_long_language(right, args.target_lang):
         return "c_reliable_long_language(right, targetlang)"
-                       
+    elif not c_no_uglyEOS(left):
+        return "c_no_uglyEOS(left)"
+    elif not c_no_uglyEOS(right):
+        return "c_no_uglyEOS(right)"                       
     return False
     
     
