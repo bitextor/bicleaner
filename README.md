@@ -176,7 +176,7 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
 
 ```bash
   bicleaner-hardrules [-h]
-                      [--annotated_output ANNOTATED_OUTPUT] 
+                      [--annotated_output] 
                       -s SOURCE_LANG
                       -t TARGET_LANG 
                       [--tmp_dir TMP_DIR]
@@ -186,12 +186,13 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
                       [OUTPUT_FILE]
 
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `ANNOTATED_OUTPUT` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_FILE` will contain all the input sentences. They noisy ones will contain two additional columns with the score "0.0000" and the word "discard".
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded).
 
-You can them obtain the monolingual noisy corpora by "cutting" the appropriate columns:
+You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag):
+
 ```bash
-cut -f 1 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.SOURCE_LANG
-cut -f 2 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.TARGET_LANG
+cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $1 }' > MONOLINGUAL_NOISY.SOURCE_LANG
+cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARGET_LANG
 ```
 
 ### Parameters
