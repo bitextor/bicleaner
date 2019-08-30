@@ -43,7 +43,7 @@ def initialization():
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     parser.add_argument('input',  nargs='?', type=argparse.FileType('rt', errors="replace"), default=io.TextIOWrapper(sys.stdin.buffer, errors="replace"),  help="Tab-separated bilingual tagged file")
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
-    parser.add_argument('--annotated_output', type=argparse.FileType('wt'), help="Annotated output of the classification")
+    parser.add_argument('--annotated_output',default=False, action='store_true', help="Adds an extra column with each sentence's evaluation (\"keep\" if the sentence is good, otherwise the reason for rejecting")
     
     groupM = parser.add_argument_group('Mandatory')
     groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
@@ -181,11 +181,9 @@ def wrong_tu(left, right, args):
         return "c_no_literals(['Re:'], left)"
     elif not c_no_literals(["Re:"], right):
         return "c_no_literals(['Re:'], right)"            
-    elif not c_minimal_length(left):
-        return "c_minimal_length(left)"
-    elif not c_minimal_length(right):
-        return "c_minimal_length(right)"
-    elif not c_length(left, right):
+    elif not (c_minimal_length(left) or c_minimal_length(right)):
+        return "c_minimal_length(left) and c_minimal_length(right)"
+    elif not c_length(left, right): 
         return "c_length"
     elif not c_identical(left, right):
         return "c_identical"
@@ -319,11 +317,17 @@ def worker_process(i, jobs_queue, output_queue, args):
                     right = parts[1] if len(parts) >= 2 else ""
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
-                        fileout.write("{}\t{}\t0.0000000000000000\tdiscard\n".format(left, right))
+                        fileout.write("{}\t{}\t0".format(left, right))
                         if args.annotated_output:                            
-                            args.annotated_output.write("{}\t{}\t{}\n".format(left,right,wrong_tu_results))
+                            fileout.write("\t{}\n".format(wrong_tu_results))
+                        else:
+                            fileout.write("\n")
                     else:
-                        fileout.write(i)
+                        fileout.write("{}\t{}\t1".format(left, right))
+                        if args.annotated_output:
+                            fileout.write("\tkeep\n")
+                        else:
+                            fileout.write("\n")    
 
                 ojob = (nblock, fileout.name)
                 filein.close()
@@ -332,8 +336,7 @@ def worker_process(i, jobs_queue, output_queue, args):
 
             if ojob:                    
                 output_queue.put(ojob)
-            if args.annotated_output:
-                args.annotated_output.flush()                    
+
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
@@ -408,9 +411,7 @@ def perform_hardrules_filtering(args):
     output_queue.put(None)
     reduce.join()
     
-    if args.annotated_output:
-        args.annotated_output.close()
-        
+
     # Stats
     logging.info("Finished")
     elapsed_time = default_timer() - time_start
