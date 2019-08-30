@@ -36,10 +36,10 @@ If you find Bicleaner useful, please consider citing the following paper:
 Bicleaner works with Python 3.6 and can be instaled with `pip`:
 
 ```bash
-python3.6-m pip install bicleaner
+python3.6 -m pip install bicleaner
 ```
 
-Bicleaner requires the KenLM Python bindings with support for 7-gram language models. You can easily install
+Bicleaner requires the [KenLM](https://github.com/kpu/kenlm) Python bindings with support for 7-gram language models. You can easily install
 them by running the following commands:
 
 ```bash
