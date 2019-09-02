@@ -14,6 +14,7 @@ import sklearn
 from sklearn.externals import joblib
 import numpy as np
 
+
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
@@ -48,8 +49,13 @@ __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pl
 __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 
+
+logging_level = 0
+
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
+    global logging_level
+    
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
     # Initialization of the argparse class
@@ -90,8 +96,15 @@ def initialization():
     args = parser.parse_args()
     logging_setup(args)
 
-
+    logging_level = logging.getLogger().level    
     
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+
+            
     try: 
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
@@ -186,7 +199,8 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    if args.source_tokeniser_path:
+    
+    if args.source_tokeniser_path:    
         source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
     else:
         source_tokeniser = MosesTokenizer(args.source_lang)
@@ -194,13 +208,15 @@ def classifier_process(i, jobs_queue, output_queue, args):
         target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     else:
         target_tokeniser = MosesTokenizer(args.target_lang)
-    
+        
     #Load LM for fluency scoring
     lm_filter=None
     if args.source_lm and args.target_lm:
+
         lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
         lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
-    
+                
+
     while True:
         job = jobs_queue.get()
         if job:
@@ -276,7 +292,9 @@ def classifier_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
-            break
+            break	
+
+            
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")
@@ -350,9 +368,11 @@ def reduce_process(output_queue, args):
 
 # Filtering input texts
 def perform_classification(args):
+    global logging_level
+    
     time_start = default_timer()
-    logging.info("Starting process")
-    logging.info("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
+    logging.debug("Starting process")
+    logging.debug("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
 
     process_count = max(1, args.processes)
     maxsize = 1000 * process_count
@@ -361,14 +381,19 @@ def perform_classification(args):
     worker_count = process_count
 
     # Start reducer
+    logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, args))
+    
     reduce.start()
-
+    logging.disable(logging.DEBUG)
+    
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
+
     for i in range(worker_count):
+
         filter = Process(target = classifier_process, #profile_classifier_process
                          args   = (i, jobs_queue, output_queue, args))
         filter.daemon = True # dies with the parent process
@@ -376,22 +401,29 @@ def perform_classification(args):
         filter.start()
         workers.append(filter)
 
+
     # Mapper process (foreground - parent)
     nline = mapping_process(args, jobs_queue)
     args.input.close()
 
     # Worker termination
     for _ in workers:
-        jobs_queue.put(None)
+
+        jobs_queue.put(None)	
+
 
     logging.info("End mapping")
+
 
     for w in workers:
         w.join()
 
     # Reducer termination
+    
+
     output_queue.put(None)
     reduce.join()
+    
 
     # Stats
     logging.info("Finished")
@@ -399,6 +431,7 @@ def perform_classification(args):
     logging.info("Total: {0} rows".format(nline))
     logging.info("Elapsed time {0:.2f} s".format(elapsed_time))
     logging.info("Troughput: {0} rows/s".format(int((nline*1.0)/elapsed_time)))
+    
 ### END PARALLELIZATION METHODS ###
 
 def main(args):

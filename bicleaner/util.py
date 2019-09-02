@@ -8,6 +8,7 @@ import regex
 import sys
 from os import path
 import typing
+import inspect
 import random
 
 from tempfile import TemporaryFile
@@ -63,6 +64,7 @@ def check_if_folder(path):
 
 # Logging config
 def logging_setup(args = None):
+    
     logger = logging.getLogger()
     logger.handlers = [] # Removing default handler to avoid duplication of log messages
     logger.setLevel(logging.ERROR)
@@ -71,7 +73,7 @@ def logging_setup(args = None):
     if args != None:
        h = logging.StreamHandler(args.logfile)
       
-    h.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    h.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s -  %(message)s'))
     logger.addHandler(h)
 
     #logger.setLevel(logging.INFO)
