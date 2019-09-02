@@ -29,7 +29,7 @@ regex_url = regex.compile('((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}
 regex_url2 = regex.compile('([a-z0-9.\-]+[.][a-z]{2,4})')
 #regex_breadcrumbs = regex.compile("([ ][-/»][ ]|[|<>→←]|[ ][:][:][ ])")
 regex_breadcrumbs1 = regex.compile("([ ][-][ ]|[<>])")
-regex_breadcrumbs2 = regex.compile("([ ][/»][ ]|[|→←•]|[/]|[¬*]|[:])")
+regex_breadcrumbs2 = regex.compile("([ ][/»][ ]|[|→←•·]|[/]|[¬*]|[:])")
 regex_unicode_noise = regex.compile("[\x80-\xFF]{3,}")
 regex_spaces_noise = regex.compile("([ ].){4,}[ ]")
 regex_paren = regex.compile("[][(){}]")
@@ -68,12 +68,12 @@ def c_identical(left, right):
 def c_identical_wo_digits(left, right):
     left = regex_digit.sub("", left)
     right = regex_digit.sub("", right)
-    return left != right
+    return left.casefold() != right.casefold()
 
 def c_identical_wo_punct(left, right):
     left = regex_punct.sub("", left)
     right = regex_punct.sub("", right)
-    return left != right
+    return left.casefold() != right.casefold()
         
 def c_minimal_length(sentence):
     """ Counts number of whitespace, requires > 2 """
