@@ -84,6 +84,8 @@ def initialization():
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
     
+    groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
+    
     # Logging group
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -242,7 +244,8 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     if len(parts) >= 4:
                         sl_sentence=parts[2]
                         tl_sentence=parts[3]
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
+                        #if disable_hardrules == 1 --> the second part (and) is always true
                         lm_score=None
                         if lm_filter:
                             lm_score=lm_filter.score(sl_sentence,tl_sentence)

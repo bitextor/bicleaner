@@ -8,7 +8,6 @@ import regex
 import sys
 from os import path
 import typing
-import inspect
 import random
 
 from tempfile import TemporaryFile
@@ -73,7 +72,7 @@ def logging_setup(args = None):
     if args != None:
        h = logging.StreamHandler(args.logfile)
       
-    h.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s -  %(message)s'))
+    h.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(h)
 
     #logger.setLevel(logging.INFO)

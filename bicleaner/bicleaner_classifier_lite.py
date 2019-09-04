@@ -37,10 +37,13 @@ __version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sá
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 
 nline = 0
+logging_level = 0
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
     global nline
+    global logging_level
+    
     nline = 0
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
@@ -61,6 +64,7 @@ def initialization():
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+    groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -74,6 +78,14 @@ def initialization():
     args = parser.parse_args()
     logging_setup(args)
     
+    logging_level = logging.getLogger().level    
+
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+            
     try: 
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
@@ -185,7 +197,7 @@ def classify(args):
             sl_sentence=parts[2]
             tl_sentence=parts[3]
        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
             lmScore=None
             if args.lm_filter:
                 lmScore=args.lm_filter.score(sl_sentence,tl_sentence)
@@ -249,6 +261,7 @@ def classify(args):
 # Filtering input texts
 def perform_classification(args):
     global nline
+    
     time_start = default_timer()
     logging.info("Starting process")
     
