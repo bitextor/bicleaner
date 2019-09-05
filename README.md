@@ -188,13 +188,14 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
                       [--disable_lang_ident]
+                      [--scol SCOL] [--tcol TCOL]
                       [INPUT_FILE]
                       [OUTPUT_FILE]
 
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used.
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used. '--scol' and '--tcol' allow to indicate which columns contains source and target in the input file (default: `1`and `2`, respectively)
 
-You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag):
+You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag). Asuming scol=1 and tcol=2, and no more columns in the input corpus (so the hardrules score is the 3rd column in the output):
 
 ```bash
 cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $1 }' > MONOLINGUAL_NOISY.SOURCE_LANG
