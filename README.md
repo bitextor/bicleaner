@@ -85,6 +85,7 @@ bicleaner-classify [-h]
                    [--lm_threshold LM_THRESHOLD] 
                    [--keep_lm_result]
                    [--disable_hardrules]
+                   [--disable_lang_ident]                   
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -114,6 +115,8 @@ bicleaner-classify [-h]
  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
   * --disable_hardrules: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
+  * --disable_lang_ident: Don't apply hardrules that use language detecting (default: False)
+
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
   * --debug: Debug logging mode (default: False)
@@ -140,7 +143,7 @@ We included a small test corpus and a script to check that your Bicleaner classi
 In order to use it, just run:
 
 ```bash
-python3.5 -m pytest -s tests/bicleaner_test.py
+python3.6 -m pytest -s tests/bicleaner_test.py
 ```
 
 This will download the required language pack, classify the provided test corpus, and check the resulting classification scores. If everything went as expected, the output will be "1 passed in XX.XX seconds".  All downloaded data will be removed at the end of the testing session.
@@ -184,11 +187,12 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
+                      [--disable_lang_ident]
                       [INPUT_FILE]
                       [OUTPUT_FILE]
 
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded).
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used.
 
 You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag):
 
