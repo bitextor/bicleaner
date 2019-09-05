@@ -85,6 +85,7 @@ def initialization():
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
     
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')

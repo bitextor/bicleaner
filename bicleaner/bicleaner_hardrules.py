@@ -48,12 +48,14 @@ def initialization():
     groupM = parser.add_argument_group('Mandatory')
     groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
     groupM.add_argument("-t", "--target_lang", type=str, required=True, help="Target language (TL) of the input")
-
+    
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
 
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
+    
     args = parser.parse_args()
 
     # Ensure that directory exists; if not, create it
@@ -191,7 +193,7 @@ def wrong_tu(left, right, args):
         return "c_identical_wo_digits"    
     elif not c_identical_wo_punct(left, right):
         return "c_identical_wo_punct"    
-    elif not c_different_language(left, right):
+    elif (not args.disable_lang_ident and not  c_different_language(left, right)):
         return "c_different_language"
     elif not c_majority_alpha(left):
         return "c_majority_alpha(left)"
@@ -247,9 +249,9 @@ def wrong_tu(left, right, args):
         return 'c_no_literals(["{{", "%s", "}}"], right)'
     elif left.istitle() and right.istitle():
         return 'left.istitle() and right.istitle()'
-    elif not c_reliable_long_language(left, args.source_lang):
+    elif (not args.disable_lang_ident and not  c_reliable_long_language(left, args.source_lang)):
         return "c_reliable_long_language(left, sourcelang)"
-    elif not c_reliable_long_language(right, args.target_lang):
+    elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
     elif not c_no_uglyEOS(left):
         return "c_no_uglyEOS(left)"
