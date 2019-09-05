@@ -17,9 +17,9 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .util import logging_setup
+    from .util import logging_setup, check_positive
 except (SystemError, ImportError):
-    from util import logging_setup
+    from util import logging_setup, check_positive
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")
@@ -55,6 +55,9 @@ def initialization():
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
 
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
+
+    groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=2, type=check_positive, help ="Target sentence column (starting in 1)")  
     
     args = parser.parse_args()
 
@@ -313,19 +316,19 @@ def worker_process(i, jobs_queue, output_queue, args):
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
 
-                for i in filein:
+                for i in filein:	
                     parts = i.strip().split("\t")
-                    left = parts[0]
-                    right = parts[1] if len(parts) >= 2 else ""
+                    left = parts[args.scol-1]
+                    right = parts[args.tcol-1] if len(parts) >= args.tcol else ""
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
-                        fileout.write("{}\t{}\t0".format(left, right))
+                        fileout.write("\t".join(parts)+"\t0")
                         if args.annotated_output:                            
                             fileout.write("\t{}\n".format(wrong_tu_results))
                         else:
                             fileout.write("\n")
                     else:
-                        fileout.write("{}\t{}\t1".format(left, right))
+                        fileout.write("\t".join(parts)+"\t1")
                         if args.annotated_output:
                             fileout.write("\tkeep\n")
                         else:
