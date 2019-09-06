@@ -27,14 +27,14 @@ try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
     from .lm import DualLMFluencyFilter,LMType, DualLMStats
-    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from lm import DualLMFluencyFilter,LMType, DualLMStats
-    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
 
 #import cProfile  # search for "profile" throughout the file
@@ -74,6 +74,9 @@ def initialization():
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
     groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+
+    groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
@@ -242,9 +245,12 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     parts = i.split("\t")
                     sl_sentence=None
                     tl_sentence=None
-                    if len(parts) >= 4:
-                        sl_sentence=parts[2]
-                        tl_sentence=parts[3]
+                    if len(parts) >= max(args.scol, args.tcol):
+                        sl_sentence=parts[args.scol-1]
+                        tl_sentence=parts[args.tcol-1]
+                    else:
+                        logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
+                        
                     if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
                         lm_score=None
