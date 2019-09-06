@@ -59,12 +59,14 @@ After installation, four binary files (`bicleaner-train`,  `bicleaner-train-lite
 `bicleaner-classify` aims at detecting noisy sentence pairs in a parallel corpus. It
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
-The input file  (the parallel corpus to be classified) must contain at least four columns:
+By default, the input file  (the parallel corpus to be classified) must contain at least four columns, being:
 
 * col1: URL 1
 * col2: URL 2
 * col3: Source sentence
 * col4: Target sentence
+
+but the source and target sentences column index can be customized by using the `--scol`and `--tcol` flags.
 
 Any extra columns will be ignored.
 
@@ -77,6 +79,8 @@ This tool can be run with
 bicleaner-classify [-h]
                    [-S SOURCE_TOKENISER_PATH]
                    [-T TARGET_TOKENISER_PATH] 
+                   [--scol SCOL]
+                   [--tcol TCOL] 
                    [--tmp_dir TMP_DIR]
                    [-b BLOCK_SIZE] 
                    [-p PROCESSES] 
@@ -107,6 +111,8 @@ bicleaner-classify [-h]
 * Optional:
   * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
   * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * --scol SCOL           Source sentence column (starting in 1) (default: 3)
+  * --tcol TCOL           Target sentence column (starting in 1) (default: 4)
   * --tmp_dir TMP_DIR: Temporary directory where creating the temporary files of this program (default: default system temp dir, defined by the environment variable TMPDIR in Unix)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of processes to use (default: all CPUs minus one)
@@ -150,7 +156,7 @@ This will download the required language pack, classify the provided test corpus
 
 ## Training classifiers
 
-In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.0)), 
+In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.1)), 
 
 you can use `bicleaner-train` .
 `bicleaner-train` is a Python3 tool that allows you to train a classifier which predicts 
@@ -188,7 +194,8 @@ Given a parallel corpus, you can extract some of its noisiest sentences using he
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
                       [--disable_lang_ident]
-                      [--scol SCOL] [--tcol TCOL]
+                      [--scol SCOL] 
+                      [--tcol TCOL]
                       [INPUT_FILE]
                       [OUTPUT_FILE]
 
