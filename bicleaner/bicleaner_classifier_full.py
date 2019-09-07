@@ -86,6 +86,8 @@ def initialization():
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
     
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
@@ -197,6 +199,8 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+    if args.score_only and args.keep_lm_result:
+        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -276,20 +280,25 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 for i, valid_sentence in zip(filein,valid_sentences):                    
                     if valid_sentence:
                         p = next(piter)
-                        
-                        fileout.write(i.strip())
-                        fileout.write("\t")
-                        fileout.write("{0:.3f}".format((p[1])))
-                        if lm_filter and args.keep_lm_result:
-                            lm_score=next(lmiter)
+                        if args.score_only:
+                            fileout.write("{0:.3f}".format((p[1])))                        
+                        else:    
+                            fileout.write(i.strip())
                             fileout.write("\t")
-                            fileout.write("{0:.3f}".format(lm_score))
+                            fileout.write("{0:.3f}".format((p[1])))
+                            if lm_filter and args.keep_lm_result:
+                                lm_score=next(lmiter)
+                                fileout.write("\t")
+                                fileout.write("{0:.3f}".format(lm_score))
                         fileout.write("\n")
                     else:
-                        fileout.write(i.strip("\n"))
-                        fileout.write("\t0")
-                        if lm_filter and args.keep_lm_result:
+                        if args.score_only:
+                            fileout.write("0")
+                        else:
+                            fileout.write(i.strip("\n"))
                             fileout.write("\t0")
+                            if lm_filter and args.keep_lm_result:
+                                fileout.write("\t0")
                         fileout.write("\n")
 
                 ojob = (nblock, fileout.name)
