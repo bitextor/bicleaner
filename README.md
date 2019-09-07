@@ -88,6 +88,7 @@ bicleaner-classify [-h]
                    [--threshold THRESHOLD]
                    [--lm_threshold LM_THRESHOLD] 
                    [--keep_lm_result]
+                   [--score_only]
                    [--disable_hardrules]
                    [--disable_lang_ident]                   
                    [-q] 
@@ -120,6 +121,7 @@ bicleaner-classify [-h]
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
+  * --score_only: Only output one column which is the bicleaner score (default: False)
   * --disable_hardrules: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
   * --disable_lang_ident: Don't apply hardrules that use language detecting (default: False)
 
