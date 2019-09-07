@@ -87,6 +87,9 @@ def c_minimal_length(sentence):
 def c_length(left, right):
     return 0.5 <= float(len(left))/float(len(right)) <= 2.0
 
+def c_length_bytes(left, right):
+    return 0.5 <= float(len(left.encode("utf8")))/float(len(right.encode("utf8"))) <= 2.0
+
 def c_different_language(left, right):
     l_reliable = False
     l_bytes = 0
@@ -188,8 +191,8 @@ def wrong_tu(left, right, args):
         return "c_no_literals(['Re:'], right)"            
     elif not (c_minimal_length(left) or c_minimal_length(right)):
         return "c_minimal_length(left) and c_minimal_length(right)"
-    elif not c_length(left, right): 
-        return "c_length"
+    elif not (c_length(left, right) or c_length_bytes(left, right)): 
+        return "c_length or c_length_bytes"
     elif not c_identical(left, right):
         return "c_identical"
     elif not c_identical_wo_digits(left, right):
