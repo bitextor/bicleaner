@@ -69,7 +69,9 @@ def initialization():
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
-
+     
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
+     
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
     
@@ -174,6 +176,9 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+    if args.score_only and args.keep_lm_result:
+        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
+
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -229,18 +234,24 @@ def classify(args):
                 
             for k, l, lmScore in buf_sent:
                 if k == 1:
-                    args.output.write(l.strip())
-                    args.output.write("\t")
-                    args.output.write("{0:.3f}".format((next(p)[1])))
-                    if lmScore != None and args.keep_lm_result:
+                    if args.score_only:
+                        args.output.write("{0:.3f}".format((next(p)[1])))
+                    else:
+                        args.output.write(l.strip())
                         args.output.write("\t")
-                        args.output.write("{0:.3f}".format(lmScore))
+                        args.output.write("{0:.3f}".format((next(p)[1])))
+                        if lmScore != None and args.keep_lm_result:
+                            args.output.write("\t")
+                            args.output.write("{0:.3f}".format(lmScore))
                     args.output.write("\n")
                 else:
-                    args.output.write(l.strip("\n"))
-                    args.output.write("\t0")
-                    if lmScore != None and args.keep_lm_result:
+                    if args.score_only:
+                        args.output.write("0")
+                    else:    
+                        args.output.write(l.strip("\n"))
                         args.output.write("\t0")
+                        if lmScore != None and args.keep_lm_result:
+                            args.output.write("\t0")
                     args.output.write("\n")
 
             buf_feat = []
@@ -252,18 +263,24 @@ def classify(args):
             
         for k, l, lmScore in buf_sent:
             if k == 1:
-                args.output.write(l.strip())
-                args.output.write("\t")
-                args.output.write("{0:.3f}".format((next(p)[1])))
-                if lmScore != None and args.keep_lm_result:
+                if args.score_only:
+                    args.output.write("{0:.3f}".format((next(p)[1])))
+                else:
+                    args.output.write(l.strip())
                     args.output.write("\t")
-                    args.output.write("{0:.3f}".format(lmScore))
+                    args.output.write("{0:.3f}".format((next(p)[1])))
+                    if lmScore != None and args.keep_lm_result:
+                        args.output.write("\t")
+                        args.output.write("{0:.3f}".format(lmScore))
                 args.output.write("\n")
             else:
-                args.output.write(l.strip("\n"))
-                args.output.write("\t0")
-                if lmScore != None and args.keep_lm_result:
+                if args.score_only:
+                    args.output.write("0")
+                else:    
+                    args.output.write(l.strip("\n"))
                     args.output.write("\t0")
+                    if lmScore != None and args.keep_lm_result:
+                        args.output.write("\t0")
                 args.output.write("\n")
                 
                 
