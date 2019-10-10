@@ -324,11 +324,12 @@ def worker_process(i, jobs_queue, output_queue, args):
                     left = ""
                     right= ""
                     
-                    if len(parts) >= max(args.tcol, args.scol):
+                    if len(parts) >=  args.scol and len(parts) >= args.tcol:
                         left = parts[args.scol-1]
                         right = parts[args.tcol-1]
                     else:
-                        logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))        
+                        logging.error("WARNING: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))        
+                        continue
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
                         fileout.write("\t".join(parts)+"\t0")
