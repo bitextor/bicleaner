@@ -1,7 +1,7 @@
 mosestokenizer==1.0.0
 pycld2==0.31
 regex==2018.1.10
-scikit-learn==0.19.1
+scikit-learn==0.21.3
 PyYAML==4.2b4
 numpy>=1.16.3
 scipy==1.2.1
