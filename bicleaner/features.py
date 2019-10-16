@@ -227,6 +227,9 @@ def feature_capitalized_preservation(slwords, tlwords):
 
 # Language detected
 def feature_language(sentence, code):
+    if code=="nb":
+        code = "no"
+
     reliable = False
     bytes = 0
     details = ()
@@ -239,10 +242,18 @@ def feature_language(sentence, code):
         
     if not reliable:
         return 0.0
-    if details[0][1] != code:
-        return 0.0
     else:
-        return float(details[0][2])/100.0
+        score = float(details[0][2])/100.0    
+        
+    if details[0][1] != code:
+        if code=="gl" and  (details[0][1] == "pt" or details[0][1] == "es"):
+            return score
+        if code=="no" and details[0][1] == "da":
+            return score
+        else:    
+            return 0.0
+    else:
+        return score
 
 # Sentence length, normalized using a logistic function
 def feature_sentence_length(sentence):
