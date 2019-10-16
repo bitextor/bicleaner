@@ -117,6 +117,9 @@ def c_different_language(left, right):
         return False
         
 def c_reliable_long_language(sentence, language):
+    if language=="nb":
+        language = "no"
+        
     reliable = False
     bytes = 0
     details = ()
@@ -127,6 +130,12 @@ def c_reliable_long_language(sentence, language):
         return True # encoding error -> noise
     
     if len(sentence) > 30 and reliable and details[0][1] != language:
+
+        if language=="gl" and  (details[0][1] == "pt" or details[0][1] == "es"):
+            return True
+        if language=="no" and details[0][1] == "da":
+            return True    
+        #print(sentence + "  " +  str(details[0][1]))     
         return False
     else:
         return True
