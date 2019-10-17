@@ -133,6 +133,8 @@ def c_reliable_long_language(sentence, language):
             return True
         if language=="no" and details[0][1] == "da":
             return True    
+        if language=="nn" and (details[0][1] == "no" or details[0][1] == "da"):
+            return True
         #print(sentence + "  " +  str(details[0][1]))     
         return False
     else:

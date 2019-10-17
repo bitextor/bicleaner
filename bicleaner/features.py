@@ -250,6 +250,8 @@ def feature_language(sentence, code):
             return score
         if code=="no" and details[0][1] == "da":
             return score
+        if code=="nn" and (details[0][1] == "no" or details[0][1] == "da"):
+            return score        
         else:    
             return 0.0
     else:
