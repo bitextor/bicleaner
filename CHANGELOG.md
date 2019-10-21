@@ -2,8 +2,6 @@ Bicleaner 0.12:
 
 * Bicleaner hardrules changes:
   * New rule: c_identical_wo_punct to reject sentences only different in punctuation (and it's case insensitive)
-  * New rule: c_no_uglyEOS, to reject sentences ending with "..."
-  * New rule: c_no_shorturls, to reject sentences containing urls
   * New rule:  Sentences containing "Re:" are rejected
   * Rule change: c_minimal_length now rejects sentences with both sides <= 3 words (instead of only one)
   * Rule change: c_identical and c_identical_wo_digits now is case insensitive
@@ -22,4 +20,5 @@ Bicleaner 0.12:
   * Fixed bug when probability in prob_dict is 0 (issue [#19](https://github.com/bitextor/bicleaner/issues/19))
 * Other:
   * Fixed sklearn version to 0.19.1
+  * Added utilities for training: `shuffle.py` and `dict_pruner.py`
   * Updated instalation guides in readme
