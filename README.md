@@ -34,10 +34,10 @@ If you find Bicleaner useful, please consider citing the following paper:
 
 ## Installation & Requirements
 
-Bicleaner works with Python 3.6 and can be instaled with `pip`:
+Bicleaner works with Python and can be instaled with `pip`:
 
 ```bash
-python3.6 -m pip install bicleaner
+python3.7 -m pip install bicleaner
 ```
 
 Bicleaner requires the [KenLM](https://github.com/kpu/kenlm) Python bindings with support for 7-gram language models. You can easily install
@@ -46,7 +46,7 @@ them by running the following commands:
 ```bash
 git clone https://github.com/kpu/kenlm
 cd kenlm
-python3.6 -m pip install . --install-option="--max_order 7"
+python3.7 -m pip install . --install-option="--max_order 7"
 cd build
 cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
 make -j all install
@@ -152,7 +152,7 @@ We included a small test corpus and a script to check that your Bicleaner classi
 In order to use it, just run:
 
 ```bash
-python3.6 -m pytest -s tests/bicleaner_test.py
+python3.7 -m pytest -s tests/bicleaner_test.py
 ```
 
 This will download the required language pack, classify the provided test corpus, and check the resulting classification scores. If everything went as expected, the output will be "1 passed in XX.XX seconds".  All downloaded data will be removed at the end of the testing session.
@@ -215,8 +215,8 @@ cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARG
 ### Building synthetic noisy sentences
 
 ```bash
-cat TRAINING_CORPUS | cut -f1 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
-cat TRAINING_CORPUS | cut -f2 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
+cat TRAINING_CORPUS | cut -f1 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
+cat TRAINING_CORPUS | cut -f2 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
 ```
 
 ### Parameters
