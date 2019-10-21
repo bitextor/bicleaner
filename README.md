@@ -8,7 +8,8 @@ Bicleaner (bicleaner-classify) is a tool in Python that aims at detecting noisy 
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
 Although a training tool (bicleaner-train) is provided, you may want to use the available ready-to-use language packages. 
-Please, visit https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.1 to download the language packages.
+Please, visit https://github.com/bitextor/bitextor-data/releases to download the language packages.
+Visit our [Wiki](https://github.com/bitextor/bicleaner/wiki/How-to-train-your-Bicleaner) for a detailed example on Bicleaner training.
 
 ## Citation 
 
@@ -33,33 +34,23 @@ If you find Bicleaner useful, please consider citing the following paper:
 
 ## Installation & Requirements
 
-Bicleaner works with Python 3.5 and can be instaled with `pip`:
+Bicleaner works with Python 3.6 and can be instaled with `pip`:
 
 ```bash
-python3.5 -m pip install bicleaner
+python3.6 -m pip install bicleaner
 ```
 
-Bicleaner requires the KenLM Python bindings with support for 7-gram language models. You can easily install
+Bicleaner requires the [KenLM](https://github.com/kpu/kenlm) Python bindings with support for 7-gram language models. You can easily install
 them by running the following commands:
 
 ```bash
-  git clone https://github.com/kpu/kenlm
-```  
-In `kenlm/setup.py`, replace 
-
-`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=6', '-std=c++11']`
-with 
-`ARGS = ['-O3', '-DNDEBUG', '-DKENLM_MAX_ORDER=7', '-std=c++11']`
-
-```bash
+git clone https://github.com/kpu/kenlm
 cd kenlm
-python3.5 setup.py install
+python3.6 -m pip install . --install-option="--max_order 7"
 cd build
 cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
 make -j all install
-
-```
-
+```  
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
 After installation, four binary files (`bicleaner-train`,  `bicleaner-train-lite`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
@@ -69,12 +60,14 @@ After installation, four binary files (`bicleaner-train`,  `bicleaner-train-lite
 `bicleaner-classify` aims at detecting noisy sentence pairs in a parallel corpus. It
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
-The input file  (the parallel corpus to be classified) must contain at least four columns:
+By default, the input file  (the parallel corpus to be classified) must contain at least four columns, being:
 
 * col1: URL 1
 * col2: URL 2
 * col3: Source sentence
 * col4: Target sentence
+
+but the source and target sentences column index can be customized by using the `--scol`and `--tcol` flags.
 
 Any extra columns will be ignored.
 
@@ -87,6 +80,8 @@ This tool can be run with
 bicleaner-classify [-h]
                    [-S SOURCE_TOKENISER_PATH]
                    [-T TARGET_TOKENISER_PATH] 
+                   [--scol SCOL]
+                   [--tcol TCOL] 
                    [--tmp_dir TMP_DIR]
                    [-b BLOCK_SIZE] 
                    [-p PROCESSES] 
@@ -94,6 +89,9 @@ bicleaner-classify [-h]
                    [--threshold THRESHOLD]
                    [--lm_threshold LM_THRESHOLD] 
                    [--keep_lm_result]
+                   [--score_only]
+                   [--disable_hardrules]
+                   [--disable_lang_ident]                   
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -115,6 +113,8 @@ bicleaner-classify [-h]
 * Optional:
   * -S SL_TOKENIZER_PATH: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
   * -T TL_TOKENIZER_PATH: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
+  * --scol SCOL           Source sentence column (starting in 1) (default: 3)
+  * --tcol TCOL           Target sentence column (starting in 1) (default: 4)
   * --tmp_dir TMP_DIR: Temporary directory where creating the temporary files of this program (default: default system temp dir, defined by the environment variable TMPDIR in Unix)
   * -b BLOCK_SIZE, --block_size BLOCK_SIZE Sentence pairs per block (default: 10000)
   * -p PROCESSES, --processes PROCESSES: Number of processes to use (default: all CPUs minus one)
@@ -122,6 +122,10 @@ bicleaner-classify [-h]
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
+  * --score_only: Only output one column which is the bicleaner score (default: False)
+  * --disable_hardrules: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
+  * --disable_lang_ident: Don't apply hardrules that use language detecting (default: False)
+
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
   * --debug: Debug logging mode (default: False)
@@ -148,14 +152,14 @@ We included a small test corpus and a script to check that your Bicleaner classi
 In order to use it, just run:
 
 ```bash
-python3.5 -m pytest -s tests/bicleaner_test.py
+python3.6 -m pytest -s tests/bicleaner_test.py
 ```
 
 This will download the required language pack, classify the provided test corpus, and check the resulting classification scores. If everything went as expected, the output will be "1 passed in XX.XX seconds".  All downloaded data will be removed at the end of the testing session.
 
 ## Training classifiers
 
-In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.0)), 
+In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases), 
 
 you can use `bicleaner-train` .
 `bicleaner-train` is a Python3 tool that allows you to train a classifier which predicts 
@@ -178,30 +182,41 @@ Optionally, if you want the classifier to include an improved fluency filter bas
 
 Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
-In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, Bicleaner contains a set of heuristic rules that can be used to extract very noisy sentences from a corpus.
+In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, there are two options available with Bicleaner: 
 
 ### Extracting noisy sentences from an existing corpus with heuristic rules
 
-Given a parallel corpus, you can extract some of its noisiest sentences using heuristic rules by running the following command:
+Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its noisiest sentences using heuristic rules by running the following command:
 
 ```bash
   bicleaner-hardrules [-h]
-                      [--annotated_output ANNOTATED_OUTPUT] 
+                      [--annotated_output] 
                       -s SOURCE_LANG
                       -t TARGET_LANG 
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
+                      [--disable_lang_ident]
+                      [--scol SCOL] 
+                      [--tcol TCOL]
                       [INPUT_FILE]
                       [OUTPUT_FILE]
 
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab.  `ANNOTATED_OUTPUT` will contain only the noisy sentence pairs, with an additional column specifying the heuristic rule applied and `OUTPUT_FILE` will contain all the input sentences. They noisy ones will contain two additional columns with the score "0.0000" and the word "discard".
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used. '--scol' and '--tcol' allow to indicate which columns contains source and target in the input file (default: `1`and `2`, respectively)
 
-You can them obtain the monolingual noisy corpora by "cutting" the appropriate columns:
+You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag). Asuming scol=1 and tcol=2, and no more columns in the input corpus (so the hardrules score is the 3rd column in the output):
+
 ```bash
-cut -f 1 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.SOURCE_LANG
-cut -f 2 ANNOTATED_OUTPUT > MONOLINGUAL_NOISY.TARGET_LANG
+cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $1 }' > MONOLINGUAL_NOISY.SOURCE_LANG
+cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARGET_LANG
+```
+
+### Building synthetic noisy sentences
+
+```bash
+cat TRAINING_CORPUS | cut -f1 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
+cat TRAINING_CORPUS | cut -f2 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
 ```
 
 ### Parameters

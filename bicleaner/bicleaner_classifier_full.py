@@ -14,6 +14,7 @@ import sklearn
 from sklearn.externals import joblib
 import numpy as np
 
+
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
@@ -26,14 +27,14 @@ try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
     from .lm import DualLMFluencyFilter,LMType, DualLMStats
-    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from lm import DualLMFluencyFilter,LMType, DualLMStats
-    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
 
 #import cProfile  # search for "profile" throughout the file
@@ -46,9 +47,15 @@ __version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
 __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
 __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
 __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
+
+
+logging_level = 0
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
+    global logging_level
+    
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
     # Initialization of the argparse class
@@ -67,6 +74,9 @@ def initialization():
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
     groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+
+    groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
@@ -76,6 +86,11 @@ def initialization():
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
+    
+    groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -89,8 +104,15 @@ def initialization():
     args = parser.parse_args()
     logging_setup(args)
 
-
+    logging_level = logging.getLogger().level    
     
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+
+            
     try: 
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
@@ -177,6 +199,8 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+    if args.score_only and args.keep_lm_result:
+        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -185,7 +209,8 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    if args.source_tokeniser_path:
+    
+    if args.source_tokeniser_path:    
         source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
     else:
         source_tokeniser = MosesTokenizer(args.source_lang)
@@ -193,13 +218,15 @@ def classifier_process(i, jobs_queue, output_queue, args):
         target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     else:
         target_tokeniser = MosesTokenizer(args.target_lang)
-    
+        
     #Load LM for fluency scoring
     lm_filter=None
     if args.source_lm and args.target_lm:
+
         lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
         lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
-    
+                
+
     while True:
         job = jobs_queue.get()
         if job:
@@ -222,10 +249,14 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     parts = i.split("\t")
                     sl_sentence=None
                     tl_sentence=None
-                    if len(parts) >= 4:
-                        sl_sentence=parts[2]
-                        tl_sentence=parts[3]
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+                    if len(parts) >= max(args.scol, args.tcol):
+                        sl_sentence=parts[args.scol-1]
+                        tl_sentence=parts[args.tcol-1]
+                    else:
+                        logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
+                        
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
+                        #if disable_hardrules == 1 --> the second part (and) is always true
                         lm_score=None
                         if lm_filter:
                             lm_score=lm_filter.score(sl_sentence,tl_sentence)
@@ -249,20 +280,25 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 for i, valid_sentence in zip(filein,valid_sentences):                    
                     if valid_sentence:
                         p = next(piter)
-                        
-                        fileout.write(i.strip())
-                        fileout.write("\t")
-                        fileout.write(str(p[1]))
-                        if lm_filter and args.keep_lm_result:
-                            lm_score=next(lmiter)
+                        if args.score_only:
+                            fileout.write("{0:.3f}".format((p[1])))                        
+                        else:    
+                            fileout.write(i.strip())
                             fileout.write("\t")
-                            fileout.write(str(lm_score))
+                            fileout.write("{0:.3f}".format((p[1])))
+                            if lm_filter and args.keep_lm_result:
+                                lm_score=next(lmiter)
+                                fileout.write("\t")
+                                fileout.write("{0:.3f}".format(lm_score))
                         fileout.write("\n")
                     else:
-                        fileout.write(i.strip("\n"))
-                        fileout.write("\t0")
-                        if lm_filter and args.keep_lm_result:
+                        if args.score_only:
+                            fileout.write("0")
+                        else:
+                            fileout.write(i.strip("\n"))
                             fileout.write("\t0")
+                            if lm_filter and args.keep_lm_result:
+                                fileout.write("\t0")
                         fileout.write("\n")
 
                 ojob = (nblock, fileout.name)
@@ -275,7 +311,9 @@ def classifier_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
-            break
+            break	
+
+            
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")
@@ -349,9 +387,11 @@ def reduce_process(output_queue, args):
 
 # Filtering input texts
 def perform_classification(args):
+    global logging_level
+    
     time_start = default_timer()
-    logging.info("Starting process")
-    logging.info("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
+    logging.debug("Starting process")
+    logging.debug("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
 
     process_count = max(1, args.processes)
     maxsize = 1000 * process_count
@@ -360,14 +400,19 @@ def perform_classification(args):
     worker_count = process_count
 
     # Start reducer
+    logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, args))
+    
     reduce.start()
-
+    logging.disable(logging.DEBUG)
+    
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
+
     for i in range(worker_count):
+
         filter = Process(target = classifier_process, #profile_classifier_process
                          args   = (i, jobs_queue, output_queue, args))
         filter.daemon = True # dies with the parent process
@@ -375,22 +420,29 @@ def perform_classification(args):
         filter.start()
         workers.append(filter)
 
+
     # Mapper process (foreground - parent)
     nline = mapping_process(args, jobs_queue)
     args.input.close()
 
     # Worker termination
     for _ in workers:
-        jobs_queue.put(None)
+
+        jobs_queue.put(None)	
+
 
     logging.info("End mapping")
+
 
     for w in workers:
         w.join()
 
     # Reducer termination
+    
+
     output_queue.put(None)
     reduce.join()
+    
 
     # Stats
     logging.info("Finished")
@@ -398,6 +450,7 @@ def perform_classification(args):
     logging.info("Total: {0} rows".format(nline))
     logging.info("Elapsed time {0:.2f} s".format(elapsed_time))
     logging.info("Troughput: {0} rows/s".format(int((nline*1.0)/elapsed_time)))
+    
 ### END PARALLELIZATION METHODS ###
 
 def main(args):

@@ -33,6 +33,8 @@ class ProbabilisticDictionary(object):
             l1    = parts[1]
             l2    = parts[0]
             prob  = float(parts[2])
+            if prob <= 0.0000001:
+                continue
             if not self.alpha.match(l1):
                 continue
             if prob < self.minprob:

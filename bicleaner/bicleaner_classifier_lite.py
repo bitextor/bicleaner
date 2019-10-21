@@ -34,12 +34,16 @@ __author__ = "Sergio Ortiz Rojas"
 __version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
 __version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 
 nline = 0
+logging_level = 0
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
     global nline
+    global logging_level
+    
     nline = 0
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
@@ -55,11 +59,21 @@ def initialization():
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
     groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+
+    groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
+
+
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+     
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
+     
+    groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -73,6 +87,14 @@ def initialization():
     args = parser.parse_args()
     logging_setup(args)
     
+    logging_level = logging.getLogger().level    
+
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+            
     try: 
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
@@ -154,6 +176,9 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+    if args.score_only and args.keep_lm_result:
+        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
+
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -180,11 +205,13 @@ def classify(args):
         
         sl_sentence=None
         tl_sentence=None
-        if len(parts) >= 4:
-            sl_sentence=parts[2]
-            tl_sentence=parts[3]
-       
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False:
+        if len(parts) >= max(args.scol, args.tcol):
+            sl_sentence=parts[args.scol -1]
+            tl_sentence=parts[args.tcol -1]
+        else:
+            logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
+                       
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
             lmScore=None
             if args.lm_filter:
                 lmScore=args.lm_filter.score(sl_sentence,tl_sentence)
@@ -207,18 +234,24 @@ def classify(args):
                 
             for k, l, lmScore in buf_sent:
                 if k == 1:
-                    args.output.write(l.strip())
-                    args.output.write("\t")
-                    args.output.write(str(next(p)[1]))
-                    if lmScore != None and args.keep_lm_result:
+                    if args.score_only:
+                        args.output.write("{0:.3f}".format((next(p)[1])))
+                    else:
+                        args.output.write(l.strip())
                         args.output.write("\t")
-                        args.output.write(str(lmScore))
+                        args.output.write("{0:.3f}".format((next(p)[1])))
+                        if lmScore != None and args.keep_lm_result:
+                            args.output.write("\t")
+                            args.output.write("{0:.3f}".format(lmScore))
                     args.output.write("\n")
                 else:
-                    args.output.write(l.strip("\n"))
-                    args.output.write("\t0")
-                    if lmScore != None and args.keep_lm_result:
+                    if args.score_only:
+                        args.output.write("0")
+                    else:    
+                        args.output.write(l.strip("\n"))
                         args.output.write("\t0")
+                        if lmScore != None and args.keep_lm_result:
+                            args.output.write("\t0")
                     args.output.write("\n")
 
             buf_feat = []
@@ -230,24 +263,31 @@ def classify(args):
             
         for k, l, lmScore in buf_sent:
             if k == 1:
-                args.output.write(l.strip())
-                args.output.write("\t")
-                args.output.write(str(next(p)[1]))
-                if lmScore != None and args.keep_lm_result:
+                if args.score_only:
+                    args.output.write("{0:.3f}".format((next(p)[1])))
+                else:
+                    args.output.write(l.strip())
                     args.output.write("\t")
-                    args.output.write(str(lmScore))
+                    args.output.write("{0:.3f}".format((next(p)[1])))
+                    if lmScore != None and args.keep_lm_result:
+                        args.output.write("\t")
+                        args.output.write("{0:.3f}".format(lmScore))
                 args.output.write("\n")
             else:
-                args.output.write(l.strip("\n"))
-                args.output.write("\t0")
-                if lmScore != None and args.keep_lm_result:
+                if args.score_only:
+                    args.output.write("0")
+                else:    
+                    args.output.write(l.strip("\n"))
                     args.output.write("\t0")
+                    if lmScore != None and args.keep_lm_result:
+                        args.output.write("\t0")
                 args.output.write("\n")
                 
                 
 # Filtering input texts
 def perform_classification(args):
     global nline
+    
     time_start = default_timer()
     logging.info("Starting process")
     

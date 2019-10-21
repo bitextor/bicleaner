@@ -17,15 +17,18 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .util import logging_setup
+    from .util import logging_setup, check_positive
 except (SystemError, ImportError):
-    from util import logging_setup
+    from util import logging_setup, check_positive
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")
+regex_punct = regex.compile("[[:punct:]]")
 regex_alpha = regex.compile("[[:alpha:]]")
 regex_url = regex.compile('((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]|\((:?[^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
-regex_breadcrumbs = regex.compile("([ ][-/»][ ]|[|<>→←]|[ ][:][:][ ])")
+#regex_breadcrumbs = regex.compile("([ ][-/»][ ]|[|<>→←]|[ ][:][:][ ])")
+regex_breadcrumbs1 = regex.compile("([ ][-/][ ]|[<>*]|[ ][:][ ])")
+regex_breadcrumbs2 = regex.compile("([ ][»][ ]|[|→←•·¬])")
 regex_unicode_noise = regex.compile("[\x80-\xFF]{3,}")
 regex_spaces_noise = regex.compile("([ ].){4,}[ ]")
 regex_paren = regex.compile("[][(){}]")
@@ -38,17 +41,22 @@ def initialization():
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     parser.add_argument('input',  nargs='?', type=argparse.FileType('rt', errors="replace"), default=io.TextIOWrapper(sys.stdin.buffer, errors="replace"),  help="Tab-separated bilingual tagged file")
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
-    parser.add_argument('--annotated_output', type=argparse.FileType('wt'), help="Annotated output of the classification")
+    parser.add_argument('--annotated_output',default=False, action='store_true', help="Adds an extra column with each sentence's evaluation (\"keep\" if the sentence is good, otherwise the reason for rejecting")
     
     groupM = parser.add_argument_group('Mandatory')
     groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
     groupM.add_argument("-t", "--target_lang", type=str, required=True, help="Target language (TL) of the input")
-
+    
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
 
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
+
+    groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=2, type=check_positive, help ="Target sentence column (starting in 1)")  
+    
     args = parser.parse_args()
 
     # Ensure that directory exists; if not, create it
@@ -58,19 +66,27 @@ def initialization():
     return args
 
 def c_identical(left, right):
-    return left != right
+    return left.casefold() != right.casefold()
     
 def c_identical_wo_digits(left, right):
     left = regex_digit.sub("", left)
     right = regex_digit.sub("", right)
-    return left != right
-    
+    return left.casefold() != right.casefold()
+
+def c_identical_wo_punct(left, right):
+    left = regex_punct.sub("", left)
+    right = regex_punct.sub("", right)
+    return left.casefold() != right.casefold()
+        
 def c_minimal_length(sentence):
     """ Counts number of whitespace, requires > 2 """
     return len(regex_blank.findall(sentence)) > 2
         
 def c_length(left, right):
     return 0.5 <= float(len(left))/float(len(right)) <= 2.0
+
+def c_length_bytes(left, right):
+    return 0.5 <= float(len(left.encode("utf8")))/float(len(right.encode("utf8"))) <= 2.0
 
 def c_different_language(left, right):
     l_reliable = False
@@ -99,6 +115,9 @@ def c_different_language(left, right):
         return False
         
 def c_reliable_long_language(sentence, language):
+    if language=="nb":
+        language = "no"
+        
     reliable = False
     bytes = 0
     details = ()
@@ -109,6 +128,14 @@ def c_reliable_long_language(sentence, language):
         return True # encoding error -> noise
     
     if len(sentence) > 30 and reliable and details[0][1] != language:
+
+        if language=="gl" and  (details[0][1] == "pt" or details[0][1] == "es"):
+            return True
+        if language=="no" and details[0][1] == "da":
+            return True    
+        if language=="nn" and (details[0][1] == "no" or details[0][1] == "da"):
+            return True
+        #print(sentence + "  " +  str(details[0][1]))     
         return False
     else:
         return True
@@ -121,9 +148,15 @@ def c_majority_alpha(sentence):
 
 def c_no_urls(sentence):
     return sum([len("".join(i)) for i in regex_url.findall(sentence)]) < 15
-    
-def c_no_breadcrumbs(sentence):
-    return len(regex_breadcrumbs.findall(sentence)) < 3
+
+#def c_no_breadcrumbs(sentence):
+#    return len(regex_breadcrumbs.findall(sentence)) < 3
+
+def c_no_breadcrumbs1(sentence):
+    return len(regex_breadcrumbs1.findall(sentence)) < 3  
+
+def c_no_breadcrumbs2(sentence):
+    return len(regex_breadcrumbs2.findall(sentence)) < 2  
 
 def c_no_noise(sentence):
     return len(regex_unicode_noise.findall(sentence)) == 0
@@ -155,17 +188,21 @@ def wrong_tu(left, right, args):
         return "c_no_literals(['Porn'], left)"
     elif not c_no_literals(["Porn"], right):
         return "c_no_literals(['Porn'], right)"
-    elif not c_minimal_length(left):
-        return "c_minimal_length(left)"
-    elif not c_minimal_length(right):
-        return "c_minimal_length(right)"
-    elif not c_length(left, right):
-        return "c_length"
+    elif not c_no_literals(["Re:"], left):
+        return "c_no_literals(['Re:'], left)"
+    elif not c_no_literals(["Re:"], right):
+        return "c_no_literals(['Re:'], right)"            
+    elif not (c_minimal_length(left) or c_minimal_length(right)):
+        return "c_minimal_length(left) and c_minimal_length(right)"
+    elif not (c_length(left, right) or c_length_bytes(left, right)): 
+        return "c_length or c_length_bytes"
     elif not c_identical(left, right):
         return "c_identical"
     elif not c_identical_wo_digits(left, right):
         return "c_identical_wo_digits"    
-    elif not c_different_language(left, right):
+    elif not c_identical_wo_punct(left, right):
+        return "c_identical_wo_punct"    
+    elif (not args.disable_lang_ident and not  c_different_language(left, right)):
         return "c_different_language"
     elif not c_majority_alpha(left):
         return "c_majority_alpha(left)"
@@ -175,10 +212,18 @@ def wrong_tu(left, right, args):
         return "c_no_urls(left)"
     elif not c_no_urls(right):
         return "c_no_urls(right)"
-    elif not c_no_breadcrumbs(left):
-        return "c_no_breadcrumbs(left)"
-    elif not c_no_breadcrumbs(right):
-        return "c_no_breadcrumbs(right)"
+    #elif not c_no_breadcrumbs(left):    
+    #    return "c_no_breadcrumbs(left)"
+    #elif not c_no_breadcrumbs(right):
+    #    return "c_no_breadcrumbs(right)"
+    elif not c_no_breadcrumbs1(left):
+        return "c_no_breadcrumbs1(left)"
+    elif not c_no_breadcrumbs1(right):
+        return "c_no_breadcrumbs1(right)"
+    elif not c_no_breadcrumbs2(left):
+        return "c_no_breadcrumbs2(left)"
+    elif not c_no_breadcrumbs2(right):
+        return "c_no_breadcrumbs2(right)"       
     elif args.source_lang in safe_noise_detection_langs and not c_no_noise(left):
         return "args.source_lang in safe_noise_detection_langs and not c_no_noise(left)" 
     elif args.target_lang in safe_noise_detection_langs and not c_no_noise(right):
@@ -209,11 +254,10 @@ def wrong_tu(left, right, args):
         return 'c_no_literals(["{{", "%s", "}}"], right)'
     elif left.istitle() and right.istitle():
         return 'left.istitle() and right.istitle()'
-    elif not c_reliable_long_language(left, args.source_lang):
+    elif (not args.disable_lang_ident and not  c_reliable_long_language(left, args.source_lang)):
         return "c_reliable_long_language(left, sourcelang)"
-    elif not c_reliable_long_language(right, args.target_lang):
+    elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
-                       
     return False
     
     
@@ -270,17 +314,30 @@ def worker_process(i, jobs_queue, output_queue, args):
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
 
-                for i in filein:
+                for i in filein:	
                     parts = i.strip().split("\t")
-                    left = parts[0]
-                    right = parts[1] if len(parts) >= 2 else ""
+                    left = ""
+                    right= ""
+                    
+                    if len(parts) >=  args.scol and len(parts) >= args.tcol:
+                        left = parts[args.scol-1]
+                        right = parts[args.tcol-1]
+                    else:
+                        logging.error("WARNING: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))        
+                        continue
                     wrong_tu_results = wrong_tu(left,right, args)
                     if wrong_tu_results != False:
-                        fileout.write("{}\t{}\t0.0000000000000000\tdiscard\n".format(left, right))
+                        fileout.write("\t".join(parts)+"\t0")
                         if args.annotated_output:                            
-                            args.annotated_output.write("{}\t{}\t{}\n".format(left,right,wrong_tu_results))
+                            fileout.write("\t{}\n".format(wrong_tu_results))
+                        else:
+                            fileout.write("\n")
                     else:
-                        fileout.write(i)
+                        fileout.write("\t".join(parts)+"\t1")
+                        if args.annotated_output:
+                            fileout.write("\tkeep\n")
+                        else:
+                            fileout.write("\n")    
 
                 ojob = (nblock, fileout.name)
                 filein.close()
@@ -289,8 +346,7 @@ def worker_process(i, jobs_queue, output_queue, args):
 
             if ojob:                    
                 output_queue.put(ojob)
-            if args.annotated_output:
-                args.annotated_output.flush()                    
+
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
@@ -365,9 +421,7 @@ def perform_hardrules_filtering(args):
     output_queue.put(None)
     reduce.join()
     
-    if args.annotated_output:
-        args.annotated_output.close()
-        
+
     # Stats
     logging.info("Finished")
     elapsed_time = default_timer() - time_start
