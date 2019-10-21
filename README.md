@@ -8,7 +8,8 @@ Bicleaner (bicleaner-classify) is a tool in Python that aims at detecting noisy 
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
 Although a training tool (bicleaner-train) is provided, you may want to use the available ready-to-use language packages. 
-Please, visit https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.1 to download the language packages.
+Please, visit https://github.com/bitextor/bitextor-data/releases to download the language packages.
+Visit our [Wiki](https://github.com/bitextor/bicleaner/wiki/How-to-train-your-Bicleaner) for a detailed example on Bicleaner training.
 
 ## Citation 
 
@@ -158,7 +159,7 @@ This will download the required language pack, classify the provided test corpus
 
 ## Training classifiers
 
-In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases/tag/bicleaner-v1.1)), 
+In case you need to train a new classifier (i.e. because it is not available in the language packs provided at [bitextor-data](https://github.com/bitextor/bitextor-data/releases), 
 
 you can use `bicleaner-train` .
 `bicleaner-train` is a Python3 tool that allows you to train a classifier which predicts 
@@ -181,11 +182,11 @@ Optionally, if you want the classifier to include an improved fluency filter bas
 
 Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
-In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, Bicleaner contains a set of heuristic rules that can be used to extract very noisy sentences from a corpus.
+In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, there are two options available with Bicleaner: 
 
 ### Extracting noisy sentences from an existing corpus with heuristic rules
 
-Given a parallel corpus, you can extract some of its noisiest sentences using heuristic rules by running the following command:
+Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its noisiest sentences using heuristic rules by running the following command:
 
 ```bash
   bicleaner-hardrules [-h]
@@ -209,6 +210,13 @@ You can then obtain the monolingual noisy corpora by "cutting" the appropriate c
 ```bash
 cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $1 }' > MONOLINGUAL_NOISY.SOURCE_LANG
 cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARGET_LANG
+```
+
+### Building synthetic noisy sentences
+
+```bash
+cat TRAINING_CORPUS | cut -f1 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
+cat TRAINING_CORPUS | cut -f2 | python3.6 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
 ```
 
 ### Parameters
