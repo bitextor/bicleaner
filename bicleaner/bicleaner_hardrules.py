@@ -79,8 +79,8 @@ def c_identical_wo_punct(left, right):
     return left.casefold() != right.casefold()
         
 def c_minimal_length(sentence):
-    """ Counts number of whitespace, requires > 2 """
-    return len(regex_blank.findall(sentence)) > 2
+    """ Counts number of whitespace, requires >= 2 (3 words) """
+    return len(regex_blank.findall(sentence)) >= 2
         
 def c_length(left, right):
     return 0.5 <= float(len(left))/float(len(right)) <= 2.0

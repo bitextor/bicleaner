@@ -127,6 +127,7 @@ def main(args):
  
     temp_file.flush()
     #Sort by source
+    logging.debug("Sorting")
     sort_command = "LC_ALL=C sort {0}  -k 2,2 -k 1,1 -o {0}".format(temp_file.name) # OJO, QUE ESTO ES LEGAL
     p = subprocess.Popen(sort_command, shell=True, stdout=subprocess.PIPE)
     p.wait()

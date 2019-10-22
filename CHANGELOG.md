@@ -1,5 +1,9 @@
+Bicleaner 0.13:
+* Bicleaner hardrules changes:
+  * Rule change: Relaxed c_minimal_length to accept 3-word sentences	
+* Other:
+  * Updated requirements
 Bicleaner 0.12:
-
 * Bicleaner hardrules changes:
   * New rule: c_identical_wo_punct to reject sentences only different in punctuation (and it's case insensitive)
   * New rule:  Sentences containing "Re:" are rejected
