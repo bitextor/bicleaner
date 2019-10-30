@@ -1,6 +1,10 @@
 Bicleaner 0.13:
 * Bicleaner hardrules changes:
   * Rule change: Relaxed c_minimal_length to accept 3-word sentences	
+* Bicleaner training changes: 
+  * New parameter: Features relying on language identification can be disabled with flag `--disable_lang_ident` (this will be outputed in the .yaml file and used by Bicleaner clasifier)
+* Bicleaner classifier changes:
+  * `--disable_lang_ident` flag is now read from the .yaml file.
 * Other:
   * Updated requirements
 Bicleaner 0.12:
@@ -13,7 +17,7 @@ Bicleaner 0.12:
   * Rule change: Breadcrumbs2 now includes character "·" in the rejected characters
   * Rule change: c_length now compares byte length ratio (will avoid rejecting valid sentences due to length ratio when comparing languages with different alphabets)
   * Changed behaviour for `--annotated_output` argument in hardrules. See README.md for more information.
-  * New parameter: '--disable_lang_ident` flag to avoid applying rules that need to identify the language
+  * New parameter: `--disable_lang_ident` flag to avoid applying rules that need to identify the language
 * Bicleaner classify changes:  
   * Now using only 3 decimal places for Bicleaner score and LM score
   * Removed INFO messages when processes starting/ending (except when debugging)
