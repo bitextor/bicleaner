@@ -91,7 +91,6 @@ bicleaner-classify [-h]
                    [--keep_lm_result]
                    [--score_only]
                    [--disable_hardrules]
-                   [--disable_lang_ident]                   
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -124,7 +123,6 @@ bicleaner-classify [-h]
   * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
   * --score_only: Only output one column which is the bicleaner score (default: False)
   * --disable_hardrules: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
-  * --disable_lang_ident: Don't apply hardrules that use language detecting (default: False)
 
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
@@ -248,6 +246,7 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
                  [-p PROCESSES]
                  [--wrong_examples_file WRONG_EXAMPLES_FILE]
                  [--features_version FEATURES_VERSION]
+                 [--disable_lang_ident]
                  [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
                  [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
                  [--lm_dev_size LM_DEV_SIZE]
@@ -292,6 +291,7 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * -p PROCESSES, --processes PROCESSES: Number of process to use (default: all CPUs minus one)
   * --wrong_examples_file WRONG_EXAMPLES_FILE: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
   * --features_version FEATURES_VERSION: Version of the feature (default: extracted from the features.py file)
+  * --disable_lang_ident: Don't apply features that use language detecting (default: False). Useful when the language in use is too similar to other languages, making the automatic identification of language not realiable.
   * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text.
   * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text.
   * --lm_dev_size SIZE:  Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)
@@ -352,7 +352,7 @@ precision_histogram: [0.5000000, 0.5003502, 0.6475925, 0.9181810, 0.9860683, 0.9
 recall_histogram: [1.0000000, 1.0000000, 0.9993000, 0.9954000, 0.9909000, 0.9797000, 0.9625000, 0.9111000, 0.6912000, 0.0000000]
 accuracy_histogram: [0.5000000, 0.5007000, 0.7277500, 0.9533500, 0.9884500, 0.9887500, 0.9810500, 0.9555000, 0.8456000, 0.5000000]
 length_ratio: 1.0111087
-features_version: 2
+features_version: 3
 source_lm: en-cs.model.en
 target_lm: en-cs.model.cs
 lm_type: CHARACTER
@@ -360,6 +360,7 @@ clean_mean_perp: -1.0744755342473238
 clean_stddev_perp: 0.18368996884800565
 noisy_mean_perp: -3.655791900929066
 noisy_stddev_perp: 0.9989343799121657
+disable_lang_ident: False
 
 ```
 
