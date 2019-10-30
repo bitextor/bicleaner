@@ -7,6 +7,8 @@ Bicleaner 0.13:
   * `--disable_lang_ident` flag is now read from the .yaml file.
 * Other:
   * Updated requirements
+  
+  
 Bicleaner 0.12:
 * Bicleaner hardrules changes:
   * New rule: c_identical_wo_punct to reject sentences only different in punctuation (and it's case insensitive)
