@@ -48,7 +48,7 @@ __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Mar
 __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
 __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
-
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 logging_level = 0
 
@@ -90,7 +90,7 @@ def initialization():
     groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
     
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
-    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
+
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -184,8 +184,12 @@ def initialization():
             args.lm_type=None
             args.lm_filter_stats=None
             
+          
+        if "disable_lang_ident" in metadata_yaml:
+            args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
+        else:
+            args.disable_lang_ident = False
             
-        
         logging.debug("YAML")
         logging.debug(metadata_yaml)
         parser.set_defaults(**metadata_yaml)   

@@ -39,6 +39,8 @@ __version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong ex
 __version__ = "Version 0.3 # 14/12/2018 # Lite version # Marta Bañón"
 __version__ = "Version 0.4 # 18/12/2018 # Changed to generalized tokenizer # Marta Bañón"
 __version__ = "Version 0.5 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
+
 
     
 # Argument parsing
@@ -67,9 +69,10 @@ def initialization():
     groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
     groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
     groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
-    groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
+    groupO.add_argument('--dump_features', type=argparse.FileType('wb'), default=None, help="Dump training features to file")
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl',  type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -104,9 +107,10 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     # Load features and labels and format them as numpy array
     for line in input_features:
         parts=line.rstrip("\n").split("\t")
+
         feats.append( [float(v) for v in parts[:-1] ] )
         labels.append(int(parts[-1]))
-        
+
     dataset = dict()
     dataset['data']   = np.array(feats)
     dataset['target'] = np.array(labels)

@@ -275,3 +275,4 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         out.write("clean_stddev_perp: {}\n".format(lm_stats.clean_stddev) )
         out.write("noisy_mean_perp: {}\n".format(lm_stats.noisy_mean) )
         out.write("noisy_stddev_perp: {}\n".format(lm_stats.noisy_stddev) )
+    out.write("disable_lang_ident: {}\n".format(myargs.disable_lang_ident))     

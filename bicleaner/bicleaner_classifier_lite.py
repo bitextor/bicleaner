@@ -35,6 +35,7 @@ __version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
 __version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
 __version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sánchez-Cartagena"
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 nline = 0
 logging_level = 0
@@ -73,7 +74,7 @@ def initialization():
     groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
      
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
-    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
+
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -114,7 +115,8 @@ def initialization():
         
 #        args.clf.n_jobs = None    
         args.classifier_type=metadata_yaml["classifier_type"]
-
+        
+        
 
         try:
             args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["source_dictionary"]))
@@ -137,6 +139,12 @@ def initialization():
         args.length_ratio = metadata_yaml["length_ratio"]
         args.features_version = 1 if "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
         
+        if "disable_lang_ident" in metadata_yaml:
+            args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
+        else:
+            args.disable_lang_ident = False     
+        
+
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
