@@ -99,7 +99,7 @@ def initialization():
     try: 
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
-        metadata_yaml = yaml.load(args.metadata)      
+        metadata_yaml = yaml.safe_load(args.metadata)      
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
