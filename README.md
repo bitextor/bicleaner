@@ -177,6 +177,7 @@ In order to train a new classifier, you must provide:
 Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
 * A monolingual corpus made ONLY of noisy sentences in the TL (100k sentences is the recommended size)
+If not provided, noisy corpora is produced synthetically from the training corpus.
 
 Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
@@ -216,6 +217,8 @@ cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARG
 cat TRAINING_CORPUS | cut -f1 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
 cat TRAINING_CORPUS | cut -f2 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
 ```
+
+Since `0.13`, if no noisy corpora is provided, it's produced by Bicleaner training itself, so it has become an optional parameter.
 
 ### Parameters
 
@@ -292,8 +295,8 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * --wrong_examples_file WRONG_EXAMPLES_FILE: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
   * --features_version FEATURES_VERSION: Version of the feature (default: extracted from the features.py file)
   * --disable_lang_ident: Don't apply features that use language detecting (default: False). Useful when the language in use is too similar to other languages, making the automatic identification of language not realiable.
-  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text.
-  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text.
+  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text. (Optional)
+  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text. (Optional)
   * --lm_dev_size SIZE:  Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)
   * --lm_file_sl LM_FILE_SL: Output file with the created SL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
   * --lm_file_tl LM_FILE_TL: Output file with the created TL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
