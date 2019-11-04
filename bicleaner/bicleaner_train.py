@@ -21,8 +21,6 @@ import sys
 from toolwrapper import ToolWrapper
 from mosestokenizer import MosesTokenizer
 
-#Allows to load modules while inside or outside the package 
-
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract, FEATURES_VERSION

@@ -3,6 +3,8 @@ Bicleaner 0.13:
   * Rule change: Relaxed c_minimal_length to accept 3-word sentences	
 * Bicleaner training changes: 
   * New parameter: Features relying on language identification can be disabled with flag `--disable_lang_ident` (this will be outputed in the .yaml file and used by Bicleaner clasifier)
+  * Parameter change: --noisy_examples_file_sl and --noisy_examples_file_tl are now optional
+  * Removed INFO messages when processes starting/ending (except when debugging)
 * Bicleaner classifier changes:
   * `--disable_lang_ident` flag is now read from the .yaml file.
 * Other:

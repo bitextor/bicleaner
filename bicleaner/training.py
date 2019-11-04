@@ -65,6 +65,7 @@ def shuffle_lm_training_text(input: typing.TextIO,dev_size: int ) -> (str,str,st
 
 
 
+
 def train_fluency_filter(args):
     # Prepare corpora:
     # Input corpora for training the classifier split in 2 parts:
@@ -74,8 +75,10 @@ def train_fluency_filter(args):
 
     logging.info("Training LM-based fluency filter")
 
-    if not ( args.noisy_examples_file_sl and args.noisy_examples_file_tl and args.lm_file_sl and args.lm_file_tl  ):
+    if not (args.lm_file_sl and args.lm_file_tl):
         return None
+
+        
 
 
     inputIsTmp=True
@@ -94,9 +97,21 @@ def train_fluency_filter(args):
     else:
         logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the Random Forest classifier), after randomly removing {} sentences".format(args.lm_dev_size))
         logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the Random Forest classifier): {} sentences".format(args.lm_dev_size))
-        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
-        logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
+       
+        
         lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
+
+
+        if not (args.noisy_examples_file_sl):
+            #build synthetic noise
+            args.noisy_examples_file_sl = shuffle_chars(lm_train_path_sl)    
+        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))    
+            
+            
+        if not (args.noisy_examples_file_tl):
+            #build synthetic noise
+            args.noisy_examples_file_tl = shuffle_chars(lm_train_path_tl)
+        logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
 
     try:
         ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang)
@@ -109,6 +124,26 @@ def train_fluency_filter(args):
             os.remove(lm_dev_clean_tl)
     return stats
 
+
+#Randomizes sentences' characters in a file
+def shuffle_chars(input_file_path):
+    logging.debug("Shuffling {0} to get noisy corpus".format(input_file_path))
+    noisy_file = NamedTemporaryFile("w+", delete=False)
+    logging.debug("Writing noisy file to {0}".format(noisy_file.name))    
+    with open (input_file_path,  "r+") as i:
+        for line in i:
+            s = line.strip()
+            noisy_file.write(''.join(random.sample(s,len(s)))+"\n")
+        
+        i.flush()
+        i.seek(0)
+    
+        noisy_file.flush()
+        noisy_file.seek(0)    
+    return noisy_file.name    
+
+
+    
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
