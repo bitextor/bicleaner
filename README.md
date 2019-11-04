@@ -177,7 +177,8 @@ In order to train a new classifier, you must provide:
 Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
 * A monolingual corpus made ONLY of noisy sentences in the TL (100k sentences is the recommended size)
-If not provided, noisy corpora is produced synthetically from the training corpus.
+
+If not provided, since Bicleaner `0.13`, noisy corpora is produced synthetically from the training corpus.
 
 Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
