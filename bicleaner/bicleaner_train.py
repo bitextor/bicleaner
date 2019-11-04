@@ -42,9 +42,15 @@ __version__ = "Version 0.1 # December 2017 # Initial version # Sergio Ortiz-Roja
 __version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong examples from a file # Jorge Ferrández-Tordera"
 __version__ = "Version 0.3 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
 __version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
+
+
+logging_level = 0
     
 # Argument parsing
 def initialization():
+
+    global logging_level
+    
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument('input',  nargs='?', type=argparse.FileType('r'), default=sys.stdin,  help="Tab-separated bilingual input file")
@@ -96,6 +102,15 @@ def initialization():
     args = parser.parse_args()
     # Logging
     logging_setup(args)
+    
+    logging_level = logging.getLogger().level    
+    
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+    
     return args
 
 # Training function: receives two file descriptors, input and test, and a
@@ -293,8 +308,8 @@ def map_process(input, block_size, jobs_queue, label, first_block=0):
 # Main loop of the program
 def perform_training(args):
     time_start = default_timer()
-    logging.info("Starting process")
-    logging.info("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
+    logging.debug("Starting process")
+    logging.debug("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
 
     process_count = max(1, args.processes)
     maxsize = 1000 * process_count
@@ -328,10 +343,12 @@ def perform_training(args):
 
     features_file = TemporaryFile('w+')
     # Start reducer
+    logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, features_file))
     reduce.start()
-
+    logging.disable(logging.DEBUG)
+    
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []

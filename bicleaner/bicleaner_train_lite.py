@@ -42,9 +42,13 @@ __version__ = "Version 0.5 # 18/01/2019 # Integrated training of LM and refactor
 __version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 
+logging_level = 0
     
 # Argument parsing
 def initialization():
+
+    global logging_level
+    
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument('input',  nargs='?', type=argparse.FileType('r'), default=sys.stdin,  help="Tab-separated bilingual input file")
@@ -89,6 +93,11 @@ def initialization():
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
     groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
+
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
 
     args = parser.parse_args()
     # Logging
