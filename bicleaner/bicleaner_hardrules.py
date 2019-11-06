@@ -8,6 +8,7 @@ import pycld2
 import regex
 import sys
 import traceback
+import yaml
 
 
 from heapq import heappush, heappop
@@ -17,9 +18,11 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .util import logging_setup, check_positive
+    from .util import logging_setup, check_positive, check_positive_between_zero_and_one
+    from .lm import DualLMFluencyFilter,LMType, DualLMStats
 except (SystemError, ImportError):
-    from util import logging_setup, check_positive
+    from util import logging_setup, check_positive, check_positive_between_zero_and_one
+    from lm import DualLMFluencyFilter,LMType, DualLMStats
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")
@@ -37,7 +40,12 @@ regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
+
+logging_level = 0
+
 def initialization():
+    global logging_level
+    
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     parser.add_argument('input',  nargs='?', type=argparse.FileType('rt', errors="replace"), default=io.TextIOWrapper(sys.stdin.buffer, errors="replace"),  help="Tab-separated bilingual tagged file")
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
@@ -57,13 +65,90 @@ def initialization():
     groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=2, type=check_positive, help ="Target sentence column (starting in 1)")  
     
-    args = parser.parse_args()
+    #LM  filtering
+    groupO.add_argument('--disable_lm_filter', default=False, action='store_true', help="Don't apply LM filtering")
+    groupO.add_argument('--metadata', type=argparse.FileType('r'), default=None, help="Training metadata (YAML file)")    
+    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring.")
+    #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score.")
 
+    # Logging group
+    groupL = parser.add_argument_group('Logging')
+    groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
+    groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
+    groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
+    #groupL.add_argument('-v', '--version', action='version', version="%(prog)s " + __version__, help="show version of this script and exit")
+
+
+    args = parser.parse_args()
+    logging_setup(args)
+    
+    logging_level = logging.getLogger().level
+    
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        #Getting rid of INFO messages when Moses processes start
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+    
     # Ensure that directory exists; if not, create it
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+    #Try loading metadata for LM filtering		    
+    if (not args.disable_lm_filter and  args.metadata != None):
+        logging.info("Loading LM metadata info")
+        try:
+
+            args.metadata_yaml = yaml.safe_load(args.metadata)
+            args.metadata_yaml["yamlpath"] = os.path.dirname(os.path.abspath(args.metadata.name))
+
+            if not ("source_lm" in args.metadata_yaml and "target_lm" in args.metadata_yaml):
+                args.disable_lm_filter = True
+                logging.warning("Error loading metadata. LM filtering disabled.")
+            else:    
+                parser.set_defaults(**args.metadata_yaml)   
+   
+        except:
+            
+            logging.warning("Error loading metadata. LM filtering disabled.")
+            args.disable_lm_filter  = True
+            traceback.print_exc()
+            #sys.exit(1)
+    else:
+        if (args.disable_lm_filter):
+            logging.info("LM filtering disabled")            
+
+        else:
+            if (args.metadata == None):
+                logging.warning("Metadata file not provided. LM filtering disabled")
+        args.disable_lm_filter = True
+          
     return args
+    
+def load_lm_filter(source_lang, target_lang, metadata_yaml):
+    
+    logging.debug("Loading LM filter")
+
+    lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']], source_lang, target_lang)
+    stats=DualLMStats(metadata_yaml['clean_mean_perp'], metadata_yaml['clean_stddev_perp'], metadata_yaml['noisy_mean_perp'], metadata_yaml['noisy_stddev_perp'] )
+
+    fullpath_source_lm=os.path.join(metadata_yaml["yamlpath"], metadata_yaml['source_lm'])
+    if os.path.isfile(fullpath_source_lm):
+        source_lm = fullpath_source_lm
+    else:
+        source_lm = metadata_yaml['source_lm']
+        
+        
+    fullpath_target_lm=os.path.join(metadata_yaml["yamlpath"], metadata_yaml['target_lm'])   
+    if os.path.isfile(fullpath_target_lm):
+        target_lm = fullpath_target_lm
+    else:
+        target_lm = metadata_yaml['target_lm']
+    
+    lmFilter.load(source_lm, target_lm, stats)
+    
+    return lmFilter
+                    
 
 def c_identical(left, right):
     return left.casefold() != right.casefold()
@@ -179,7 +264,7 @@ def c_no_literals(literals, sentence):
 def c_no_escaped_unicode(sentence):
     return len(regex_escaped_unicode.findall(sentence)) == 0
    
-def wrong_tu(left, right, args):
+def wrong_tu(left, right, args, lm_filter = None):
     if len(left) >= 1024:
         return "len(left) >= 1024"
     if len(right) >= 1024:
@@ -258,6 +343,8 @@ def wrong_tu(left, right, args):
         return "c_reliable_long_language(left, sourcelang)"
     elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
+    elif  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
+        return "lm_filter.score(left, right) < args.lm_threshold"
     return False
     
     
@@ -305,6 +392,10 @@ def reduce_process(output_queue, args):
     args.output.close()
     
 def worker_process(i, jobs_queue, output_queue, args):
+    if not args.disable_lm_filter:        
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+    else:
+        lm_filter = None    
     while True:
         job = jobs_queue.get()
         if job:
@@ -325,7 +416,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("WARNING: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))        
                         continue
-                    wrong_tu_results = wrong_tu(left,right, args)
+                    wrong_tu_results = wrong_tu(left,right, args, lm_filter)
                     if wrong_tu_results != False:
                         fileout.write("\t".join(parts)+"\t0")
                         if args.annotated_output:                            

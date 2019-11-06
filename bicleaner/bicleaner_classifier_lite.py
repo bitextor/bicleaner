@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/uenv python
 
 import os
 import sys
@@ -18,13 +18,11 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
-    from .lm import DualLMFluencyFilter,LMType, DualLMStats
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
-    from lm import DualLMFluencyFilter,LMType, DualLMStats
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
@@ -68,14 +66,15 @@ def initialization():
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
+    
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
-    groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+    #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
      
     groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
      
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
-
-    
+    groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
+        
     # Logging group
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -97,10 +96,12 @@ def initialization():
         logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
             
     try: 
-        yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
 
         metadata_yaml = yaml.safe_load(args.metadata)      
+        yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
+        metadata_yaml["yamlpath"] = yamlpath
 
+       
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
         if "source_tokeniser_path" in metadata_yaml:
@@ -143,36 +144,27 @@ def initialization():
             args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
         else:
             args.disable_lang_ident = False     
+       
         
 
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
-        
-        #Load LM stuff if model was trained with it 
-        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']] ,args.source_lang, args.target_lang)
-            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            
-            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
-            if os.path.isfile(fullpath_source_lm):
-                source_lm= fullpath_source_lm
-            else:
-                source_lm= metadata_yaml['source_lm']
-            
-            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
-            if os.path.isfile(fullpath_target_lm):
-                target_lm=fullpath_target_lm
-            else:
-                target_lm=metadata_yaml['target_lm']
-            lmFilter.load(source_lm, target_lm ,stats)
-            args.lm_filter=lmFilter
+
+        #Try loading metadata for LM filtering                  
+        if not args.disable_lm_filter:
+            if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
+                args.disable_lm_filter = True
+                logging.warning("Error loading metadata. LM filtering disabled.")
         else:
-            args.lm_filter=None
+            logging.info("LM filtering disabled")
+               
         
+                
         logging.debug("YAML")
         logging.debug(metadata_yaml)
+        args.metadata_yaml = metadata_yaml
         parser.set_defaults(**metadata_yaml)   
    
     except:
@@ -184,8 +176,6 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
-    if args.score_only and args.keep_lm_result:
-        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
 
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
@@ -205,8 +195,15 @@ def classify(args):
         source_tokeniser = MosesTokenizer(args.source_lang)
     if args.target_tokeniser_path:
         target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-    else:
+    else:    
         target_tokeniser = MosesTokenizer(args.target_lang)
+
+
+    if not args.disable_lm_filter:
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+    else:
+        lm_filter = None
+
     for i in args.input:
         nline += 1
         parts = i.split("\t")
@@ -219,38 +216,26 @@ def classify(args):
         else:
             logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
                        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
-            lmScore=None
-            if args.lm_filter:
-                lmScore=args.lm_filter.score(sl_sentence,tl_sentence)
-            if lmScore != None and lmScore < args.lm_threshold and not args.keep_lm_result:
-                buf_sent.append((0, i,lmScore))
-            else:
-                buf_sent.append((1, i,lmScore))
-                features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-                buf_feat.append([float(v) for v in features])
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
+            buf_sent.append((1, i))
+            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+            buf_feat.append([float(v) for v in features])
         else:
-            lmScore=None
-            if args.lm_filter:
-                lmScore=0
-            buf_sent.append((0, i, lmScore))
+            buf_sent.append((0, i))
         
         if (nline % batch_size) == 0:
             args.clf.set_params(n_jobs = 1)
             predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
             p = iter(predictions)
                 
-            for k, l, lmScore in buf_sent:
+            for k, l in buf_sent:
                 if k == 1:
                     if args.score_only:
                         args.output.write("{0:.3f}".format((next(p)[1])))
                     else:
                         args.output.write(l.strip())
                         args.output.write("\t")
-                        args.output.write("{0:.3f}".format((next(p)[1])))
-                        if lmScore != None and args.keep_lm_result:
-                            args.output.write("\t")
-                            args.output.write("{0:.3f}".format(lmScore))
+                        args.output.write("{0:.3f}".format((next(p)[1])))                       
                     args.output.write("\n")
                 else:
                     if args.score_only:
@@ -258,8 +243,6 @@ def classify(args):
                     else:    
                         args.output.write(l.strip("\n"))
                         args.output.write("\t0")
-                        if lmScore != None and args.keep_lm_result:
-                            args.output.write("\t0")
                     args.output.write("\n")
 
             buf_feat = []
@@ -269,7 +252,7 @@ def classify(args):
         predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
         p = iter(predictions)
             
-        for k, l, lmScore in buf_sent:
+        for k, l in buf_sent:
             if k == 1:
                 if args.score_only:
                     args.output.write("{0:.3f}".format((next(p)[1])))
@@ -277,9 +260,6 @@ def classify(args):
                     args.output.write(l.strip())
                     args.output.write("\t")
                     args.output.write("{0:.3f}".format((next(p)[1])))
-                    if lmScore != None and args.keep_lm_result:
-                        args.output.write("\t")
-                        args.output.write("{0:.3f}".format(lmScore))
                 args.output.write("\n")
             else:
                 if args.score_only:
@@ -287,8 +267,6 @@ def classify(args):
                 else:    
                     args.output.write(l.strip("\n"))
                     args.output.write("\t0")
-                    if lmScore != None and args.keep_lm_result:
-                        args.output.write("\t0")
                 args.output.write("\n")
                 
                 
