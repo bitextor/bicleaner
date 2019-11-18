@@ -317,10 +317,17 @@ def perform_training(args):
 
     #Read input to a named temporary file
     #We may need to read it multiple times and that would be problematic if it is sys.stdin
+
+    count_input_lines = 0
     input = NamedTemporaryFile(mode="w",delete=False)
     for line in args.input:
         input.write(line)
+        count_input_lines = count_input_lines +1
     input.close()
+
+    if count_input_lines < 10000:
+        logging.error("Training corpus must be at least 10K sentences long (was {}).".format(count_input_lines))
+        sys.exit(1)
     
     stats=None
     with open(input.name) as input_f:

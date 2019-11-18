@@ -6,6 +6,7 @@ Bicleaner 0.13:
 * Bicleaner training changes: 
   * New parameter: Features relying on language identification can be disabled with flag `--disable_lang_ident` (this will be outputed in the .yaml file and used by Bicleaner clasifier)
   * Parameter change: --noisy_examples_file_sl and --noisy_examples_file_tl are now optional
+  * Parameter change: input now must be more than 10K sentences long
   * Removed INFO messages when processes starting/ending (except when debugging)
 * Bicleaner classifier changes:
   * `--disable_lang_ident` flag is now read from the .yaml file.
