@@ -145,7 +145,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     # Log sorted feature importances with their names
     feat_names = Features.cols + Features.optional
-    feat_dict = dict(zip(clf.feature_importances_, feat_names))
+    feat_dict = dict(zip(feat_names, clf.feature_importances_))
     sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
     logging.debug('Feature importances: ' + json.dumps(sorted_feat, indent=4, sort_keys=False))
 
