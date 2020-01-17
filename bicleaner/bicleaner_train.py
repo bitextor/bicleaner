@@ -18,17 +18,18 @@ import os
 import random
 import sklearn
 import sys
+import json
 from toolwrapper import ToolWrapper
 from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package  
 try:
-    from .features import feature_extract, FEATURES_VERSION
+    from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 except (SystemError, ImportError):
-    from features import feature_extract, FEATURES_VERSION
+    from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter 
@@ -158,6 +159,12 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         sys.exit(1)
 
     clf.fit(dataset['data'], dataset['target'])
+
+    # Log sorted feature importances with their names
+    feat_names = Features.cols + Features.optional
+    feat_dict = dict(zip(feat_names, clf.feature_importances_))
+    sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
+    logging.debug('Feature importances: ' + json.dumps(sorted_feat, indent=4, sort_keys=False))
 
     joblib.dump(clf, classifier_output)
 
