@@ -47,7 +47,7 @@ them by running the following commands:
 git clone https://github.com/kpu/kenlm
 cd kenlm
 python3.7 -m pip install . --install-option="--max_order 7"
-cd build
+mkdir -p build && cd build
 cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
 make -j all install
 ```  
