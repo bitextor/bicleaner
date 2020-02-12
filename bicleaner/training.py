@@ -278,6 +278,16 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out = myargs.metadata
 
     precision, recall, accuracy = precision_recall(hgood, hwrong)
+    good_test_hist = "good_test_histogram: {}\n".format(hgood.__repr__())
+    wrong_test_hist = "wrong_test_histogram: {}\n".format(hwrong.__repr__())
+    precision_hist = "precision_histogram: {}\n".format(repr_right(precision))
+    recall_hist = "recall_histogram: {}\n".format(repr_right(recall))
+    accuracy_hist = "accuracy_histogram: {}\n".format(repr_right(accuracy))
+    logging.debug(good_test_hist)
+    logging.debug(wrong_test_hist)
+    logging.debug(precision_hist)
+    logging.debug(recall_hist)
+    logging.debug(accuracy_hist)
 
     # Writing it by hand (not using YAML libraries) to preserve the order
     out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
@@ -294,11 +304,11 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("wrong_examples: {}\n".format(myargs.wrong_examples))
     out.write("good_test_examples: {}\n".format(myargs.good_test_examples))
     out.write("wrong_test_examples: {}\n".format(myargs.wrong_test_examples))
-    out.write("good_test_histogram: {}\n".format(hgood.__repr__()))
-    out.write("wrong_test_histogram: {}\n".format(hwrong.__repr__()))
-    out.write("precision_histogram: {}\n".format(repr_right(precision)))
-    out.write("recall_histogram: {}\n".format(repr_right(recall)))
-    out.write("accuracy_histogram: {}\n".format(repr_right(accuracy)))
+    out.write(good_test_hist)
+    out.write(wrong_test_hist)
+    out.write(precision_hist)
+    out.write(recall_hist)
+    out.write(accuracy_hist)
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
     out.write("features_version: {}\n".format(myargs.features_version))
 
