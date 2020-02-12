@@ -20,17 +20,18 @@ import os
 import random
 import sklearn
 import sys
+import json
 from toolwrapper import ToolWrapper
 from mosestokenizer import MosesTokenizer
 
 #Allows to load modules while inside or outside the package  
 try:
-    from .features import feature_extract, FEATURES_VERSION
+    from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 except (SystemError, ImportError):
-    from features import feature_extract, FEATURES_VERSION
+    from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter 
@@ -161,6 +162,14 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     clf.fit(dataset['data'], dataset['target'])
 
+    # Log sorted feature importances with their names
+    if classifier_type in ('random_forest', 'adaboost'):
+        feat_names = Features.cols + Features.optional
+        feat_dict = dict(zip(feat_names, clf.feature_importances_))
+        sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
+    else:
+        sorted_feat = None
+
     joblib.dump(clf, classifier_output)
 
     feats = []
@@ -187,7 +196,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
-    return hgood[0].tolist(), hwrong[0].tolist()
+    return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
 
 
 
@@ -350,12 +359,10 @@ def perform_training(args):
 
     features_file = TemporaryFile('w+')
     # Start reducer
-    logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, features_file))
     reduce.start()
-    logging.disable(logging.DEBUG)
-    
+
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
@@ -419,12 +426,14 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
         features_train.close()
         features_test.close()
 
     logging.info("End training")
 
+    if feat_importances is not None:
+        logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
     write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
@@ -443,4 +452,5 @@ def main(args):
 
 if __name__ == '__main__':
     args = initialization()
+    print(args.classifier_type)
     main(args)
