@@ -161,9 +161,12 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     clf.fit(dataset['data'], dataset['target'])
 
     # Log sorted feature importances with their names
-    feat_names = Features.cols + Features.optional
-    feat_dict = dict(zip(feat_names, clf.feature_importances_))
-    sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
+    if classifier_type in ('random_forest', 'adaboost'):
+        feat_names = Features.cols + Features.optional
+        feat_dict = dict(zip(feat_names, clf.feature_importances_))
+        sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
+    else:
+        sorted_feat = None
 
     joblib.dump(clf, classifier_output)
 
@@ -427,7 +430,8 @@ def perform_training(args):
 
     logging.info("End training")
 
-    logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
+    if feat_importances is not None:
+        logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
     write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
@@ -446,4 +450,5 @@ def main(args):
 
 if __name__ == '__main__':
     args = initialization()
+    print(args.classifier_type)
     main(args)
