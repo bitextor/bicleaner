@@ -5,7 +5,8 @@ from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 from toolwrapper import ToolWrapper

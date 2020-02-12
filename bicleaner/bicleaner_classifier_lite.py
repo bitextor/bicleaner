@@ -6,7 +6,8 @@ import argparse
 import logging
 import traceback
 import yaml
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 import numpy as np
 
 from tempfile import NamedTemporaryFile, gettempdir
