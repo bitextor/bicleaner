@@ -354,12 +354,10 @@ def perform_training(args):
 
     features_file = TemporaryFile('w+')
     # Start reducer
-    logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, features_file))
     reduce.start()
-    logging.disable(logging.DEBUG)
-    
+
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
