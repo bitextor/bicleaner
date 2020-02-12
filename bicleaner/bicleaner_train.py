@@ -164,7 +164,6 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     feat_names = Features.cols + Features.optional
     feat_dict = dict(zip(feat_names, clf.feature_importances_))
     sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
-    logging.debug('Feature importances: ' + json.dumps(sorted_feat, indent=4, sort_keys=False))
 
     joblib.dump(clf, classifier_output)
 
@@ -192,7 +191,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
-    return hgood[0].tolist(), hwrong[0].tolist()
+    return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
 
 
 
@@ -424,12 +423,13 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
         features_train.close()
         features_test.close()
 
     logging.info("End training")
 
+    logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
     write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
