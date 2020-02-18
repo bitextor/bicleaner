@@ -5,11 +5,12 @@ Bicleaner 0.13:
   * New parameter: `--disable_lm_filter`, `--metadata` and `--lm_threshold`, to support LM filtering
 * Bicleaner training changes: 
   * New parameter: Features relying on language identification can be disabled with flag `--disable_lang_ident` (this will be outputed in the .yaml file and used by Bicleaner clasifier)
+  * New feature: Debug mode now gives information on random forest feature importances
   * Parameter change: --noisy_examples_file_sl and --noisy_examples_file_tl are now optional
   * Parameter change: input now must be more than 10K sentences long
   * Removed INFO messages when processes starting/ending (except when debugging)
 * Bicleaner classifier changes:
-  * `--disable_lang_ident` flag is now read from the .yaml file.
+  * `--disable_lang_ident` flag is now read from the .yaml file
   * Removed feature: LM filtering (moved to Bicleaner Hardrules)
   * New parameter: `--disable_lm_filter`
   * Removed parameter: `--keep_lm_result`
