@@ -8,7 +8,7 @@ import regex
 import random
 import string
 
-FEATURES_VERSION = 2
+FEATURES_VERSION = 3
 
 #Allows to load modules while inside or outside the package
 try:
@@ -42,7 +42,8 @@ regex_other            = regex.compile("[^\p{Arabic}\p{Greek}\p{Han}\p{Hangul}\p
 
 
 class Features(object):
-    cols = ["lang1", "lang2", "length1", "length2", 
+    lang_cols = ["lang1", "lang2"]  #optional
+    cols = ["length1", "length2", 
             "npunct1", "narabic1", "ngreek1", "nhan1", 
             "nhangul1", "nhebrew1", "nlatin1", "nlatin_e_a1", 
             "nlatin_e_b1", "nlatin_sup1", "nbasic_latin1", 
@@ -70,9 +71,15 @@ class Features(object):
                      "uppercase1", "capital_proportion_preserved1",
                      "uppercase2", "capital_proportion_preserved2"]
 
-    def __init__(self, mylist, disable_feat_quest=True):
+    def __init__(self, mylist, disable_feat_quest=True, disable_feat_lang = False):
         self.feat = mylist
-        self.titles = list(Features.cols)
+        
+        if disable_feat_lang:
+            self.titles = list(Features.cols)
+        else:
+            self.titles = list(Features.lang_cols)
+            self.titles += Features.cols
+            
         if disable_feat_quest:
             self.titles += Features.optional
 
@@ -329,6 +336,7 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     qmax_limit = args.qmax_limit
     treat_oovs = args.treat_oovs
     disable_features_quest = args.disable_features_quest
+    disable_features_lang = args.disable_lang_ident
     lang1 = args.source_lang
     lang2 = args.target_lang
     fv    = args.features_version
@@ -347,9 +355,10 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]
 
     features = []
-     
-    features.append(feature_language(srcsen, lang1))
-    features.append(feature_language(trgsen, lang2))
+    
+    if not disable_features_lang:
+        features.append(feature_language(srcsen, lang1))
+        features.append(feature_language(trgsen, lang2))
     features.append(feature_sentence_length(srcsen))    
     features.append(feature_sentence_length(trgsen))    
     features.extend(feature_character_class_dist(srcsen))    

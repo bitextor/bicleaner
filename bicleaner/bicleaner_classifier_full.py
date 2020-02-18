@@ -11,7 +11,8 @@ import gzip
 import re
 import yaml
 import sklearn
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 import numpy as np
 
 
@@ -26,14 +27,12 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
-    from .lm import DualLMFluencyFilter,LMType, DualLMStats
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
-    from lm import DualLMFluencyFilter,LMType, DualLMStats
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
 
@@ -48,7 +47,7 @@ __version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Mar
 __version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
 __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
-
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 logging_level = 0
 
@@ -84,13 +83,14 @@ def initialization():
     
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--threshold', type=check_positive_between_zero_and_one, default=0.5, help="Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default.")
-    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
-    groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0)")
+    #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
 
-    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
-    
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)   
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
-    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply hardrules that use language detecting")
+    groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
+
+
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -114,9 +114,10 @@ def initialization():
 
             
     try: 
+        metadata_yaml = yaml.safe_load(args.metadata)
         yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
+        metadata_yaml["yamlpath"] = yamlpath
 
-        metadata_yaml = yaml.load(args.metadata)      
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
@@ -160,6 +161,7 @@ def initialization():
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
         
+        '''
         #Load LM stuff if model was trained with it 
         if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
             fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
@@ -183,11 +185,26 @@ def initialization():
             args.target_lm=None
             args.lm_type=None
             args.lm_filter_stats=None
+        '''           
+
+        #Try loading metadata for LM filtering                  
+        if not args.disable_lm_filter:
+            if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
+                args.disable_lm_filter = True
+                logging.warning("Error loading metadata. LM filtering disabled.")
+        else:
+            logging.info("LM filtering disabled")
+
+
+         
+        if "disable_lang_ident" in metadata_yaml:
+            args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
+        else:
+            args.disable_lang_ident = False
             
-            
-        
         logging.debug("YAML")
         logging.debug(metadata_yaml)
+        args.metadata_yaml = metadata_yaml
         parser.set_defaults(**metadata_yaml)   
    
     except:
@@ -199,8 +216,8 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
-    if args.score_only and args.keep_lm_result:
-        raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
+    #if args.score_only and args.keep_lm_result:
+    #    raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -219,12 +236,19 @@ def classifier_process(i, jobs_queue, output_queue, args):
     else:
         target_tokeniser = MosesTokenizer(args.target_lang)
         
+    '''
     #Load LM for fluency scoring
     lm_filter=None
     if args.source_lm and args.target_lm:
 
         lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
         lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
+    '''
+
+    if not args.disable_lm_filter:
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+    else:
+        lm_filter = None
                 
 
     while True:
@@ -255,18 +279,11 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)== False):
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        lm_score=None
-                        if lm_filter:
-                            lm_score=lm_filter.score(sl_sentence,tl_sentence)
-                        if lm_filter and lm_score < args.lm_threshold and not args.keep_lm_result:
-                            valid_sentences.append(False)
-                        else:
-                            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-                            feats.append([float(v) for v in features])
-                            lm_scores.append(lm_score)        
-                            valid_sentences.append(True)
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                        feats.append([float(v) for v in features])
+                        valid_sentences.append(True)
                     else:
                         valid_sentences.append(False)
                     
@@ -275,8 +292,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 filein.seek(0)
 
                 piter = iter(predictions)
-                if lm_filter:
-                    lmiter=iter(lm_scores)
+
                 for i, valid_sentence in zip(filein,valid_sentences):                    
                     if valid_sentence:
                         p = next(piter)
@@ -286,10 +302,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                             fileout.write(i.strip())
                             fileout.write("\t")
                             fileout.write("{0:.3f}".format((p[1])))
-                            if lm_filter and args.keep_lm_result:
-                                lm_score=next(lmiter)
-                                fileout.write("\t")
-                                fileout.write("{0:.3f}".format(lm_score))
+                           
                         fileout.write("\n")
                     else:
                         if args.score_only:
@@ -297,8 +310,6 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         else:
                             fileout.write(i.strip("\n"))
                             fileout.write("\t0")
-                            if lm_filter and args.keep_lm_result:
-                                fileout.write("\t0")
                         fileout.write("\n")
 
                 ojob = (nblock, fileout.name)

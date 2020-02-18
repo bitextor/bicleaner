@@ -47,7 +47,7 @@ them by running the following commands:
 git clone https://github.com/kpu/kenlm
 cd kenlm
 python3.7 -m pip install . --install-option="--max_order 7"
-cd build
+mkdir -p build && cd build
 cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
 make -j all install
 ```  
@@ -88,10 +88,9 @@ bicleaner-classify [-h]
                    [-d DISCARDED_TUS]
                    [--threshold THRESHOLD]
                    [--lm_threshold LM_THRESHOLD] 
-                   [--keep_lm_result]
                    [--score_only]
                    [--disable_hardrules]
-                   [--disable_lang_ident]                   
+                   [--disable_lm_filter]
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -99,7 +98,6 @@ bicleaner-classify [-h]
                    input 
                    [output] 
                    metadata
-
 ```
 
 ### Parameters
@@ -121,10 +119,8 @@ bicleaner-classify [-h]
   * -d DISCARDED_TUS, --discarded_tus DISCARDED_TUS: TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file. (default: None)
   * --threshold THRESHOLD: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
  * --lm_threshold LM_THRESHOLD: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
-  * --keep_lm_result: Add an additional column to the results with the language model fluency score and do not set the classifier score to 0 for any sentence pair. (default: False)
   * --score_only: Only output one column which is the bicleaner score (default: False)
   * --disable_hardrules: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
-  * --disable_lang_ident: Don't apply hardrules that use language detecting (default: False)
 
 * Logging:
   * -q, --quiet: Silent logging mode (default: False)
@@ -178,6 +174,8 @@ Optionally, if you want the classifier to include an improved fluency filter bas
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
 * A monolingual corpus made ONLY of noisy sentences in the TL (100k sentences is the recommended size)
 
+If not provided, since Bicleaner `0.13`, noisy corpora is produced synthetically from the training corpus.
+
 Moreover, **`lmplz`, the command to train a KenLM language model must be in `PATH`**. See https://github.com/kpu/kenlm for instructions about its compilation and installation.
 
 In principle, if you want to use Bicleaner to clean a partially noisy corpus, it could be difficult to find a corpus made solely of noisy sentences. Fortunately, there are two options available with Bicleaner: 
@@ -188,20 +186,30 @@ Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its no
 
 ```bash
   bicleaner-hardrules [-h]
-                      [--annotated_output] 
-                      -s SOURCE_LANG
-                      -t TARGET_LANG 
+                      [--annotated_output]
+                      -s SOURCE_LANG 
+                      -t TARGET_LANG
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
-                      [--disable_lang_ident]
-                      [--scol SCOL] 
+                      [--
+                      _lang_ident]
+                      [--scol SCOL]
                       [--tcol TCOL]
-                      [INPUT_FILE]
-                      [OUTPUT_FILE]
-
+                      [--disable_lm_filter] 
+                      [--metadata METADATA]
+                      [--lm_threshold LM_THRESHOLD]
+                      [-q] 
+                      [--debug]
+                      [--logfile LOGFILE]
+                      [input]
+                      [output]
 ```
-where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used. '--scol' and '--tcol' allow to indicate which columns contains source and target in the input file (default: `1`and `2`, respectively)
+
+where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used. '--scol' and '--tcol' allow to indicate which columns contains source and target in the input file (default: `1`and `2`, respectively).
+
+In order to use the LM filtering, you must provide the `--metadata` (it is: the .yaml file generated by Bicleaner training).
+To disable LM filtering, just use the  `--disable_lm_filter` flag.
 
 You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag). Asuming scol=1 and tcol=2, and no more columns in the input corpus (so the hardrules score is the 3rd column in the output):
 
@@ -216,6 +224,8 @@ cat OUTPUT_FILE | awk -F'\t' '{if ($3 == 0) print $2 }' > MONOLINGUAL_NOISY.TARG
 cat TRAINING_CORPUS | cut -f1 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.SOURCE_LANG
 cat TRAINING_CORPUS | cut -f2 | python3.7 bicleaner/utils/shuffle.py - > MONOLINGUAL_NOISY.TARGET_LANG
 ```
+
+Since `0.13`, if no noisy corpora is provided, it's produced by Bicleaner training itself, so it has become an optional parameter.
 
 ### Parameters
 
@@ -246,6 +256,7 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
                  [-p PROCESSES]
                  [--wrong_examples_file WRONG_EXAMPLES_FILE]
                  [--features_version FEATURES_VERSION]
+                 [--disable_lang_ident]
                  [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
                  [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
                  [--lm_dev_size LM_DEV_SIZE]
@@ -290,8 +301,9 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * -p PROCESSES, --processes PROCESSES: Number of process to use (default: all CPUs minus one)
   * --wrong_examples_file WRONG_EXAMPLES_FILE: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
   * --features_version FEATURES_VERSION: Version of the feature (default: extracted from the features.py file)
-  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text.
-  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text.
+  * --disable_lang_ident: Don't apply features that use language detecting (default: False). Useful when the language in use is too similar to other languages, making the automatic identification of language not realiable.
+  * --noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL: File with noisy text in the SL. These are used to estimate the perplexity of noisy text. (Optional)
+  * --noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL: File with noisy text in the TL. These are used to estimate the perplexity of noisy text. (Optional)
   * --lm_dev_size SIZE:  Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)
   * --lm_file_sl LM_FILE_SL: Output file with the created SL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
   * --lm_file_tl LM_FILE_TL: Output file with the created TL language model. This file should be placed in the same directory as the YAML training metadata, as they are usually distributed together.
@@ -350,7 +362,7 @@ precision_histogram: [0.5000000, 0.5003502, 0.6475925, 0.9181810, 0.9860683, 0.9
 recall_histogram: [1.0000000, 1.0000000, 0.9993000, 0.9954000, 0.9909000, 0.9797000, 0.9625000, 0.9111000, 0.6912000, 0.0000000]
 accuracy_histogram: [0.5000000, 0.5007000, 0.7277500, 0.9533500, 0.9884500, 0.9887500, 0.9810500, 0.9555000, 0.8456000, 0.5000000]
 length_ratio: 1.0111087
-features_version: 2
+features_version: 3
 source_lm: en-cs.model.en
 target_lm: en-cs.model.cs
 lm_type: CHARACTER
@@ -358,6 +370,7 @@ clean_mean_perp: -1.0744755342473238
 clean_stddev_perp: 0.18368996884800565
 noisy_mean_perp: -3.655791900929066
 noisy_stddev_perp: 0.9989343799121657
+disable_lang_ident: False
 
 ```
 

@@ -5,7 +5,8 @@ from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 from toolwrapper import ToolWrapper
@@ -19,15 +20,16 @@ import os
 import random
 import sklearn
 import sys
+import json
 
 #Allows to load modules while inside or outside the package  
 try:
-    from .features import feature_extract, FEATURES_VERSION
+    from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
 except (SystemError, ImportError):
-    from features import feature_extract, FEATURES_VERSION
+    from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
@@ -39,10 +41,16 @@ __version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong ex
 __version__ = "Version 0.3 # 14/12/2018 # Lite version # Marta Bañón"
 __version__ = "Version 0.4 # 18/12/2018 # Changed to generalized tokenizer # Marta Bañón"
 __version__ = "Version 0.5 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
+
+logging_level = 0
     
 # Argument parsing
 def initialization():
+
+    global logging_level
+    
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument('input',  nargs='?', type=argparse.FileType('r'), default=sys.stdin,  help="Tab-separated bilingual input file")
@@ -67,9 +75,10 @@ def initialization():
     groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
     groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
     groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
-    groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
+    groupO.add_argument('--dump_features', type=argparse.FileType('wb'), default=None, help="Dump training features to file")
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
+    groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl',  type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -86,6 +95,11 @@ def initialization():
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
     groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
+
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
 
     args = parser.parse_args()
     # Logging
@@ -104,9 +118,10 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     # Load features and labels and format them as numpy array
     for line in input_features:
         parts=line.rstrip("\n").split("\t")
+
         feats.append( [float(v) for v in parts[:-1] ] )
         labels.append(int(parts[-1]))
-        
+
     dataset = dict()
     dataset['data']   = np.array(feats)
     dataset['target'] = np.array(labels)
@@ -142,6 +157,14 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     clf.fit(dataset['data'], dataset['target'])
 
+    # Log sorted feature importances with their names
+    if classifier_type in ('random_forest', 'adaboost'):
+        feat_names = Features.cols + Features.optional
+        feat_dict = dict(zip(feat_names, clf.feature_importances_))
+        sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
+    else:
+        sorted_feat = None
+
     joblib.dump(clf, classifier_output)
 
     feats = []
@@ -168,7 +191,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
-    return hgood[0].tolist(), hwrong[0].tolist()
+    return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
 
 
 # Main loop of the program
@@ -179,12 +202,18 @@ def perform_training(args):
     
     #Read input to a named temporary file
     #We may need to read it multiple times and that would be problematic if it is sys.stdin
+    count_input_lines = 0
     input = NamedTemporaryFile(mode="w",delete=False)
     for line in args.input:
         input.write(line)
-    input.close()
-    
-    stats=None
+        count_input_lines = count_input_lines +1
+    input.close()    
+
+    if count_input_lines < 10000:
+        logging.error("Training corpus must be at least 10K sentences long (was {}).".format(count_input_lines))
+        sys.exit(1)
+                    
+    stats=None                
     with open(input.name) as input_f:
         args.input=input_f
         stats=train_fluency_filter(args)
@@ -273,12 +302,14 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
         features_train.close()
         features_test.close()
 
     logging.info("End training")
 
+    if feat_importances is not None:
+        logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
     write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
