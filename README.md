@@ -34,7 +34,7 @@ If you find Bicleaner useful, please consider citing the following paper:
 
 ## Installation & Requirements
 
-Bicleaner is written in Python and can be instaled using `pip`:
+Bicleaner is written in Python and can be installed using `pip`:
 
 ```bash
 python3.7 -m pip install bicleaner
