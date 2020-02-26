@@ -85,7 +85,6 @@ bicleaner-classify [-h]
                    [-b BLOCK_SIZE] 
                    [-p PROCESSES] 
                    [-d DISCARDED_TUS]
-                   [--threshold THRESHOLD]
                    [--lm_threshold LM_THRESHOLD] 
                    [--score_only]
                    [--disable_hardrules]
@@ -116,8 +115,7 @@ bicleaner-classify [-h]
   * `-b BLOCK_SIZE, --block_size BLOCK_SIZE`: Sentence pairs per block (default: 10000)
   * `p PROCESSES, --processes PROCESSES`: Number of processes to use (default: all CPUs minus one)
   * `-d DISCARDED_TUS, --discarded_tus DISCARDED_TUS`: TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file. (default: None)
-  * `-threshold THRESHOLD`: Threshold for classifier. If accuracy histogram is present in metadata, the interval for max value will be given as a default instead the current default. (default: 0.5)
- * `--lm_threshold LM_THRESHOLD`: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
+  * `--lm_threshold LM_THRESHOLD`: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * `--score_only`: Only output one column which is the bicleaner score (default: False)
   * `--disable_hardrules`: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
 
