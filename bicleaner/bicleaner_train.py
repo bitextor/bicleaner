@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 
+from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.pipeline import make_pipeline
+
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 #from sklearn.externals import joblib
 import joblib
-
+from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 
@@ -24,17 +30,25 @@ import json
 from toolwrapper import ToolWrapper
 from mosestokenizer import MosesTokenizer
 
+import numpy as np
+
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
+    from .word_freqs_list import WordFreqList
+    from .word_freqs_zipf import WordZipfFreqDist
+    from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
+    from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
+    from word_freqs_list import WordFreqList
+    from word_freqs_zipf import WordZipfFreqDist
+    from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter 
+    from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -63,6 +77,8 @@ def initialization():
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
     groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
+    groupM.add_argument('-f', '--source_word_freqs',  type=argparse.FileType('r'), default=None, required=False, help="L language gzipped list of word freqneces")
+    groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=False, help="R language gzipped list of word freqneces")
 
     groupO = parser.add_argument_group('Options')
     groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
@@ -75,13 +91,20 @@ def initialization():
     groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
     groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
     groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
-    groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
+    groupO.add_argument('--classifier_type', choices=['mlpregressor', 'mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'random_forest_regressor', 'svm_regressor'], default="random_forest", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=check_positive, default=max(1, cpu_count()-1), help="Number of process to use")
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
+    groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
+
+    groupO.add_argument('--test_positive', type=argparse.FileType('r'), default=None,
+                        help="Positive samples for testing")
+    groupO.add_argument('--test_negative', type=argparse.FileType('r'), default=None,
+                        help="Negative samples for testing")
+
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -101,6 +124,10 @@ def initialization():
     groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
 
     args = parser.parse_args()
+    if args.seed is not None:
+        np.random.seed(args.seed)
+        random.seed(args.seed)
+
     # Logging
     logging_setup(args)
     
@@ -117,23 +144,23 @@ def initialization():
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
 # and returns some quality estimates.
-def train_classifier(input_features, test_features, classifier_type, classifier_output):
+def train_classifier(input_features, test_features, classifier_type, classifier_output, external_test_feats=None,
+                     external_test_labels=None):
     feats=[]
     labels=[]
 
-    # Load features and labels and format them as numpy array
-    for line in input_features:
-        parts=line.rstrip("\n").split("\t")
-        feats.append( [float(v) for v in parts[:-1] ] )
-        labels.append(int(parts[-1]))
-        
-    dataset = dict()
-    dataset['data']   = np.array(feats)
-    dataset['target'] = np.array(labels)
     
     # Train classifier
     if classifier_type == "svm":
-        clf = svm.SVC(gamma=0.001, C=100., probability=True)
+        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
+    elif classifier_type == "mlp":
+        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+    elif classifier_type == "mlpregressor":
+        clf = MLPRegressor(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+    elif classifier_type == "extra_trees":
+        clf = ExtraTreesClassifier(n_estimators=50, random_state=0)
+    elif classifier_type == "svm_regressor":
+        clf = make_pipeline(MinMaxScaler(), svm.SVR(gamma=0.001, C=100.))
     elif classifier_type == "nn":
         clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
     elif classifier_type == "nn1":
@@ -142,8 +169,8 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
         clf = RandomForestClassifier(bootstrap=True, class_weight=None,
-                                     criterion='gini',
-                                     max_depth=2, 
+                                     criterion='entropy',
+                                     max_depth=2,
                                      max_features='auto', 
                                      max_leaf_nodes=None,
                                      min_impurity_decrease=0.0, 
@@ -156,9 +183,43 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
                                      random_state=0, 
                                      verbose=0, 
                                      warm_start=False)
+    elif classifier_type == "random_forest_regressor":
+        clf = RandomForestRegressor(bootstrap=True,
+                                    max_features='auto',
+                                    max_leaf_nodes=None,
+                                    min_impurity_decrease=0.0,
+                                    min_impurity_split=None,
+                                    min_samples_leaf=1,
+                                    min_samples_split=2,
+                                    min_weight_fraction_leaf=0.0,
+                                    n_estimators=200, n_jobs=-1,
+                                    oob_score=False,
+                                    random_state=0,
+                                    verbose=0,
+                                    warm_start=False)
     else:
         logging.error("Unknown classifier: "+ classifier_type)
         sys.exit(1)
+
+    # Load features and labels and format them as numpy array
+    for line in input_features:
+        parts = line.rstrip("\n").split("\t")
+        feats.append([float(v) for v in parts[:-1]])
+        labels.append(int(parts[-1]))
+
+    dataset = dict()
+    dataset['data'] = np.array(feats)
+    adapt_labels = []
+    if "regressor" in classifier_type:
+        for l in labels:
+            if l == 0.0:
+                adapt_labels.append(0.1)
+            else:
+                adapt_labels.append(0.9)
+    else:
+        adapt_labels = labels
+    dataset['target'] = np.array(adapt_labels)
+    #dataset['target'] = np.array(labels)
 
     clf.fit(dataset['data'], dataset['target'])
 
@@ -181,24 +242,42 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         labels.append(int(parts[-1]))
 
     dataset = np.array(feats)
-    prediction = clf.predict_proba(dataset)
-    
+    if "regressor" in classifier_type:
+        prediction = clf.predict(dataset)
+    else:
+        prediction = clf.predict_proba(dataset)
+        predictionclasses = clf.predict(dataset)
+
+    if external_test_feats is not None and external_test_labels is not None:
+        test_prediction = clf.predict(np.array(external_test_feats))
+        print("Precision: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[0]))
+        print("Recall: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[1]))
+        print("F-score: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[2]))
+        print("Accuracy: "+str(sklearn.metrics.accuracy_score(np.array(external_test_labels), test_prediction)))
+        print("Support: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[3]))
+        for i,y in zip(np.array(external_test_labels), test_prediction):
+            print(str(i)+"\t"+str(y))
+
     pos = 0
     good = []
     wrong = []
     for pred in prediction:
-        if labels[pos] == 1:
-           good.append(pred[1])
+        if "regressor" in classifier_type:
+            if labels[pos] == 1:
+                good.append(pred)
+            else:
+                wrong.append(pred)
         else:
-           wrong.append(pred[1])
+            if labels[pos] == 1:
+               good.append(pred[1])
+            else:
+               wrong.append(pred[1])
         pos += 1
 
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
     return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
-
-
 
 # Writes all features of the input TUs into a temporary file
 def reduce_process(output_queue, output_file):
@@ -339,6 +418,14 @@ def perform_training(args):
     if count_input_lines < 10000:
         logging.error("Training corpus must be at least 10K sentences long (was {}).".format(count_input_lines))
         sys.exit(1)
+
+    # Load dictionaries
+    if args.source_word_freqs:
+        args.sl_word_freqs = WordZipfFreqDist(args.source_word_freqs)
+    if args.target_word_freqs:
+        args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
+    else:
+        args.tl_word_freqs = None
     
     stats=None
     with open(input.name) as input_f:
@@ -347,7 +434,13 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        total_size, length_ratio, good_sentences, wrong_sentences = shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        if args.target_tokeniser_path:
+            target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+        else:
+            target_tokeniser = MosesTokenizer(args.target_lang)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
+        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        target_tokeniser.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio
@@ -355,7 +448,6 @@ def perform_training(args):
     # Load dictionaries
     args.dict_sl_tl = ProbabilisticDictionary(args.source_dictionary)
     args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
-
 
     features_file = TemporaryFile('w+')
     # Start reducer
@@ -426,7 +518,43 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+
+        test_labels = None
+        test_feats = None
+
+        if args.test_positive is not None and args.test_negative is not None:
+            # Shuffle and get length ratio
+            if args.target_tokeniser_path:
+                source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+            else:
+                source_tokeniser = MosesTokenizer(args.target_lang)
+            if args.target_tokeniser_path:
+                target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+            else:
+                target_tokeniser = MosesTokenizer(args.target_lang)
+
+            goodfeatures = []
+            for line in args.test_positive:
+                line = line.strip()
+                fields = line.split("\t")
+                ssen = fields[0]
+                tsen = fields[1]
+                goodfeatures.append(feature_extract(ssen, tsen, source_tokeniser, target_tokeniser, args))
+
+            badfeatures = []
+            for line in args.test_negative:
+                line = line.strip()
+                fields = line.split("\t")
+                ssen = fields[0]
+                tsen = fields[1]
+                badfeatures.append(feature_extract(ssen, tsen, source_tokeniser, target_tokeniser, args))
+            source_tokeniser.close()
+            target_tokeniser.close()
+            test_labels = [1]*len(goodfeatures) + [0]*len(badfeatures)
+            test_feats = goodfeatures+badfeatures
+
+
+        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier, test_feats, test_labels)
         features_train.close()
         features_test.close()
 
