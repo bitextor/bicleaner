@@ -119,52 +119,200 @@ def feature_length_poisson(slsentence, tlsentence, ratio):
         logging.warning("Overflow when computing feature_length_poisson")
         return feature_length_poisson(["a"],["a"],1.0)
 
+
 # Qmax: probability product of correspondences found (using max probabilty
 # rather than alignment).
-def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oovs, dict_ttos, fv, limit = 20):
+def feature_dict_qmax(slwords, tlwords, dict_stot, normalize_by_length, treat_oovs, dict_ttos, fv, limit=20):
     logresult = 0
-    
+
     slwords_s_a = set()
     slwords_s_n = set()
     for i in slwords:
         if regex_alpha.match(i):
-           if i in dict_stot.d:
-               slwords_s_a.add(i)
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
         else:
-           slwords_s_n.add(i)
-    
+            slwords_s_n.add(i)
+
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
-    
+
     if treat_oovs:
         for tlword in tlwords2[0:limit]:
             if tlword not in dict_ttos:
                 if fv >= 2:
                     logresult += math.log(0.0000001)
                 else:
-                    pass # old behavior (it was a bug)
+                    pass  # old behavior (it was a bug)
             else:
                 t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
                 t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
-                prob = max(t, default = dict_stot.smooth)
+                prob = max(t, default=dict_stot.smooth)
                 logresult += math.log(prob)
     else:
         for tlword in tlwords2[0:limit]:
             t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
             t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
-            prob = max(t, default = dict_stot.smooth)
+            prob = max(t, default=dict_stot.smooth)
             logresult += math.log(prob)
-            
 
     if normalize_by_length:
         if fv >= 2:
-            logresult = float(logresult)/float(max(1, min(len(tlwords), limit))) # the max is to prevent zero division when tl sentence is empty        
+            logresult = float(logresult) / float(max(1, min(len(tlwords),
+                                                            limit)))  # the max is to prevent zero division when tl sentence is empty
         else:
             # old behavior (it was a bug)
-            logresult = float(logresult)/float(max(len(tlwords), limit))
+            logresult = float(logresult) / float(max(len(tlwords), limit))
 
     return math.exp(logresult)
 
+
+def feature_dict_qmax_nosmooth(slwords, tlwords, dict_stot, normalize_by_length, fv, limit=20):
+    logresult = 0
+
+    slwords_s_a = set()
+    slwords_s_n = set()
+    for i in slwords:
+        if regex_alpha.match(i):
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
+        else:
+            slwords_s_n.add(i)
+
+    tlwords2 = list(tlwords)
+    tlwords2.sort(key=len, reverse=True)
+
+    for tlword in tlwords2[0:limit]:
+        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+        t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+        prob = max(t, default=dict_stot.smooth)
+        if prob > 0.0:
+            logresult += math.log(prob)
+        logging.debug("\t"+str(prob)+"\t"+str(logresult))
+
+    logging.debug(str(logresult)+"\t"+str(float(logresult) / float(len(tlwords)))+"\t"+str(math.exp(float(logresult) / float(len(tlwords)))))
+
+    if normalize_by_length:
+        if fv >= 2:
+            logresult = float(logresult) / float(max(1, min(len(tlwords),
+                                                            limit)))  # the max is to prevent zero division when tl sentence is empty
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult) / float(max(len(tlwords), limit))
+
+    return math.exp(logresult)
+
+
+def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by_length, fv):
+    logresult = 0
+
+    slwords_s_a = set()
+    slwords_s_n = set()
+    for i in slwords:
+        if regex_alpha.match(i):
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
+        else:
+            slwords_s_n.add(i)
+
+    tlwords2 = list(tlwords)
+    tlwords2.sort(key=len, reverse=True)
+
+    for tlword in tlwords2:
+        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+        t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+        prob = max(t, default=dict_stot.smooth)
+        logresult += math.log(prob)
+        logging.debug("\t"+str(prob)+"\t"+str(logresult))
+
+    #logging.debug(str(logresult)+"\t"+str(float(logresult) / float(len(tlwords)))+"\t"+str(math.exp(float(logresult) / float(len(tlwords)))))
+    if normalize_by_length:
+        if fv >= 2:
+            logresult = float(logresult) / float(
+                max(1, len(tlwords)))  # the max is to prevent zero division when tl sentence is empty
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult) / float(len(tlwords))
+    return math.exp(logresult)
+
+def feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, tlwords, dict_stot, normalize_by_length, fv):
+    logresult = 0
+
+    slwords_s_a = set()
+    slwords_s_n = set()
+    for i in slwords:
+        if regex_alpha.match(i):
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
+        else:
+            slwords_s_n.add(i)
+
+    tlwords2 = list(tlwords)
+    tlwords2.sort(key=len, reverse=True)
+
+    for tlword in tlwords2:
+        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+        if len(t) == 0:
+            t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+            if len(t) > 0:
+                prob = 1.0
+                logresult += math.log(prob)
+        else:
+            prob = sum(t)/float(len(slwords))
+            logresult += math.log(prob)
+    if normalize_by_length:
+        if fv >= 2:
+            logresult = float(logresult) / float(
+                max(1, len(tlwords)))  # the max is to prevent zero division when tl sentence is empty
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult) / float(len(tlwords))
+
+    return math.exp(logresult)
+
+def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv):
+    logresult = 0
+
+    slwords_s_a = set()
+    slwords_s_n = set()
+    for i in slwords:
+        if regex_alpha.match(i):
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
+        else:
+            slwords_s_n.add(i)
+
+    tlwords2 = list(tlwords)
+    tlwords2.sort(key=len, reverse=True)
+
+    for tlword in tlwords2:
+        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+        if len(t) == 0:
+            t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+            if len(t) > 0:
+                prob = 1.0
+                logresult += math.log(prob)
+        else:
+            prob = sum(t)/float(len(slwords))
+            wprob = prob*math.log(1.0/freqs.get_word_freq(tlword))
+            logresult += math.log(wprob)
+    if normalize_by_length:
+        if fv >= 2:
+            logresult = float(logresult) / float(
+                max(1, len(tlwords)))  # the max is to prevent zero division when tl sentence is empty
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult) / float(len(tlwords))
+
+    return math.exp(logresult)
+
+def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv):
+    t_word_splits = freqs.split_sentence_by_freq(tlwords)
+    output = []
+    for i in range(0, 4):
+        output.append(feature_dict_qmax_nosmooth_nolimit(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
+    return output
 
 # Coverage
 def feature_dict_coverage(slwords, tlwords, dict_stot):
@@ -172,6 +320,13 @@ def feature_dict_coverage(slwords, tlwords, dict_stot):
     slfound = [slword for slword in slwords if slword in dict_stot]
     slwithtrans = [ slword for slword in slfound if  len(set(dict_stot[slword]) & tlwords_s ) >0 ]
     return [ len(slfound)*1.0 / (1+len(slwords)) , len(slwithtrans)*1.0 /(1+len(slfound)) if len(slfound) > 0 else 1.0 ]
+
+def feature_dict_coverage_zipf_freq(slwords, tlwords, dict_stot, freqs):
+    t_word_splits = freqs.split_sentence_by_freq(tlwords)
+    output = []
+    for i in range(0, 4):
+        output.extend(feature_dict_coverage(slwords, t_word_splits[i], dict_stot))
+    return output
 
 # Average length of tokens
 # IDEAS: Poisson over this? Poisson over variances of token lengths?
@@ -332,6 +487,10 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     length_ratio = args.length_ratio
     dict12 = args.dict_sl_tl
     dict21 = args.dict_tl_sl
+    if args.sl_word_freqs != None:
+        l1freqs = args.sl_word_freqs
+    if args.tl_word_freqs != None:
+        l2freqs = args.tl_word_freqs
     normalize_by_length = args.normalize_by_length 
     qmax_limit = args.qmax_limit
     treat_oovs = args.treat_oovs
@@ -369,9 +528,25 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     features.append(feature_sentence_length(right_sentence_tok))
     features.append(feature_length_poisson(left_sentence_tok, right_sentence_tok, length_ratio))
     features.append(feature_length_poisson(right_sentence_tok, left_sentence_tok, 1.0/length_ratio))
-    features.append(feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv, qmax_limit))
+
+    #qmax1to2=feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv)
+    #qmax2to1=feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv)
+
+    #qmax1to2=feature_dict_qmax_nosmooth_nolimit(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, fv)
+    #qmax2to1=feature_dict_qmax_nosmooth_nolimit(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, fv)
+
+    qmax1to2 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
+                                                                            dict12, normalize_by_length, l2freqs, fv)
+    qmax2to1 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
+                                                                            dict21, normalize_by_length, l1freqs, fv)
+    features.extend(qmax1to2)
+    features.extend(qmax2to1)
+    #features.append(qmax1to2)
+    #features.append(qmax2to1)
+
+    #features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
     features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
-    features.append(feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv, qmax_limit))
+    #features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
     features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     if disable_features_quest:
         # Average token length
@@ -394,5 +569,5 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         # Capitalized letter preservation
         features.extend(feature_capitalized_preservation(left_sentence_orig_tok, right_sentence_orig_tok))
         features.extend(feature_capitalized_preservation(left_sentence_orig_tok, right_sentence_orig_tok))
-     
+
     return features
