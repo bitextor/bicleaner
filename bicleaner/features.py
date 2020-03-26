@@ -236,6 +236,47 @@ def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by
             logresult = float(logresult) / float(len(tlwords))
     return math.exp(logresult)
 
+def feature_dict_qmax_nosmooth_nolimit_freq(slwords, tlwords, dict_stot, normalize_by_length, tlwordfreqs, fv):
+    logresult = 0
+
+    slwords_s_a = set()
+    slwords_s_n = set()
+    for i in slwords:
+        if regex_alpha.match(i):
+            if i in dict_stot.d:
+                slwords_s_a.add(i)
+        else:
+            slwords_s_n.add(i)
+
+    tlwords2 = list(tlwords)
+    tlwords2.sort(key=len, reverse=True)
+
+    tlword_freqs = {}
+    total_tlword_freq = 0
+    for tlword in tlwords2:
+        freq = tlwordfreqs.get_word_freq(tlword)
+        total_tlword_freq += freq
+        tlword_freqs[tlword] = freq
+    tlword_norm_freqs_inverse = {w: 1-(f/total_tlword_freq) for w,f in tlword_freqs.items()}
+
+    for tlword in tlwords2:
+        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+        t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+        prob = max(t, default=dict_stot.smooth)**tlword_norm_freqs_inverse[tlword]
+        logresult += math.log(prob)
+        logging.debug("\t"+str(prob)+"\t"+str(logresult))
+
+    #logging.debug(str(logresult)+"\t"+str(float(logresult) / float(len(tlwords)))+"\t"+str(math.exp(float(logresult) / float(len(tlwords)))))
+    if normalize_by_length:
+        if fv >= 2:
+            logresult = float(logresult) / float(
+                max(1, len(tlwords)))  # the max is to prevent zero division when tl sentence is empty
+        else:
+            # old behavior (it was a bug)
+            logresult = float(logresult) / float(len(tlwords))
+    return math.exp(logresult)
+
+
 def feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, tlwords, dict_stot, normalize_by_length, fv):
     logresult = 0
 
@@ -541,12 +582,15 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
                                                                             dict21, normalize_by_length, l1freqs, fv)
     features.extend(qmax1to2)
     features.extend(qmax2to1)
-    #features.append(qmax1to2)
-    #features.append(qmax2to1)
 
-    #features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
+    qmax1to2freq=feature_dict_qmax_nosmooth_nolimit_freq(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, l2freqs, fv)
+    qmax2to1freq=feature_dict_qmax_nosmooth_nolimit_freq(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, l1freqs, fv)
+    features.append(qmax1to2freq)
+    features.append(qmax2to1freq)
+
+    features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
     features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
-    #features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
+    features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
     features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     if disable_features_quest:
         # Average token length
