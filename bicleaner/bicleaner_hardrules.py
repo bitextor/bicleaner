@@ -264,7 +264,7 @@ def c_no_literals(literals, sentence):
 def c_no_escaped_unicode(sentence):
     return len(regex_escaped_unicode.findall(sentence)) == 0
    
-def wrong_tu(left, right, args, lm_filter = None):
+def wrong_tu(left, right, args):
     if len(left) >= 1024:
         return "len(left) >= 1024"
     if len(right) >= 1024:
@@ -343,8 +343,6 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_reliable_long_language(left, sourcelang)"
     elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
-    elif  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
-        return "lm_filter.score(left, right) < args.lm_threshold"
     return False
     
     
