@@ -13,9 +13,10 @@ Bicleaner 0.13:
   * `--disable_lang_ident` flag is now read from the .yaml file
   * Removed feature: LM filtering (moved to Bicleaner Hardrules)
   * New parameter: `--disable_lm_filter`
-  * Removed parameter: `--keep_lm_result`
+  * Removed parameters: `--keep_lm_result`,  `--threshold`
 * Other:
   * Updated requirements
+  
   
   
 Bicleaner 0.12:
