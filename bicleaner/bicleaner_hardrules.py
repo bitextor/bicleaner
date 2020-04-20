@@ -38,6 +38,7 @@ regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
+regex_porn_video = regex.compile('[0-9]+ (year|month|day|hour)[s]{0,1} ago (\d?\d:)?\d{2}:\d{2}',regex.I)
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
 
@@ -263,7 +264,10 @@ def c_no_literals(literals, sentence):
 
 def c_no_escaped_unicode(sentence):
     return len(regex_escaped_unicode.findall(sentence)) == 0
-   
+
+def c_porn_video(sentence):
+    return len(regex_porn_video.findall(sentence)) == 0
+
 def wrong_tu(left, right, args, lm_filter = None):
     if len(left) >= 1024:
         return "len(left) >= 1024"
@@ -337,6 +341,10 @@ def wrong_tu(left, right, args, lm_filter = None):
         return 'c_no_literals(["{{", "%s", "}}"], left)'
     elif not c_no_literals(["{{", "%s", "}}"], right):
         return 'c_no_literals(["{{", "%s", "}}"], right)'
+    elif not c_porn_video(left):
+        return 'c_porn_video(left)'
+    elif not c_porn_video(right):
+        return 'c_porn_video(right)'
     elif left.istitle() and right.istitle():
         return 'left.istitle() and right.istitle()'
     elif (not args.disable_lang_ident and not  c_reliable_long_language(left, args.source_lang)):
