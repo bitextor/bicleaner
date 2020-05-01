@@ -29,7 +29,7 @@ class ProbabilisticDictionary(object):
     def load(self,fd):
         for line in fd:
             line  = line.rstrip("\n")
-            parts = line.split()
+            parts = line.split("\t")
             l1    = parts[1]
             l2    = parts[0]
             prob  = float(parts[2])
