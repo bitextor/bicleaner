@@ -239,9 +239,12 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     print("Best parameters found", clf.best_params_)
 
     # Log sorted feature importances with their names
-    if classifier_type in ('random_forest', 'adaboost'):
+    if classifier_type in ('random_forest', 'adaboost', 'extra_trees'):
         feat_names = Features.cols + Features.optional
-        feat_dict = dict(zip(feat_names, clf.feature_importances_))
+        if isinstance(clf, GridSearchCV):
+            feat_dict = dict(zip(feat_names, clf.best_estimator_.feature_importances_))
+        else:
+            feat_dict = dict(zip(feat_names, clf.feature_importances_))
         sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
     else:
         sorted_feat = None
