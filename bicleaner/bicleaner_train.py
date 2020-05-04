@@ -12,6 +12,7 @@ from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
 #from sklearn.externals import joblib
 import joblib
 from sklearn import metrics
@@ -158,7 +159,13 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     elif classifier_type == "mlpregressor":
         clf = MLPRegressor(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
     elif classifier_type == "extra_trees":
-        clf = ExtraTreesClassifier(n_estimators=50, random_state=0)
+        parameters = { 'criterion': ('gini','entropy'),
+                'n_estimators' : [10, 50, 100, 200],
+                'max_depth' : [None, 2, 4, 6],
+                'max_features' : ['auto', 'log2']
+                }
+        etc = ExtraTreesClassifier(n_estimators=50, random_state=0)
+        clf = GridSearchCV(etc, parameters, n_jobs=-1)
     elif classifier_type == "svm_regressor":
         clf = make_pipeline(MinMaxScaler(), svm.SVR(gamma=0.001, C=100.))
     elif classifier_type == "nn":
@@ -168,21 +175,27 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     elif classifier_type == "adaboost":
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
-        clf = RandomForestClassifier(bootstrap=True, class_weight=None,
-                                     criterion='entropy',
-                                     max_depth=2,
-                                     max_features='auto', 
-                                     max_leaf_nodes=None,
-                                     min_impurity_decrease=0.0, 
-                                     min_impurity_split=None,
-                                     min_samples_leaf=1, 
-                                     min_samples_split=2,
-                                     min_weight_fraction_leaf=0.0, 
-                                     n_estimators=200, n_jobs=-1,
-                                     oob_score=False, 
-                                     random_state=0, 
-                                     verbose=0, 
-                                     warm_start=False)
+        parameters = { 'criterion': ('gini','entropy'),
+                'n_estimators' : [100, 200, 300],
+                'max_depth' : [None, 2, 4, 6],
+                'max_features' : ['auto', 'log2']
+                }
+        rfc = RandomForestClassifier(bootstrap=True, class_weight=None,
+                criterion='gini',
+                max_depth=2, 
+                max_features='auto', 
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0, 
+                min_impurity_split=None,
+                min_samples_leaf=1, 
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0, 
+                n_estimators=200, n_jobs=-1,
+                oob_score=False, 
+                random_state=0, 
+                verbose=0, 
+                warm_start=False)
+        clf = GridSearchCV(rfc, parameters, n_jobs=-1)
     elif classifier_type == "random_forest_regressor":
         clf = RandomForestRegressor(bootstrap=True,
                                     max_features='auto',
@@ -222,6 +235,8 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     #dataset['target'] = np.array(labels)
 
     clf.fit(dataset['data'], dataset['target'])
+
+    print("Best parameters found", clf.best_params_)
 
     # Log sorted feature importances with their names
     if classifier_type in ('random_forest', 'adaboost'):
@@ -438,8 +453,8 @@ def perform_training(args):
             target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
         else:
             target_tokeniser = MosesTokenizer(args.target_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
-        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        #total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
+        total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
         target_tokeniser.close()
     os.remove(input.name)
     
