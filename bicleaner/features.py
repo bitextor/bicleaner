@@ -180,6 +180,7 @@ def feature_dict_qmax_nosmooth(slwords, tlwords, dict_stot, normalize_by_length,
         else:
             slwords_s_n.add(i)
 
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
 
@@ -216,6 +217,7 @@ def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by
         else:
             slwords_s_n.add(i)
 
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
 
@@ -248,6 +250,7 @@ def feature_dict_qmax_nosmooth_nolimit_freq(slwords, tlwords, dict_stot, normali
         else:
             slwords_s_n.add(i)
 
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
 
@@ -289,6 +292,7 @@ def feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, tlwords, dict_st
         else:
             slwords_s_n.add(i)
 
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
 
@@ -324,6 +328,7 @@ def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_freq(slwords, tlwords, di
         else:
             slwords_s_n.add(i)
 
+    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     tlwords2.sort(key=len, reverse=True)
 
