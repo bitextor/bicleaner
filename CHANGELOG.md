@@ -1,6 +1,6 @@
 Bicleaner 0.14: 
-
-
+* Bicleaner hardrules changes:
+  * New rule: filter out porn videos.
 
 Bicleaner 0.13:
 * Bicleaner hardrules changes:
