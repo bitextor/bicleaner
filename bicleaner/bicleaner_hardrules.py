@@ -173,7 +173,15 @@ def c_length(left, right):
 def c_length_bytes(left, right):
     return 0.5 <= float(len(left.encode("utf8")))/float(len(right.encode("utf8"))) <= 2.0
 
-def c_different_language(left, right):
+def c_different_language(left, right, left_lang, right_lang):
+    if left_lang =="nb":
+        left_lang="no"
+
+    if right_lang=="nb":
+        right_lang="no"
+        
+    similar_langs = [{"es","ca"}, {"es","gl"}, {"pt","gl"}, {"no","nn"}, {"no", "da"}]
+    
     l_reliable = False
     l_bytes = 0
     l_details = ()
@@ -192,12 +200,17 @@ def c_different_language(left, right):
     except:
         return False # encoding error -> noise
         
-    if l_reliable and r_reliable and l_details[0][1] != r_details[0][1]:
+    if l_reliable and r_reliable and l_details[0][1] != r_details[0][1]:    
         return True
     elif not l_reliable or not r_reliable:
         return True
     else:
-        return False
+        #both langs are reliable at this point, and the identified language is the same for left and right
+        identified = l_details[0][1]
+        if (identified in [left_lang, right_lang]  and {left_lang, right_lang} in similar_langs):
+            return True
+        else:    
+            return False
         
 def c_reliable_long_language(sentence, language):
     if language=="nb":
@@ -287,7 +300,7 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_identical_wo_digits"    
     elif not c_identical_wo_punct(left, right):
         return "c_identical_wo_punct"    
-    elif (not args.disable_lang_ident and not  c_different_language(left, right)):
+    elif (not args.disable_lang_ident and not  c_different_language(left, right, args.source_lang, args.target_lang)):
         return "c_different_language"
     elif not c_majority_alpha(left):
         return "c_majority_alpha(left)"
