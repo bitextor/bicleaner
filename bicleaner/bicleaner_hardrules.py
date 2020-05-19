@@ -38,8 +38,8 @@ regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
-safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
-
+safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk", "is", "lt", "nb", "nn", "no"}
+similar_pairs = [{"es","ca"}, {"es","gl"}, {"pt","gl"}, {"no","nn"}, {"no", "da"}]
 
 logging_level = 0
 
@@ -150,18 +150,24 @@ def load_lm_filter(source_lang, target_lang, metadata_yaml):
     return lmFilter
                     
 
-def c_identical(left, right):
+def c_identical(left, right, left_lang, right_lang):
+    if left_lang =="nb":
+        left_lang="no"
+    if right_lang=="nb":
+        right_lang="no"
+#    if ({left_lang, right_lang} in similar_pairs):        
+#        return True
     return left.casefold() != right.casefold()
     
-def c_identical_wo_digits(left, right):
+def c_identical_wo_digits(left, right, left_lang, right_lang):
     left = regex_digit.sub("", left)
     right = regex_digit.sub("", right)
-    return left.casefold() != right.casefold()
+    return c_identical(left, right, left_lang, right_lang)
 
-def c_identical_wo_punct(left, right):
+def c_identical_wo_punct(left, right, left_lang, right_lang):
     left = regex_punct.sub("", left)
     right = regex_punct.sub("", right)
-    return left.casefold() != right.casefold()
+    return c_identical(left, right, left_lang, right_lang)
         
 def c_minimal_length(sentence):
     """ Counts number of whitespace, requires >= 2 (3 words) """
@@ -180,8 +186,7 @@ def c_different_language(left, right, left_lang, right_lang):
     if right_lang=="nb":
         right_lang="no"
         
-    similar_langs = [{"es","ca"}, {"es","gl"}, {"pt","gl"}, {"no","nn"}, {"no", "da"}]
-    
+
     l_reliable = False
     l_bytes = 0
     l_details = ()
@@ -207,7 +212,7 @@ def c_different_language(left, right, left_lang, right_lang):
     else:
         #both langs are reliable at this point, and the identified language is the same for left and right
         identified = l_details[0][1]
-        if (identified in [left_lang, right_lang]  and {left_lang, right_lang} in similar_langs):
+        if (identified in [left_lang, right_lang]  and {left_lang, right_lang} in similar_pairs):
             return True
         else:    
             return False
@@ -226,15 +231,10 @@ def c_reliable_long_language(sentence, language):
         return True # encoding error -> noise
     
     if len(sentence) > 30 and reliable and details[0][1] != language:
-
-        if language=="gl" and  (details[0][1] == "pt" or details[0][1] == "es"):
+        if {language, details[0][1]} in similar_pairs:
             return True
-        if language=="no" and details[0][1] == "da":
-            return True    
-        if language=="nn" and (details[0][1] == "no" or details[0][1] == "da"):
-            return True
-        #print(sentence + "  " +  str(details[0][1]))     
-        return False
+        else:
+            return False
     else:
         return True
         
@@ -294,11 +294,11 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_minimal_length(left) and c_minimal_length(right)"
     elif not (c_length(left, right) or c_length_bytes(left, right)): 
         return "c_length or c_length_bytes"
-    elif not c_identical(left, right):
+    elif not c_identical(left, right, args.source_lang, args.target_lang):
         return "c_identical"
-    elif not c_identical_wo_digits(left, right):
+    elif not c_identical_wo_digits(left, right, args.source_lang, args.target_lang):
         return "c_identical_wo_digits"    
-    elif not c_identical_wo_punct(left, right):
+    elif not c_identical_wo_punct(left, right, args.source_lang, args.target_lang):
         return "c_identical_wo_punct"    
     elif (not args.disable_lang_ident and not  c_different_language(left, right, args.source_lang, args.target_lang)):
         return "c_different_language"
