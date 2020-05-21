@@ -10,8 +10,7 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from sklearn import neighbors
 from sklearn import svm
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 #from sklearn.externals import joblib
 import joblib
@@ -74,11 +73,11 @@ def initialization():
     groupM = parser.add_argument_group("Mandatory")
     groupM.add_argument('-m', '--metadata', type=argparse.FileType('w'), required=True, help="Training metadata (YAML file)")
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
-    groupM.add_argument('-s', '--source_lang',  required=True, help="Source language")
+    groupM.add_argument('-s', '--source_lang', required=True, help="Source language")
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
-    groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
+    groupM.add_argument('-d', '--source_dictionary', type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
-    groupM.add_argument('-f', '--source_word_freqs',  type=argparse.FileType('r'), default=None, required=False, help="L language gzipped list of word freqneces")
+    groupM.add_argument('-f', '--source_word_freqs', type=argparse.FileType('r'), default=None, required=False, help="L language gzipped list of word freqneces")
     groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=False, help="R language gzipped list of word freqneces")
 
     groupO = parser.add_argument_group('Options')
@@ -92,7 +91,7 @@ def initialization():
     groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
     groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
     groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
-    groupO.add_argument('--classifier_type', choices=['mlpregressor', 'mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'random_forest_regressor', 'svm_regressor'], default="random_forest", help="Classifier type")
+    groupO.add_argument('--classifier_type', choices=['mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'svm_regressor'], default="random_forest", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=check_positive, default=max(1, cpu_count()-1), help="Number of process to use")
@@ -100,12 +99,6 @@ def initialization():
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
-
-    groupO.add_argument('--test_positive', type=argparse.FileType('r'), default=None,
-                        help="Positive samples for testing")
-    groupO.add_argument('--test_negative', type=argparse.FileType('r'), default=None,
-                        help="Negative samples for testing")
-
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -117,8 +110,7 @@ def initialization():
     groupO.add_argument('--lm_training_file_tl', type=str, help="TL text from which the TL LM is trained. If this parameter is not specified, TL LM is trained from the TL side of the input file, after removing --lm_dev_size sentences.")
     groupO.add_argument('--lm_clean_examples_file_sl', type=str, help="File with clean text in the SL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_sl and both files must not have common sentences. This option replaces --lm_dev_size.")
     groupO.add_argument('--lm_clean_examples_file_tl', type=str, help="File with clean text in the TL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_tl and both files must not have common sentences. This option replaces --lm_dev_size.")
-    
-    
+
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
@@ -131,98 +123,22 @@ def initialization():
 
     # Logging
     logging_setup(args)
-    
-    logging_level = logging.getLogger().level    
-    
+    logging_level = logging.getLogger().level
+
     if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
         #Getting rid of INFO messages when Moses processes start
         logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
         logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
         logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
-    
+
     return args
 
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
 # and returns some quality estimates.
-def train_classifier(input_features, test_features, classifier_type, classifier_output, external_test_feats=None,
-                     external_test_labels=None):
+def train_classifier(input_features, test_features, classifier_type, classifier_output):
     feats=[]
     labels=[]
-
-    
-    # Train classifier
-    if classifier_type == "svm":
-        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
-    elif classifier_type == "mlp":
-        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
-    elif classifier_type == "mlpregressor":
-        clf = MLPRegressor(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
-    elif classifier_type == "extra_trees":
-        parameters = { 'criterion': ('gini','entropy'),
-                'n_estimators' : [100, 200, 300, 400, 500],
-                }
-        etc = ExtraTreesClassifier(bootstrap=True, class_weight=None,
-                criterion='gini',
-                max_depth=None,
-                max_features='auto',
-                max_leaf_nodes=None,
-                min_impurity_decrease=0.0,
-                min_impurity_split=None,
-                min_samples_leaf=1,
-                min_samples_split=2,
-                min_weight_fraction_leaf=0.0,
-                n_estimators=200, n_jobs=1,
-                oob_score=False,
-                random_state=0,
-                verbose=0,
-                warm_start=False)
-        clf = GridSearchCV(etc, parameters, n_jobs=-1)
-    elif classifier_type == "svm_regressor":
-        clf = make_pipeline(MinMaxScaler(), svm.SVR(gamma=0.001, C=100.))
-    elif classifier_type == "nn":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-    elif classifier_type == "nn1":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=-1)
-    elif classifier_type == "adaboost":
-        clf = AdaBoostClassifier(n_estimators=100)
-    elif classifier_type == "random_forest":
-        parameters = { 'criterion': ('gini','entropy'),
-                'n_estimators' : [100, 200, 300, 400, 500],
-                }
-        rfc = RandomForestClassifier(bootstrap=True, class_weight=None,
-                criterion='gini',
-                max_depth=None,
-                max_features='auto',
-                max_leaf_nodes=None,
-                min_impurity_decrease=0.0,
-                min_impurity_split=None,
-                min_samples_leaf=1,
-                min_samples_split=2,
-                min_weight_fraction_leaf=0.0,
-                n_estimators=200, n_jobs=1,
-                oob_score=False,
-                random_state=0,
-                verbose=0,
-                warm_start=False)
-        clf = GridSearchCV(rfc, parameters, n_jobs=-1)
-    elif classifier_type == "random_forest_regressor":
-        clf = RandomForestRegressor(bootstrap=True,
-                                    max_features='auto',
-                                    max_leaf_nodes=None,
-                                    min_impurity_decrease=0.0,
-                                    min_impurity_split=None,
-                                    min_samples_leaf=1,
-                                    min_samples_split=2,
-                                    min_weight_fraction_leaf=0.0,
-                                    n_estimators=200, n_jobs=-1,
-                                    oob_score=False,
-                                    random_state=0,
-                                    verbose=0,
-                                    warm_start=False)
-    else:
-        logging.error("Unknown classifier: "+ classifier_type)
-        sys.exit(1)
 
     # Load features and labels and format them as numpy array
     for line in input_features:
@@ -232,22 +148,72 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     dataset = dict()
     dataset['data'] = np.array(feats)
-    adapt_labels = []
-    if "regressor" in classifier_type:
-        for l in labels:
-            if l == 0.0:
-                adapt_labels.append(0.1)
-            else:
-                adapt_labels.append(0.9)
+    dataset['target'] = np.array(labels)
+
+    # Train classifier
+    if classifier_type == "svm":
+        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
+    elif classifier_type == "mlp":
+        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+    elif classifier_type == "extra_trees":
+        parameters = {
+            'criterion': ('gini','entropy'),
+            'n_estimators' : [100, 200, 300, 400, 500],
+        }
+        clf = ExtraTreesClassifier(bootstrap=True, class_weight=None,
+                criterion='gini',
+                max_depth=None,
+                max_features='auto',
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0,
+                min_impurity_split=None,
+                min_samples_leaf=1,
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0,
+                n_estimators=200, n_jobs=1,
+                oob_score=False,
+                random_state=0,
+                verbose=0,
+                warm_start=False)
+    elif classifier_type == "nn":
+        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
+    elif classifier_type == "nn1":
+        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=-1)
+    elif classifier_type == "adaboost":
+        clf = AdaBoostClassifier(n_estimators=100)
+    elif classifier_type == "random_forest":
+        parameters = {
+            'criterion': ('gini','entropy'),
+            'n_estimators' : [100, 200, 300, 400, 500],
+        }
+        clf = RandomForestClassifier(bootstrap=True, class_weight=None,
+                criterion='gini',
+                max_depth=None,
+                max_features='auto',
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0,
+                min_impurity_split=None,
+                min_samples_leaf=1,
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0,
+                n_estimators=200, n_jobs=1,
+                oob_score=False,
+                random_state=0,
+                verbose=0,
+                warm_start=False)
     else:
-        adapt_labels = labels
-    dataset['target'] = np.array(adapt_labels)
-    #dataset['target'] = np.array(labels)
+        logging.error("Unknown classifier: "+ classifier_type)
+        sys.exit(1)
+
+    # If parameters is defined perform grid search
+    try:
+        parameters
+    except NameError:
+        pass
+    else:
+        clf = GridSearchCV(clf, parameters, n_jobs=-1)
 
     clf.fit(dataset['data'], dataset['target'])
-
-    if isinstance(clf, GridSearchCV):
-        print("Best parameters found", clf.best_params_)
 
     # Log sorted feature importances with their names
     if classifier_type in ('random_forest', 'adaboost', 'extra_trees'):
@@ -271,36 +237,16 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         labels.append(int(parts[-1]))
 
     dataset = np.array(feats)
-    if "regressor" in classifier_type:
-        prediction = clf.predict(dataset)
-    else:
-        prediction = clf.predict_proba(dataset)
-        predictionclasses = clf.predict(dataset)
-
-    if external_test_feats is not None and external_test_labels is not None:
-        test_prediction = clf.predict(np.array(external_test_feats))
-        print("Precision: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[0]))
-        print("Recall: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[1]))
-        print("F-score: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[2]))
-        print("Accuracy: "+str(sklearn.metrics.accuracy_score(np.array(external_test_labels), test_prediction)))
-        print("Support: "+str(sklearn.metrics.precision_recall_fscore_support(np.array(external_test_labels), test_prediction, labels=[0,1])[3]))
-        for i,y in zip(np.array(external_test_labels), test_prediction):
-            print(str(i)+"\t"+str(y))
+    prediction = clf.predict_proba(dataset)
 
     pos = 0
     good = []
     wrong = []
     for pred in prediction:
-        if "regressor" in classifier_type:
-            if labels[pos] == 1:
-                good.append(pred)
-            else:
-                wrong.append(pred)
+        if labels[pos] == 1:
+            good.append(pred[1])
         else:
-            if labels[pos] == 1:
-               good.append(pred[1])
-            else:
-               wrong.append(pred[1])
+            wrong.append(pred[1])
         pos += 1
 
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
@@ -547,43 +493,7 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-
-        test_labels = None
-        test_feats = None
-
-        if args.test_positive is not None and args.test_negative is not None:
-            # Shuffle and get length ratio
-            if args.target_tokeniser_path:
-                source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-            else:
-                source_tokeniser = MosesTokenizer(args.target_lang)
-            if args.target_tokeniser_path:
-                target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-            else:
-                target_tokeniser = MosesTokenizer(args.target_lang)
-
-            goodfeatures = []
-            for line in args.test_positive:
-                line = line.strip()
-                fields = line.split("\t")
-                ssen = fields[0]
-                tsen = fields[1]
-                goodfeatures.append(feature_extract(ssen, tsen, source_tokeniser, target_tokeniser, args))
-
-            badfeatures = []
-            for line in args.test_negative:
-                line = line.strip()
-                fields = line.split("\t")
-                ssen = fields[0]
-                tsen = fields[1]
-                badfeatures.append(feature_extract(ssen, tsen, source_tokeniser, target_tokeniser, args))
-            source_tokeniser.close()
-            target_tokeniser.close()
-            test_labels = [1]*len(goodfeatures) + [0]*len(badfeatures)
-            test_feats = goodfeatures+badfeatures
-
-
-        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier, test_feats, test_labels)
+        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
         features_train.close()
         features_test.close()
 
