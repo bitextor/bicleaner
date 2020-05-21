@@ -89,7 +89,7 @@ def initialization():
     
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0)")
-    groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+    #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
 
     groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)   
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
@@ -297,62 +297,51 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  not wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args)):
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        if  lm_filter != None:
-                            lm_score = lm_filter.score(sl_sentence.strip(), tl_sentence.strip())
-                            lm_scores.append(lm_score)
-                            if args.keep_lm_result or lm_score >= args.lm_threshold:
-                                features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-                                feats.append([float(v) for v in features])
-                                valid_sentences.append(True)
-                            else:
-                                valid_sentences.append(False)
-                        else:
-                            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
-                            feats.append([float(v) for v in features])
-                            valid_sentences.append(True)
-                            lm_scores.append(0.0)
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
 
+
+                        feats.append([float(v) for v in features])
+                        valid_sentences.append(True)
                     else:
                         valid_sentences.append(False)
-                        lm_scores.append(0.0)
-
 
                 try:
                     predictions_prob = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
                 except AttributeError:
-                    predictions_prob = args.clf.predict(np.array(feats)) if len(feats) > 0 else []
+                    predictions_prob = None
+                    pass
+                predictions = args.clf.predict(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
 
-                piter_prob = iter(predictions_prob)
+                piter = iter(predictions)
+                if predictions_prob is not None:
+                    piter_prob = iter(predictions_prob)
 
-                for i, valid_sentence, lm_score in zip(filein, valid_sentences, lm_scores):
+                for i, valid_sentence in zip(filein, valid_sentences):
                     if valid_sentence:
-                        p_prob = next(piter_prob)
+                        p = next(piter)
+                        if predictions_prob is not None:
+                            p_prob = next(piter_prob)
                         if args.score_only:
                             fileout.write("{0:.3f}".format((p_prob[1])))
-                            if args.keep_lm_result:
-                                fileout.write("\t")
-                                fileout.write("{0:.3f}".format(lm_score))
+                            fileout.write("\t")
+                            fileout.write("{0:.3f}".format((p)))
                         else:
                             fileout.write(i.strip())
                             fileout.write("\t")
                             fileout.write("{0:.3f}".format((p_prob[1])))
-                            if args.keep_lm_result:
-                                fileout.write("\t")
-                                fileout.write("{0:.3f}".format(lm_score))
+                            fileout.write("\t")
+                            fileout.write("{0:.3f}".format((p)))
 
                         fileout.write("\n")
                     else:
                         if args.score_only:
-                            fileout.write("0.000")
+                            fileout.write("0")
                         else:
                             fileout.write(i.strip("\n"))
-                            fileout.write("\t0.000")
-                            if args.keep_lm_result:
-                                fileout.write("\t")
-                                fileout.write("{0:.3f}".format(lm_score))
+                            fileout.write("\t0")
                         fileout.write("\n")
 
                 ojob = (nblock, fileout.name)
