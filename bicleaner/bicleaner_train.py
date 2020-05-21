@@ -160,11 +160,23 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         clf = MLPRegressor(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
     elif classifier_type == "extra_trees":
         parameters = { 'criterion': ('gini','entropy'),
-                'n_estimators' : [10, 50, 100, 200],
-                'max_depth' : [None, 2, 4, 6],
-                'max_features' : ['auto', 'log2']
+                'n_estimators' : [100, 200, 300, 400, 500],
                 }
-        etc = ExtraTreesClassifier(n_estimators=50, random_state=0)
+        etc = ExtraTreesClassifier(bootstrap=True, class_weight=None,
+                criterion='gini',
+                max_depth=None,
+                max_features='auto',
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0,
+                min_impurity_split=None,
+                min_samples_leaf=1,
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0,
+                n_estimators=200, n_jobs=-1,
+                oob_score=False,
+                random_state=0,
+                verbose=0,
+                warm_start=False)
         clf = GridSearchCV(etc, parameters, n_jobs=-1)
     elif classifier_type == "svm_regressor":
         clf = make_pipeline(MinMaxScaler(), svm.SVR(gamma=0.001, C=100.))
@@ -176,13 +188,11 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
         parameters = { 'criterion': ('gini','entropy'),
-                'n_estimators' : [100, 200, 300],
-                'max_depth' : [None, 2, 4, 6],
-                'max_features' : ['auto', 'log2']
+                'n_estimators' : [100, 200, 300, 400, 500],
                 }
         rfc = RandomForestClassifier(bootstrap=True, class_weight=None,
                 criterion='gini',
-                max_depth=2, 
+                max_depth=None, 
                 max_features='auto', 
                 max_leaf_nodes=None,
                 min_impurity_decrease=0.0, 
@@ -236,7 +246,8 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     clf.fit(dataset['data'], dataset['target'])
 
-    print("Best parameters found", clf.best_params_)
+    if isinstance(clf, GridSearchCV):
+        print("Best parameters found", clf.best_params_)
 
     # Log sorted feature importances with their names
     if classifier_type in ('random_forest', 'adaboost', 'extra_trees'):
