@@ -53,7 +53,7 @@ make -j all install
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
-After installation, four binary files (`bicleaner-train`, `bicleaner-train-lite`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
+After installation, three binary files (`bicleaner-train`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
 
 ## Cleaning
 
@@ -371,9 +371,9 @@ disable_lang_ident: False
 
 ```
 
-## Lite versions
+## Lite version
 
-Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread versions of Bicleaner scripts are provided: `bicleaner-train-lite` and `bicleaner-classify-lite`. The usage is exactly the same as for the full versions, but omitting the blocksize (-b) and processes (-p) parameter.
+Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread version of Bicleaner classifier scriptu is provided: `bicleaner-classify-lite`. The usage is exactly the same as for the full version, but omitting the blocksize (-b) and processes (-p) parameter.
 
 ___
 
