@@ -373,7 +373,8 @@ disable_lang_ident: False
 
 ## Lite version
 
-Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread version of Bicleaner classifier scriptu is provided: `bicleaner-classify-lite`. The usage is exactly the same as for the full version, but omitting the blocksize (-b) and processes (-p) parameter.
+Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread version of Bicleaner classifier script is provided: `bicleaner-classify-lite`. The usage is exactly the same as for the full version, but omitting the blocksize (-b) and processes (-p) parameter.
+**Note**: `bicleaner-train-lite` was removed due to the lack of usage by the users and to avoid code duplication.
 
 ___
 
