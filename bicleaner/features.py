@@ -8,7 +8,7 @@ import regex
 import random
 import string
 
-FEATURES_VERSION = 3
+FEATURES_VERSION = 4
 
 #Allows to load modules while inside or outside the package
 try:
@@ -60,8 +60,14 @@ class Features(object):
             "ent2", "maxrep2", "maxword2",
             "ntok1", "ntok2",
             "poisson1", "poisson2",
-            "qmax1", "cov11", "cov21",
-            "qmax2", "cov12", "cov22"]       
+            "qmax1q1", "qmax1q2", "qmax1q3", "qmax1q4",
+            "qmax2q1", "qmax2q2", "qmax2q3", "qmax2q4",
+            "qmax_freq1q1", "qmax_freq1q2", "qmax_freq1q3", "qmax_freq1q4",
+            "qmax_freq2q1", "qmax_freq2q2", "qmax_freq2q3", "qmax_freq2q4",
+            "cov11q1", "cov11q2", "cov11q3", "cov11q4",
+            "cov21q1", "cov21q2", "cov21q3", "cov21q4",
+            "cov12q1", "cov12q2", "cov12q3", "cov12q4",
+            "cov22q1", "cov22q2", "cov22q3", "cov22q4"]
     optional = ["avg_tok_l1","avg_tok_l2",
                      "npunct_tok1", "npunct_tok2",
                      "comma1", "period1", "semicolon1", "colon1", "doubleapos1", "quot1", "slash1",
@@ -564,10 +570,10 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     if not disable_features_lang:
         features.append(feature_language(srcsen, lang1))
         features.append(feature_language(trgsen, lang2))
-    features.append(feature_sentence_length(srcsen))    
-    features.append(feature_sentence_length(trgsen))    
-    features.extend(feature_character_class_dist(srcsen))    
-    features.extend(feature_character_class_dist(trgsen))    
+    features.append(feature_sentence_length(srcsen))
+    features.append(feature_sentence_length(trgsen))
+    features.extend(feature_character_class_dist(srcsen))
+    features.extend(feature_character_class_dist(trgsen))
     features.extend(feature_character_measurements(srcsen))
     features.extend(feature_character_measurements(trgsen))
     features.append(feature_sentence_length(left_sentence_tok))
@@ -575,28 +581,35 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     features.append(feature_length_poisson(left_sentence_tok, right_sentence_tok, length_ratio))
     features.append(feature_length_poisson(right_sentence_tok, left_sentence_tok, 1.0/length_ratio))
 
-    #qmax1to2=feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv)
-    #qmax2to1=feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv)
+    if fv < 4:
+        qmax1to2=feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv)
+        qmax2to1=feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv)
 
-    #qmax1to2=feature_dict_qmax_nosmooth_nolimit(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, fv)
-    #qmax2to1=feature_dict_qmax_nosmooth_nolimit(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, fv)
+        features.extend(qmax1to2)
+        features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
+        features.extend(qmax2to1)
+        features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
+    else:
+        # Feature version 4 using cummulated probabilities in qmax and word frecuencies
+        #TODO check if both qmax types are necessary or only cummulated_prob_zipf ones
+        qmax1to2 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
+                                                                                dict12, normalize_by_length, l2freqs, fv)
+        qmax2to1 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
+                                                                                dict21, normalize_by_length, l1freqs, fv)
+        features.extend(qmax1to2)
+        features.extend(qmax2to1)
 
-    qmax1to2 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
-                                                                            dict12, normalize_by_length, l2freqs, fv)
-    qmax2to1 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
-                                                                            dict21, normalize_by_length, l1freqs, fv)
-    features.extend(qmax1to2)
-    features.extend(qmax2to1)
+        qmax1to2freq=feature_dict_qmax_nosmooth_nolimit_freq(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, l2freqs, fv)
+        qmax2to1freq=feature_dict_qmax_nosmooth_nolimit_freq(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, l1freqs, fv)
+        features.append(qmax1to2freq)
+        features.append(qmax2to1freq)
 
-    qmax1to2freq=feature_dict_qmax_nosmooth_nolimit_freq(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, l2freqs, fv)
-    qmax2to1freq=feature_dict_qmax_nosmooth_nolimit_freq(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, l1freqs, fv)
-    features.append(qmax1to2freq)
-    features.append(qmax2to1freq)
+        #TODO Check if both coverage types are needed
+        features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
+        features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
+        features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
+        features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
 
-    features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
-    features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
-    features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
-    features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     if disable_features_quest:
         # Average token length
         features.append(feature_avg_token_len(left_sentence_tok))
