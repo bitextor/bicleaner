@@ -582,12 +582,9 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     features.append(feature_length_poisson(right_sentence_tok, left_sentence_tok, 1.0/length_ratio))
 
     if fv < 4:
-        qmax1to2=feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv)
-        qmax2to1=feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv)
-
-        features.extend(qmax1to2)
+        features.append(feature_dict_qmax(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, treat_oovs, dict21, fv))
         features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
-        features.extend(qmax2to1)
+        features.append(feature_dict_qmax(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, treat_oovs, dict12, fv))
         features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     else:
         # Feature version 4 using cummulated probabilities in qmax and word frecuencies
