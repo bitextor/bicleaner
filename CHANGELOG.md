@@ -1,3 +1,7 @@
+Bicleaner 0.14: 
+* Bicleaner hardrules changes:
+  * New rule: filter out porn videos.
+
 Bicleaner 0.13:
 * Bicleaner hardrules changes:
   * Rule change: Relaxed c_minimal_length to accept 3-word sentences	
