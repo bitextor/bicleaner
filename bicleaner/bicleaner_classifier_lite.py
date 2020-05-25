@@ -110,24 +110,36 @@ def initialization():
 
         try:
             args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
-        except:            
+        except:
             args.clf=joblib.load(metadata_yaml["classifier"])
-        
-#        args.clf.n_jobs = None    
+
+#        args.clf.n_jobs = None
         args.classifier_type=metadata_yaml["classifier_type"]
-        
-        
 
         try:
             args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["source_dictionary"]))
         except:
-            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
-        try:            
-            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))        
+            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])
+        try:
+            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))
         except:
-            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
-        
-                
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
+
+        try:
+            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
+        except:
+            try:
+                args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
+            except:
+                args.sl_word_freqs = None
+        try:
+            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
+        except:
+            try:
+                args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
+            except:
+                args.tl_word_freqs = None
+
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
