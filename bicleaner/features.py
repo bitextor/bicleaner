@@ -363,7 +363,7 @@ def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(slwords, tlword
     t_word_splits = freqs.split_sentence_by_freq(tlwords)
     output = []
     for i in range(0, 4):
-        output.append(feature_dict_qmax_nosmooth_nolimit(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
+        output.append(feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
     return output
 
 # Coverage
