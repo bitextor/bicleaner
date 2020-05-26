@@ -166,6 +166,7 @@ In order to train a new classifier, you must provide:
    * We recommend filtering out entries with a very low probability: removing those with a probability 10 times lower than the maximum translation probability for each word speeds up the process and does not decrease accuracy.
    * Prior to inferring the probabilistic dictionaries, sentences must be tokenizer with the Moses tokenizer (with the `-a` flag) and lowercased.
    * You can uses Moses and MGIZA++ to obtain probabilistic dictionaries from a parallel corpus.
+* Gzipped lists of word frequencies for SL and TL.
 
 Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
@@ -230,45 +231,46 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
 
 
 ```bash
- bicleaner-train [-h]
-                 -m METADATA              
-                 -c CLASSIFIER 
-                 -s SOURCE_LANG 
-                 -t TARGET_LANG 
-                 -d SOURCE_TO_TARGET_DICTIONARY 
-                 -D TARGET_TO_SOURCE_DICTIONARY               
-                 [-S SOURCE_TOKENISER_PATH]
-                 [-T TARGET_TOKENISER_PATH]
-                 [--normalize_by_length]
-                 [--treat_oovs]
-                 [--qmax_limit QMAX_LIMIT]
-                 [--disable_features_quest]
-                 [-g GOOD_EXAMPLES]
-                 [-w WRONG_EXAMPLES]
-                 [--good_test_examples GOOD_TEST_EXAMPLES]
-                 [--wrong_test_examples WRONG_TEST_EXAMPLES]
-                 [--classifier_type {svm,nn,nn1,adaboost,random_forest}]
-                 [--dump_features DUMP_FEATURES]
-                 [-b BLOCK_SIZE]
-                 [-p PROCESSES]
-                 [--wrong_examples_file WRONG_EXAMPLES_FILE]
-                 [--features_version FEATURES_VERSION]
-                 [--disable_lang_ident]
-                 [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
-                 [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
-                 [--lm_dev_size LM_DEV_SIZE]
-                 [--lm_file_sl LM_FILE_SL]
-                 [--lm_file_tl LM_FILE_TL]
-                 [--lm_training_file_sl LM_TRAINING_FILE_SL]
-                 [--lm_training_file_tl LM_TRAINING_FILE_TL]
-                 [--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL]
-                 [--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL]
-                 [-q]
-                 [--debug]
-                 [--logfile LOGFILE]
-                 [input]
-                 
-```                          
+bicleaner_train.py [-h]
+    -m METADATA
+    -c CLASSIFIER
+    -s SOURCE_LANG
+    -t TARGET_LANG
+    -d SOURCE_DICTIONARY
+    -D TARGET_DICTIONARY
+    -f SOURCE_WORD_FREQS
+    -F TARGET_WORD_FREQS
+    [-S SOURCE_TOKENISER_PATH]
+    [-T TARGET_TOKENISER_PATH]
+    [--normalize_by_length]
+    [--treat_oovs]
+    [--qmax_limit QMAX_LIMIT]
+    [--disable_features_quest]
+    [-g GOOD_EXAMPLES]
+    [-w WRONG_EXAMPLES]
+    [--good_test_examples GOOD_TEST_EXAMPLES]
+    [--wrong_test_examples WRONG_TEST_EXAMPLES]
+    [--classifier_type {mlp,svm,nn,nn1,adaboost,random_forest,extra_trees}]
+    [--dump_features DUMP_FEATURES]
+    [-b BLOCK_SIZE]
+    [-p PROCESSES]
+    [--wrong_examples_file WRONG_EXAMPLES_FILE]
+    [--features_version FEATURES_VERSION]
+    [--disable_lang_ident]
+    [--seed SEED]
+    [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
+    [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
+    [--lm_dev_size LM_DEV_SIZE]
+    [--lm_file_sl LM_FILE_SL]
+    [--lm_file_tl LM_FILE_TL]
+    [--lm_training_file_sl LM_TRAINING_FILE_SL]
+    [--lm_training_file_tl LM_TRAINING_FILE_TL]
+    [--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL]
+    [--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL]
+    [-q] [--debug] [--logfile LOGFILE]
+    [input]
+
+```
 
 * positional arguments:
   * `input`: Tab-separated bilingual input file (default: Standard input)(line format: SOURCE_SENTENCE TARGET_SENTENCE, tab-separated)
@@ -324,6 +326,8 @@ bicleaner-train \
           -t cs \
           -d dict-en-cs.gz \
           -D dict-cs-en.gz \
+          -f wordfreqs-en.gz \
+          -F wordfreqs-cs.gz \
           -b 1000 \
           -c en-cs.classifier \
           -g 50000 \
@@ -332,7 +336,7 @@ bicleaner-train \
           --classifier_type random_forest
 ```
 
-This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train and the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`. 
+This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train, the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`, and the word frequency dictionaries `wordfreqs-en.gz` and `wordfreqs-cs.gz`.
 This training will use 50000 good and 50000 bad examples, and a block size of 1000 sentences.
 The classifier data will be stored in `en-cs.classifier`, with the metadata in `training.en-cs.yaml`. The improved fluency language model filter will not be included.
 
@@ -345,6 +349,8 @@ source_lang: en
 target_lang: cs
 source_dictionary: dict-en-cs.gz
 target_dictionary: dict-cs-en.gz
+source_word_freqs: wordfreqs-en.gz
+target_word_freqs: wordfreqs-cs.gz
 normalize_by_length: True
 treat_oovs: True
 qmax_limit: 20

@@ -77,8 +77,8 @@ def initialization():
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
     groupM.add_argument('-d', '--source_dictionary', type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
-    groupM.add_argument('-f', '--source_word_freqs', type=argparse.FileType('r'), default=None, required=False, help="L language gzipped list of word freqneces")
-    groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=False, help="R language gzipped list of word freqneces")
+    groupM.add_argument('-f', '--source_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="L language gzipped list of word frequencies")
+    groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
     groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")

@@ -162,7 +162,7 @@ def initialization():
                 args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
             except:
                 args.tl_word_freqs = None
-                
+
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
@@ -173,7 +173,7 @@ def initialization():
         args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
         args.length_ratio = metadata_yaml["length_ratio"]
         args.features_version = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
-        
+
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
