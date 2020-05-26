@@ -588,7 +588,6 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     else:
         # Feature version 4 using cummulated probabilities in qmax and word frecuencies
-        #TODO check if both qmax types are necessary or only cummulated_prob_zipf ones
         qmax1to2 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
                                                                                 dict12, normalize_by_length, l2freqs, fv)
         qmax2to1 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
@@ -596,12 +595,6 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         features.extend(qmax1to2)
         features.extend(qmax2to1)
 
-        qmax1to2freq=feature_dict_qmax_nosmooth_nolimit_freq(left_sentence_tok, right_sentence_tok, dict12, normalize_by_length, l2freqs, fv)
-        qmax2to1freq=feature_dict_qmax_nosmooth_nolimit_freq(right_sentence_tok, left_sentence_tok, dict21, normalize_by_length, l1freqs, fv)
-        features.append(qmax1to2freq)
-        features.append(qmax2to1freq)
-
-        #TODO Check if both coverage types are needed
         features.extend(feature_dict_coverage_zipf_freq(left_sentence_tok, right_sentence_tok, dict12, l2freqs))
         features.extend(feature_dict_coverage(left_sentence_tok, right_sentence_tok, dict12))
         features.extend(feature_dict_coverage_zipf_freq(right_sentence_tok, left_sentence_tok, dict21, l1freqs))
