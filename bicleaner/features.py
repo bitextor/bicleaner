@@ -359,8 +359,8 @@ def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_freq(slwords, tlwords, di
 
     return math.exp(logresult)
 
-def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv):
-    t_word_splits = freqs.split_sentence_by_freq(tlwords)
+def feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv, limit=20):
+    t_word_splits = freqs.split_sentence_by_freq(tlwords[0:limit])
     output = []
     for i in range(0, 4):
         output.append(feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
@@ -588,10 +588,10 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     else:
         # Feature version 4 using cummulated probabilities in qmax and word frecuencies
-        qmax1to2 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
-                                                                                dict12, normalize_by_length, l2freqs, fv)
-        qmax2to1 = feature_dict_qmax_nosmooth_nolimit_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
-                                                                                dict21, normalize_by_length, l1freqs, fv)
+        qmax1to2 = feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
+                                                                                dict12, normalize_by_length, l2freqs, fv, qmax_limit)
+        qmax2to1 = feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
+                                                                                dict21, normalize_by_length, l1freqs, fv, qmax_limit)
         features.extend(qmax1to2)
         features.extend(qmax2to1)
 
