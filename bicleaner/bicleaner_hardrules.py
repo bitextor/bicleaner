@@ -38,9 +38,13 @@ regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
+#regex_glued_words = regex.compile("\b[[:alpha:]]*[[:lower:]][[:upper:]][[:alpha:]]*)
+regex_glued_words = regex.compile("([[:alpha:]]*[[:upper:]]{1}[[:lower:]]+){3}")
 regex_porn_video = regex.compile('[0-9]+ (year|month|day|hour)[s]{0,1} ago (\d?\d:)?\d{2}:\d{2}',regex.I)
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk"}
 
+safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk", "is", "lt", "nb", "nn", "no"}
+similar_pairs = [{"es","ca"}, {"es","gl"}, {"pt","gl"}, {"no","nn"}, {"no", "da"}]
 
 logging_level = 0
 
@@ -151,18 +155,24 @@ def load_lm_filter(source_lang, target_lang, metadata_yaml):
     return lmFilter
                     
 
-def c_identical(left, right):
+def c_identical(left, right, left_lang, right_lang):
+    if left_lang =="nb":
+        left_lang="no"
+    if right_lang=="nb":
+        right_lang="no"
+#    if ({left_lang, right_lang} in similar_pairs):        
+#        return True
     return left.casefold() != right.casefold()
     
-def c_identical_wo_digits(left, right):
+def c_identical_wo_digits(left, right, left_lang, right_lang):
     left = regex_digit.sub("", left)
     right = regex_digit.sub("", right)
-    return left.casefold() != right.casefold()
+    return c_identical(left, right, left_lang, right_lang)
 
-def c_identical_wo_punct(left, right):
+def c_identical_wo_punct(left, right, left_lang, right_lang):
     left = regex_punct.sub("", left)
     right = regex_punct.sub("", right)
-    return left.casefold() != right.casefold()
+    return c_identical(left, right, left_lang, right_lang)
         
 def c_minimal_length(sentence):
     """ Counts number of whitespace, requires >= 2 (3 words) """
@@ -174,7 +184,14 @@ def c_length(left, right):
 def c_length_bytes(left, right):
     return 0.5 <= float(len(left.encode("utf8")))/float(len(right.encode("utf8"))) <= 2.0
 
-def c_different_language(left, right):
+def c_different_language(left, right, left_lang, right_lang):
+    if left_lang =="nb":
+        left_lang="no"
+
+    if right_lang=="nb":
+        right_lang="no"
+        
+
     l_reliable = False
     l_bytes = 0
     l_details = ()
@@ -193,12 +210,17 @@ def c_different_language(left, right):
     except:
         return False # encoding error -> noise
         
-    if l_reliable and r_reliable and l_details[0][1] != r_details[0][1]:
+    if l_reliable and r_reliable and l_details[0][1] != r_details[0][1]:    
         return True
     elif not l_reliable or not r_reliable:
         return True
     else:
-        return False
+        #both langs are reliable at this point, and the identified language is the same for left and right
+        identified = l_details[0][1]
+        if (identified in [left_lang, right_lang]  and {left_lang, right_lang} in similar_pairs):
+            return True
+        else:    
+            return False
         
 def c_reliable_long_language(sentence, language):
     if language=="nb":
@@ -214,15 +236,10 @@ def c_reliable_long_language(sentence, language):
         return True # encoding error -> noise
     
     if len(sentence) > 30 and reliable and details[0][1] != language:
-
-        if language=="gl" and  (details[0][1] == "pt" or details[0][1] == "es"):
+        if {language, details[0][1]} in similar_pairs:
             return True
-        if language=="no" and details[0][1] == "da":
-            return True    
-        if language=="nn" and (details[0][1] == "no" or details[0][1] == "da"):
-            return True
-        #print(sentence + "  " +  str(details[0][1]))     
-        return False
+        else:
+            return False
     else:
         return True
         
@@ -237,6 +254,7 @@ def c_no_urls(sentence):
 
 #def c_no_breadcrumbs(sentence):
 #    return len(regex_breadcrumbs.findall(sentence)) < 3
+
 
 def c_no_breadcrumbs1(sentence):
     return len(regex_breadcrumbs1.findall(sentence)) < 3  
@@ -264,6 +282,10 @@ def c_no_literals(literals, sentence):
 
 def c_no_escaped_unicode(sentence):
     return len(regex_escaped_unicode.findall(sentence)) == 0
+   
+def c_no_glued_words(sentence):
+    return regex_glued_words.search(sentence) == None
+    
 
 def c_porn_video(sentence):
     return len(regex_porn_video.findall(sentence)) == 0
@@ -285,13 +307,13 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_minimal_length(left) and c_minimal_length(right)"
     elif not (c_length(left, right) or c_length_bytes(left, right)): 
         return "c_length or c_length_bytes"
-    elif not c_identical(left, right):
+    elif not c_identical(left, right, args.source_lang, args.target_lang):
         return "c_identical"
-    elif not c_identical_wo_digits(left, right):
+    elif not c_identical_wo_digits(left, right, args.source_lang, args.target_lang):
         return "c_identical_wo_digits"    
-    elif not c_identical_wo_punct(left, right):
+    elif not c_identical_wo_punct(left, right, args.source_lang, args.target_lang):
         return "c_identical_wo_punct"    
-    elif (not args.disable_lang_ident and not  c_different_language(left, right)):
+    elif (not args.disable_lang_ident and not  c_different_language(left, right, args.source_lang, args.target_lang)):
         return "c_different_language"
     elif not c_majority_alpha(left):
         return "c_majority_alpha(left)"
@@ -313,6 +335,10 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_no_breadcrumbs2(left)"
     elif not c_no_breadcrumbs2(right):
         return "c_no_breadcrumbs2(right)"       
+    elif not c_no_glued_words(left):
+        return "c_no_glued_words(left)"
+    elif not c_no_glued_words(right):
+        return "c_no_glued_words(right)"    
     elif args.source_lang in safe_noise_detection_langs and not c_no_noise(left):
         return "args.source_lang in safe_noise_detection_langs and not c_no_noise(left)" 
     elif args.target_lang in safe_noise_detection_langs and not c_no_noise(right):

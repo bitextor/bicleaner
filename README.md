@@ -26,7 +26,6 @@ If you find Bicleaner useful, please consider citing the following paper:
   title     = {Prompsit's submission to WMT 2018 Parallel Corpus Filtering shared task},
   booktitle = {Proceedings of the Third Conference on Machine Translation, Volume 2: Shared Task Papers},
   month     = {October},
-  year      = {2018},
   address   = {Brussels, Belgium},
   publisher = {Association for Computational Linguistics}
 }
@@ -166,6 +165,7 @@ In order to train a new classifier, you must provide:
    * We recommend filtering out entries with a very low probability: removing those with a probability 10 times lower than the maximum translation probability for each word speeds up the process and does not decrease accuracy.
    * Prior to inferring the probabilistic dictionaries, sentences must be tokenizer with the Moses tokenizer (with the `-a` flag) and lowercased.
    * You can uses Moses and MGIZA++ to obtain probabilistic dictionaries from a parallel corpus.
+   * Please note that both target and source words in probabilistic bilingual dictionaries must be single words. 
 * Gzipped lists of monolingual word frequencies. You can check their format by downloading any of the available language packs.
    * The SL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), SL word.
    * The TL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), TL word.
