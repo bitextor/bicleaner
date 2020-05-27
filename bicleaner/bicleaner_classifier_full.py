@@ -27,12 +27,18 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .word_freqs_list import WordFreqList
+    from .word_freqs_zipf import WordZipfFreqDist
+
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
 
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from word_freqs_list import WordFreqList
+    from word_freqs_zipf import WordZipfFreqDist
+
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
 
@@ -89,7 +95,6 @@ def initialization():
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
 
-
     
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -141,9 +146,23 @@ def initialization():
         try:            
             args.dict_tl_sl = ProbabilisticDictionary( os.path.join( yamlpath , metadata_yaml["target_dictionary"]))        
         except:
-            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
-        
-                
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
+
+        try:
+            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
+        except:
+            try:
+                args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
+            except:
+                args.sl_word_freqs = None
+        try:
+            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
+        except:
+            try:
+                args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
+            except:
+                args.tl_word_freqs = None
+
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
@@ -154,7 +173,7 @@ def initialization():
         args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
         args.length_ratio = metadata_yaml["length_ratio"]
         args.features_version = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
-        
+
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
@@ -266,7 +285,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 #  hard rules and lm fluency filtering
                 #feats: vector of tuples, input features to the classifier, length equals number
                 #  of sentences in the input that passed hard rules + lm fluency filtering
-                
+
                 valid_sentences=[]
                 for i in filein:
                     parts = i.split("\t")
@@ -281,27 +300,41 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
                         features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+
+
                         feats.append([float(v) for v in features])
                         valid_sentences.append(True)
                     else:
                         valid_sentences.append(False)
-                    
 
-                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
+                try:
+                    predictions_prob = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
+                except AttributeError:
+                    predictions_prob = None
+                    pass
+                predictions = args.clf.predict(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
 
                 piter = iter(predictions)
+                if predictions_prob is not None:
+                    piter_prob = iter(predictions_prob)
 
-                for i, valid_sentence in zip(filein,valid_sentences):                    
+                for i, valid_sentence in zip(filein, valid_sentences):
                     if valid_sentence:
                         p = next(piter)
+                        if predictions_prob is not None:
+                            p_prob = next(piter_prob)
                         if args.score_only:
-                            fileout.write("{0:.3f}".format((p[1])))                        
-                        else:    
+                            fileout.write("{0:.3f}".format((p_prob[1])))
+                            fileout.write("\t")
+                            fileout.write("{0:.3f}".format((p)))
+                        else:
                             fileout.write(i.strip())
                             fileout.write("\t")
-                            fileout.write("{0:.3f}".format((p[1])))
-                           
+                            fileout.write("{0:.3f}".format((p_prob[1])))
+                            fileout.write("\t")
+                            fileout.write("{0:.3f}".format((p)))
+
                         fileout.write("\n")
                     else:
                         if args.score_only:
@@ -322,8 +355,6 @@ def classifier_process(i, jobs_queue, output_queue, args):
         else:
             logging.debug("Exiting worker")
             break	
-
-            
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")

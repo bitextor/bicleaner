@@ -1,3 +1,16 @@
+Bicleaner 0.14: 
+* Bicleaner hardrules changes:
+  * New rule: filter out porn videos.
+* Bicleaner train changes:
+  * Added monolingual word frequency dictionaries.
+  * Added new Qmax features:
+    * `qmax_nosmooth_nolimit_freq`: removes OOV smoothing, word limits and weights each target word with its monolingual probability using the word frequency dictionary.
+    * `qmax_nosmooth_nolimit_cummulated_prob_zipf_freq`: uses accumulated probability instead of maximum and splits the score into quartiles based on word frequencies.
+  * Added more bilingual dictionary coverage features, splitting them into quartiles based on monolingual word frequencies.
+  * Added new noise function that synthesizes negative samples cutting sentences and replacing words (this is not used by default, needs more testing).
+  * Changed classifier training behavior and use grid search.
+    * Removed `bicleaner_train_lite.py`
+
 Bicleaner 0.13:
 * Bicleaner hardrules changes:
   * Rule change: Relaxed c_minimal_length to accept 3-word sentences	
