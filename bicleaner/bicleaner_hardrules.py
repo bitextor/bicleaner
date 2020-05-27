@@ -38,6 +38,9 @@ regex_paren = regex.compile("[][(){}]")
 regex_unwanted = regex.compile("[+*]")
 regex_inconditional = regex.compile("=\"")
 regex_escaped_unicode = regex.compile("[\\\\]u[0-9a-fA-F]{3,}")
+#regex_glued_words = regex.compile("\b[[:alpha:]]*[[:lower:]][[:upper:]][[:alpha:]]*)
+regex_glued_words = regex.compile("([[:alpha:]]*[[:upper:]]{1}[[:lower:]]+){3}")
+
 safe_noise_detection_langs = {"en", "es", "fr", "pl", "de", "it", "pt", "nl", "cs", "ro", "fi", "lv", "et", "bg", "hr", "da", "hu", "ga", "eu", "gl", "sl", "sv", "mt", "sk", "is", "lt", "nb", "nn", "no"}
 similar_pairs = [{"es","ca"}, {"es","gl"}, {"pt","gl"}, {"no","nn"}, {"no", "da"}]
 
@@ -250,6 +253,7 @@ def c_no_urls(sentence):
 #def c_no_breadcrumbs(sentence):
 #    return len(regex_breadcrumbs.findall(sentence)) < 3
 
+
 def c_no_breadcrumbs1(sentence):
     return len(regex_breadcrumbs1.findall(sentence)) < 3  
 
@@ -277,6 +281,9 @@ def c_no_literals(literals, sentence):
 def c_no_escaped_unicode(sentence):
     return len(regex_escaped_unicode.findall(sentence)) == 0
    
+def c_no_glued_words(sentence):
+    return regex_glued_words.search(sentence) == None
+    
 def wrong_tu(left, right, args, lm_filter = None):
     if len(left) >= 1024:
         return "len(left) >= 1024"
@@ -322,6 +329,10 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_no_breadcrumbs2(left)"
     elif not c_no_breadcrumbs2(right):
         return "c_no_breadcrumbs2(right)"       
+    elif not c_no_glued_words(left):
+        return "c_no_glued_words(left)"
+    elif not c_no_glued_words(right):
+        return "c_no_glued_words(right)"    
     elif args.source_lang in safe_noise_detection_langs and not c_no_noise(left):
         return "args.source_lang in safe_noise_detection_langs and not c_no_noise(left)" 
     elif args.target_lang in safe_noise_detection_langs and not c_no_noise(right):
