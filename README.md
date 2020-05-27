@@ -159,14 +159,21 @@ whether a pair of sentences are mutual translations or not and discards too nois
 ### Requirements 
 
 In order to train a new classifier, you must provide:
-* A clean parallel corpus (100k pairs of sentences is the recommended size)
-* SL-to-TL and TL-to-SL gzipped probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs
+* A clean parallel corpus (100k pairs of sentences is the recommended size).
+* SL-to-TL and TL-to-SL gzipped probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs.
    * The SL-to-TL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: TL word, SL word, probability.
    * The TL-to-SL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: SL word, TL word, probability.
    * We recommend filtering out entries with a very low probability: removing those with a probability 10 times lower than the maximum translation probability for each word speeds up the process and does not decrease accuracy.
    * Prior to inferring the probabilistic dictionaries, sentences must be tokenizer with the Moses tokenizer (with the `-a` flag) and lowercased.
    * You can uses Moses and MGIZA++ to obtain probabilistic dictionaries from a parallel corpus.
-* Gzipped lists of word frequencies for SL and TL.
+* Gzipped lists of monolingual word frequencies. You can check their format by downloading any of the available language packs.
+   * The SL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), SL word.
+   * The TL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), TL word.
+   * These lists can easily be obtained from a monolingual corpus and a command line in bash:
+```bash
+$ cat monolingual.SL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.SL.gz
+$ cat monolingual.TL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.TL.gz
+```
 
 Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
@@ -190,8 +197,7 @@ Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its no
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
-                      [--
-                      _lang_ident]
+                      [--disable_lang_ident]
                       [--scol SCOL]
                       [--tcol TCOL]
                       [--disable_lm_filter] 
@@ -278,11 +284,13 @@ bicleaner_train.py [-h]
   * `-h, --help`: show this help message and exit
 * Mandatory:
   * `-m METADATA, --metadata METADATA`: Output training metadata (YAML file) that will be created after training.
-  * `-c CLASSIFIER, --classifier CLASSIFIER`: Classifier data file that will be created after training. 
-  * `-s SOURCE_LANG, --source_lang SOURCE_LANG`: Source language code 
+  * `-c CLASSIFIER, --classifier CLASSIFIER`: Classifier data file that will be created after training.
+  * `-s SOURCE_LANG, --source_lang SOURCE_LANG`: Source language code
   * `-t TARGET_LANG, --target_lang TARGET_LANG`: Target language code
-  * `-d SOURCE_TO_TARGET_DICTIONARY, --source_dictionary SOURCE_TO_TARGET_DICTIONARY`: SL-to-TL gzipped probabilistic dictionary 
+  * `-d SOURCE_TO_TARGET_DICTIONARY, --source_dictionary SOURCE_TO_TARGET_DICTIONARY`: SL-to-TL gzipped probabilistic dictionary
   * `-D TARGET_TO_SOURCE_DICTIONARY, --target_dictionary TARGET_TO_SOURCE_DICTIONARY`: TL-to-SL gzipped probabilistic dictionary
+  * `-f SOURCE_WORD_FREQ_DICTIONARY, --source_word_freqs SOURCE_WORD_FREQ_DICTIONARY`: SL gzipped word frequencies dictionary
+  * `-F TARGET_WORD_FREQ_DICTIONARY, --target_word_freqs TARGET_WORD_FREQ_DICTIONARY`: TL gzipped word frequencies dictionary
 * Options:
   * `-S SL_TOKENIZER_PATH`: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
   * `-T TL_TOKENIZER_PATH`: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
