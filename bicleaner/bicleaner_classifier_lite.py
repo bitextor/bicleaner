@@ -19,11 +19,15 @@ from mosestokenizer import MosesTokenizer
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .word_freqs_list import WordFreqList
+    from .word_freqs_zipf import WordZipfFreqDist
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from word_freqs_list import WordFreqList
+    from word_freqs_zipf import WordZipfFreqDist
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
