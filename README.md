@@ -169,7 +169,7 @@ In order to train a new classifier, you must provide:
 * Gzipped lists of monolingual word frequencies. You can check their format by downloading any of the available language packs.
    * The SL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), SL word.
    * The TL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), TL word.
-   * These lists can easily be obtained from a monolingual corpus and a command line in bash:
+   * These lists can easily be obtained from a monolingual corpus (i.e. newscrawl or the same text used to train probabilistic bilingual dictionaries) and a command line in bash:
 ```bash
 $ cat monolingual.SL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.SL.gz
 $ cat monolingual.TL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.TL.gz
