@@ -519,5 +519,4 @@ def main(args):
 
 if __name__ == '__main__':
     args = initialization()
-    print(args.classifier_type)
     main(args)
