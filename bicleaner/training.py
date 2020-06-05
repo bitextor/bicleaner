@@ -73,13 +73,10 @@ def train_fluency_filter(args):
     #  - Validation set for estimating perplexity of clean text
     # Input noisy corpus used as validation set for estimating perplexity of noisy text
 
-    logging.info("Training LM-based fluency filter")
-
     if not (args.lm_file_sl and args.lm_file_tl):
         return None
 
-        
-
+    logging.info("Training LM-based fluency filter")
 
     inputIsTmp=True
     if args.lm_training_file_sl and args.lm_training_file_tl and args.lm_clean_examples_file_sl and args.lm_clean_examples_file_tl:
