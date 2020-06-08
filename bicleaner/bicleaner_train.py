@@ -421,8 +421,8 @@ def perform_training(args):
             target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
         else:
             target_tokeniser = MosesTokenizer(args.target_lang)
-        #total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
-        total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
+        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
         target_tokeniser.close()
     os.remove(input.name)
     
