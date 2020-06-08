@@ -1,4 +1,4 @@
-#!/usr/bin/uenv python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -73,7 +73,8 @@ def initialization():
      
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
-        
+    groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+
     # Logging group
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -167,9 +168,16 @@ def initialization():
         if not args.disable_lm_filter:
             if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
                 args.disable_lm_filter = True
-                logging.warning("Error loading metadata. LM filtering disabled.")
+                logging.warning("LM filter not present in metadata, disabling.")
         else:
             logging.info("LM filtering disabled")
+
+        if not args.disable_porn_removal:
+            if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
+                args.disable_porn_removal = True
+                logging.warning("Porn removal not present in metadata, disabling.")
+        else:
+            logging.info("Porn removal disabled")
                
         
                 
@@ -215,6 +223,16 @@ def classify(args):
     else:
         lm_filter = None
 
+    if not args.disable_porn_removal:
+        porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
+        if args.metadata_yaml['porn_removal_side'] == 'tl':
+            tokenizer = MosesTokenizer(args.target_lang)
+        else:
+            tokenizer = MosesTokenizer(args.source_lang)
+    else:
+        porn_removal = None
+        tokenizer = None
+
     for i in args.input:
         nline += 1
         parts = i.split("\t")
@@ -227,7 +245,7 @@ def classify(args):
         else:
             logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
                        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
             buf_sent.append((1, i))
             features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
             buf_feat.append([float(v) for v in features])

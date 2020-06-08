@@ -40,7 +40,7 @@ try:
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle
+    from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
@@ -48,7 +48,7 @@ except (SystemError, ImportError):
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle
+    from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -110,6 +110,11 @@ def initialization():
     groupO.add_argument('--lm_training_file_tl', type=str, help="TL text from which the TL LM is trained. If this parameter is not specified, TL LM is trained from the TL side of the input file, after removing --lm_dev_size sentences.")
     groupO.add_argument('--lm_clean_examples_file_sl', type=str, help="File with clean text in the SL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_sl and both files must not have common sentences. This option replaces --lm_dev_size.")
     groupO.add_argument('--lm_clean_examples_file_tl', type=str, help="File with clean text in the TL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_tl and both files must not have common sentences. This option replaces --lm_dev_size.")
+
+    groupO.add_argument('--porn_removal_train', type=argparse.FileType('r'), help="File with training dataset for FastText classifier. Each sentence must contain at the beginning the '__label__negative' or '__label__positive' according to FastText convention. It should be lowercased and tokenized.")
+    groupO.add_argument('--porn_removal_test', type=argparse.FileType('r'), help="Test set to compute precision and accuracy of the porn removal classifier")
+    groupO.add_argument('--porn_removal_file', type=str, help="Porn removal classifier output file")
+    groupO.add_argument('--porn_removal_side', choices=['sl','tl'], default="sl", help="Whether the porn removal should be applied at the source or at the target language.")
 
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -401,7 +406,10 @@ def perform_training(args):
         args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
     else:
         args.tl_word_freqs = None
-    
+
+    # Train porn removal classifier
+    train_porn_removal(args)
+
     stats=None
     with open(input.name) as input_f:
         args.input=input_f

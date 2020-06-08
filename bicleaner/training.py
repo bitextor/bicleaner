@@ -4,6 +4,7 @@ import random
 import math
 from tempfile import TemporaryFile, NamedTemporaryFile
 import typing
+import fasttext
 
 try:
     from .lm import DualLMFluencyFilter,LMType, DualLMStats
@@ -121,6 +122,33 @@ def train_fluency_filter(args):
             os.remove(lm_dev_clean_tl)
     return stats
 
+# Porn removal classifier
+# training, compressing, run tests and save model file
+def train_porn_removal(args):
+    if args.porn_removal_train is None or args.porn_removal_file is None:
+        return
+
+    logging.info("Training porn removal classifier.")
+    model = fasttext.train_supervised(args.porn_removal_train.name,
+                                    thread=args.processes,
+                                    lr=1.0,
+                                    epoch=25,
+                                    minCount=5,
+                                    wordNgrams=1,
+                                    verbose=0)
+    logging.info("Compressing classifier.")
+    model.quantize(args.porn_removal_train.name,
+                retrain=True,
+                thread=args.processes,
+                verbose=0)
+
+    if args.porn_removal_test is not None:
+        N, p, r = model.test(args.porn_removal_test.name, threshold=0.5)
+        logging.info("Precision:\t{:.3f}".format(p))
+        logging.info("Recall:\t{:.3f}".format(r))
+
+    logging.info("Saving porn removal classifier.")
+    model.save_model(args.porn_removal_file)
 
 #Randomizes sentences' characters in a file
 def shuffle_chars(input_file_path):
@@ -471,3 +499,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         out.write("noisy_mean_perp: {}\n".format(lm_stats.noisy_mean) )
         out.write("noisy_stddev_perp: {}\n".format(lm_stats.noisy_stddev) )
     out.write("disable_lang_ident: {}\n".format(myargs.disable_lang_ident))     
+
+    if myargs.porn_removal_file is not None and myargs.porn_removal_train is not None:
+        out.write("porn_removal_file: {}\n".format(myargs.porn_removal_file))
+        out.write("porn_removal_side: {}\n".format(myargs.porn_removal_side))
