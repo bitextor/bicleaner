@@ -101,7 +101,7 @@ def initialization():
         os.makedirs(args.tmp_dir)
 
     #Try loading metadata for LM filtering and porn removal
-    if not (args.disable_lm_filter or args.disable_porn_removal) and args.metadata != None:
+    if not (args.disable_lm_filter and args.disable_porn_removal) and args.metadata != None:
         logging.info("Loading metadata info")
 
         try:
@@ -110,13 +110,13 @@ def initialization():
 
             if not ("source_lm" in args.metadata_yaml and "target_lm" in args.metadata_yaml):
                 args.disable_lm_filter = True
-                logging.warning("LM file not present in metadata. LM filtering disabled.")
+                logging.warning("LM file not present in metadata.")
             if not ("porn_removal_file" in args.metadata_yaml):
                 args.disable_porn_removal = True
-                logging.warning("Porn removal classifier not present in metadata. Porn removal disabled.")
+                logging.warning("Porn removal classifier not present in metadata.")
             parser.set_defaults(**args.metadata_yaml)
         except:
-            logging.warning("Error loading metadata. LM filtering and porn removal disabled.")
+            logging.warning("Error loading metadata.")
             args.disable_lm_filter  = True
             args.disable_porn_removal = True
             traceback.print_exc()
@@ -127,10 +127,10 @@ def initialization():
             args.disable_lm_filter = True
             args.disable_porn_removal = True
 
-        if args.disable_lm_filter:
-            logging.info("LM filtering disabled.")
-        if args.disable_porn_removal:
-            logging.info("Porn removal disabled.")
+    if args.disable_lm_filter:
+        logging.info("LM filtering disabled.")
+    if args.disable_porn_removal:
+        logging.info("Porn removal disabled.")
 
     return args
     
