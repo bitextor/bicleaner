@@ -378,7 +378,7 @@ def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, tokenizer
     elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
     elif not args.disable_porn_removal and porn_removal != None and not c_no_porn(left, right, porn_removal, args.metadata_yaml['porn_removal_side'], tokenizer):
-        return "c_porn_({})".format('right' if args.metadata_yaml['porn_removal_side'] == 'tl' else 'left')
+        return "c_no_porn"
     elif  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
         return "lm_filter.score(left, right) < args.lm_threshold"
     return False
