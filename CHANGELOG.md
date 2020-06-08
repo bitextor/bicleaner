@@ -1,8 +1,8 @@
 Bicleaner 0.14: 
 * Bicleaner hardrules changes:
-  * New rule: filter out porn videos.
   * New rule: filter out sentences containing gluedWordsLikeThis.
   * Rule change: Relaxed c_different_language rule for similar languages.
+  * New rule: filter out porn sentences using FastText classifier.
 * Bicleaner train changes:
   * Added monolingual word frequency dictionaries.
   * Added new Qmax features:
