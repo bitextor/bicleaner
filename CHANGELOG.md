@@ -12,6 +12,8 @@ Bicleaner 0.14:
   * Added new noise function that synthesizes negative samples cutting sentences and replacing words (this is not used by default, needs more testing).
   * Changed classifier training behavior and use grid search.
     * Removed `bicleaner_train_lite.py`
+* Other
+   * Now using [sacremoses](https://github.com/alvations/sacremoses) instead of [mosestokenizer](https://github.com/luismsgomes/mosestokenizer)
 
 Bicleaner 0.13:
 * Bicleaner hardrules changes:

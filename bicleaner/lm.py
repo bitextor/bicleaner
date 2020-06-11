@@ -1,11 +1,11 @@
 import kenlm
 from enum import Enum
-try:
-    from .util import MosesTokenizer
-except (ImportError, SystemError):
-    from util import MosesTokenizer
+#try:
+#    from .util import MosesTokenizer
+#except (ImportError, SystemError):
+#    from util import MosesTokenizer
 
-from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
+#from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
 import shutil
@@ -14,6 +14,8 @@ import argparse
 import logging
 import numpy
 import regex
+from sacremoses import MosesTokenizer, MosesPunctNormalizer
+
 
 class LMType(Enum):
     #Needed for argparse
@@ -51,9 +53,9 @@ class LMFluencyFilter:
         """
         
         self.language=language
-        self.tokenizer=MosesTokenizer(self.language)
-        self.normalizer=MosesPunctuationNormalizer(self.language)
-        self.splitter=MosesSentenceSplitter(self.language, more=False)
+        self.tokenizer=MosesTokenizer(lang=self.language)
+        self.normalizer=MosesPunctNormalizer(lang=self.language)
+#        self.splitter=sent_tokenize()
         self.type=lm_type
     
     @classmethod
@@ -89,13 +91,14 @@ class LMFluencyFilter:
         self.lm_path=lm_path
         self.lm=kenlm.LanguageModel(self.lm_path)
     
-    def _sentence_split(self,sentence:str):
-        return self.splitter([sentence])
+#    def _sentence_split(self,sentence:str):
+#        return self.splitter([sentence])
     
     def _tokenize(self, sentence):
-        sentence=self.normalizer(sentence)
+        sentence=self.normalizer.normalize(sentence)
+
         if self.type != LMType.CHARACTER:
-            tokline=" ".join(self.tokenizer(sentence))
+            tokline=" ".join(self.tokenizer.tokenize(sentence, escape=False))
         else:
             tokline=" ".join([ "SPACE" if c == " " else c for c in sentence  ])
         return tokline
@@ -104,7 +107,8 @@ class LMFluencyFilter:
         if self.type != LMType.PLACEHOLDER:
             return sentence
         else:
-            toks=[ self._replace_placeholder(t) for t in sentence.split() ]
+#            toks=[ self._replace_placeholder(t) for t in sentence.split() ]
+            toks = self._replace_placeholder(sentence)
             return " ".join(toks)
     
     def train_lm(self, text_path:str):
@@ -115,11 +119,14 @@ class LMFluencyFilter:
         with open(text_path) as input_f:
             for line in input_f:
                 line=line.rstrip("\n")
-                sentences=self._sentence_split(line)
-                for s in sentences:
-                    tokline=self._tokenize(s)
-                    tokenized_f.write(tokline)
-                    tokenized_f.write("\n")
+#                sentences=self._sentence_split(line)
+#                for s in sentences:
+#                    tokline=self._tokenize(s)
+#                    tokenized_f.write(tokline)
+#                    tokenized_f.write("\n")
+                tokline = self._tokenize(line)
+                tokenized_f.write(tokline)
+                tokenized_f.write("\n")
         tokenized_f.close()
             
         #Perform placeholder replacement if needed
@@ -172,15 +179,17 @@ class LMFluencyFilter:
     
     def score(self, sentence:str):
         #We need to preprocess the sentence in the same way as when training the LM
-        sents= self._sentence_split(sentence)
-        processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
-        logging.debug("Scoring: {}".format(processed_sents))
+        #sents= self._sentence_split(sentence)
+        #processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
+        processed_sent = self._introduce_placeholders(self._tokenize(sentence))
+        logging.debug("Scoring: {}".format(processed_sent))
         
-        raw_scores= [self._raw_score(s) for s in processed_sents]
+        raw_score= self._raw_score(processed_sent)
         
         #Normalize score
-        return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
-
+        #return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
+        return  raw_score/(sum([len(processed_sent.split())]) +1) #the same, but assuming only 1 sentence
+        
 class DualLMStats:
     def __init__(self,clean_mean:float, clean_stddev:float, noisy_mean:float, noisy_stddev: float):
         self.clean_mean=clean_mean

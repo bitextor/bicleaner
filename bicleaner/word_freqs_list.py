@@ -2,7 +2,7 @@
 import gzip
 
 
-# Class to store word freqences. Word freqneces are read from a tab-sepparated file containing two fields: freqences
+# Class to store word frequences. Word frequences are read from a tab-sepparated file containing two fields: freqences
 # first and words second. Words must be lowercased. The file must be gzipped. Such files can be easyly produced from
 # monolingual text running a command like this:
 # cat monolingual.txt | tokenizer.sh | tr ' ' '\n' | tr '[:upper:]' '[:lower:]' | sort | uniq -c > wordfreq.txt

@@ -28,7 +28,7 @@ import sklearn
 import sys
 import json
 from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
 
 import numpy as np
 

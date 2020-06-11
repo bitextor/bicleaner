@@ -15,7 +15,8 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
+
 
 #Allows to load modules while inside or outside the package
 try:
@@ -292,10 +293,10 @@ def c_no_glued_words(sentence):
 
 def c_no_porn(left, right, model, side, tokenizer):
     if side == "sl":
-        tokenizer.writeline(left.rstrip('\n'))
+        t = tokenizer.tokenize(left.rstrip('\n'), escape=False)
     else:
-        tokenizer.writeline(right.rstrip('\n'))
-    tok = tokenizer.readline().lower()
+        t = tokenizer.tokenize(right.rstrip('\n'), escape=False) 
+    tok = t.lower()
     return model.predict(tok)[0][0] == '__label__negative'
 
 def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, tokenizer = None):

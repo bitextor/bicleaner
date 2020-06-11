@@ -558,10 +558,11 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 #        parts.append("")
         
     # Sentence tokenization, with and without capital letters
-    tokenize_l.writeline(srcsen.rstrip('\n'))
-    tokenize_r.writeline(trgsen.rstrip('\n'))
-    left_sentence_orig_tok  = [no_escaping(t) for t in tokenize_l.readline().rstrip('\n').split()][0:250]
-    right_sentence_orig_tok = [no_escaping(t) for t in tokenize_r.readline().rstrip('\n').split()][0:250]
+    lt = tokenize_l.tokenize(srcsen.rstrip('\n'), escape=False)
+    rt = tokenize_r.tokenize(trgsen.rstrip('\n'), escape=False)
+    left_sentence_orig_tok  = lt[0:250]
+    right_sentence_orig_tok = rt[0:250]
+
     left_sentence_tok =  [i.lower() for i in left_sentence_orig_tok]
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]
 
