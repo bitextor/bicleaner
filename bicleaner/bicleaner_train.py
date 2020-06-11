@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 
+from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.pipeline import make_pipeline
+
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from sklearn import neighbors
 from sklearn import svm
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 #from sklearn.externals import joblib
 import joblib
-
+from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 
@@ -22,20 +28,27 @@ import sklearn
 import sys
 import json
 from toolwrapper import ToolWrapper
-#from mosestokenizer import MosesTokenizer
 from sacremoses import MosesTokenizer
+
+import numpy as np
 
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
+    from .word_freqs_list import WordFreqList
+    from .word_freqs_zipf import WordZipfFreqDist
+    from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter
+    from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
+    from word_freqs_list import WordFreqList
+    from word_freqs_zipf import WordZipfFreqDist
+    from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import shuffle,precision_recall, repr_right, write_metadata, train_fluency_filter 
+    from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -60,29 +73,32 @@ def initialization():
     groupM = parser.add_argument_group("Mandatory")
     groupM.add_argument('-m', '--metadata', type=argparse.FileType('w'), required=True, help="Training metadata (YAML file)")
     groupM.add_argument('-c', '--classifier', type=argparse.FileType('wb'), required=True, help="Classifier data file")
-    groupM.add_argument('-s', '--source_lang',  required=True, help="Source language")
+    groupM.add_argument('-s', '--source_lang', required=True, help="Source language")
     groupM.add_argument('-t', '--target_lang', required=True, help="Target language")
-    groupM.add_argument('-d', '--source_dictionary',  type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
+    groupM.add_argument('-d', '--source_dictionary', type=argparse.FileType('r'), required=True, help="LR gzipped probabilistic dictionary")
     groupM.add_argument('-D', '--target_dictionary', type=argparse.FileType('r'), required=True, help="RL gzipped probabilistic dictionary")
+    groupM.add_argument('-f', '--source_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="L language gzipped list of word frequencies")
+    groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
     groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
     groupO.add_argument('-T', '--target_tokeniser_path', help="Target language tokeniser absolute path")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
-    groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=20, help="Number of max target words to be taken into account, sorted by length")
+    groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
     groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
     groupO.add_argument('-g', '--good_examples',  type=check_positive_or_zero, default=50000, help="Number of good examples")
     groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
     groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
     groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
-    groupO.add_argument('--classifier_type', choices=['svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="random_forest", help="Classifier type")
+    groupO.add_argument('--classifier_type', choices=['mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'svm_regressor'], default="extra_trees", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=check_positive, default=max(1, cpu_count()-1), help="Number of process to use")
     groupO.add_argument('--wrong_examples_file', type=argparse.FileType('r'), default=None, help="File with wrong examples extracted to replace the synthetic examples from method used by default")
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
+    groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -94,25 +110,32 @@ def initialization():
     groupO.add_argument('--lm_training_file_tl', type=str, help="TL text from which the TL LM is trained. If this parameter is not specified, TL LM is trained from the TL side of the input file, after removing --lm_dev_size sentences.")
     groupO.add_argument('--lm_clean_examples_file_sl', type=str, help="File with clean text in the SL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_sl and both files must not have common sentences. This option replaces --lm_dev_size.")
     groupO.add_argument('--lm_clean_examples_file_tl', type=str, help="File with clean text in the TL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_tl and both files must not have common sentences. This option replaces --lm_dev_size.")
-    
-    
+
+    groupO.add_argument('--porn_removal_train', type=argparse.FileType('r'), help="File with training dataset for FastText classifier. Each sentence must contain at the beginning the '__label__negative' or '__label__positive' according to FastText convention. It should be lowercased and tokenized.")
+    groupO.add_argument('--porn_removal_test', type=argparse.FileType('r'), help="Test set to compute precision and accuracy of the porn removal classifier")
+    groupO.add_argument('--porn_removal_file', type=str, help="Porn removal classifier output file")
+    groupO.add_argument('--porn_removal_side', choices=['sl','tl'], default="sl", help="Whether the porn removal should be applied at the source or at the target language.")
+
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
     groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
 
     args = parser.parse_args()
+    if args.seed is not None:
+        np.random.seed(args.seed)
+        random.seed(args.seed)
+
     # Logging
     logging_setup(args)
-    
-    logging_level = logging.getLogger().level    
-    
+    logging_level = logging.getLogger().level
+
     if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
         #Getting rid of INFO messages when Moses processes start
         logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
         logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
         logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
-    
+
     return args
 
 # Training function: receives two file descriptors, input and test, and a
@@ -124,17 +147,39 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     # Load features and labels and format them as numpy array
     for line in input_features:
-        parts=line.rstrip("\n").split("\t")
-        feats.append( [float(v) for v in parts[:-1] ] )
+        parts = line.rstrip("\n").split("\t")
+        feats.append([float(v) for v in parts[:-1]])
         labels.append(int(parts[-1]))
-        
+
     dataset = dict()
-    dataset['data']   = np.array(feats)
+    dataset['data'] = np.array(feats)
     dataset['target'] = np.array(labels)
-    
+
     # Train classifier
     if classifier_type == "svm":
-        clf = svm.SVC(gamma=0.001, C=100., probability=True)
+        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
+    elif classifier_type == "mlp":
+        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+    elif classifier_type == "extra_trees":
+        parameters = {
+            'criterion': ('gini','entropy'),
+            'n_estimators' : [100, 200, 300, 400, 500],
+        }
+        clf = ExtraTreesClassifier(bootstrap=True, class_weight=None,
+                criterion='gini',
+                max_depth=None,
+                max_features='auto',
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0,
+                min_impurity_split=None,
+                min_samples_leaf=1,
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0,
+                n_estimators=200, n_jobs=1,
+                oob_score=False,
+                random_state=0,
+                verbose=0,
+                warm_start=False)
     elif classifier_type == "nn":
         clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
     elif classifier_type == "nn1":
@@ -142,31 +187,46 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     elif classifier_type == "adaboost":
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
+        parameters = {
+            'criterion': ('gini','entropy'),
+            'n_estimators' : [100, 200, 300, 400, 500],
+        }
         clf = RandomForestClassifier(bootstrap=True, class_weight=None,
-                                     criterion='gini',
-                                     max_depth=2, 
-                                     max_features='auto', 
-                                     max_leaf_nodes=None,
-                                     min_impurity_decrease=0.0, 
-                                     min_impurity_split=None,
-                                     min_samples_leaf=1, 
-                                     min_samples_split=2,
-                                     min_weight_fraction_leaf=0.0, 
-                                     n_estimators=200, n_jobs=-1,
-                                     oob_score=False, 
-                                     random_state=0, 
-                                     verbose=0, 
-                                     warm_start=False)
+                criterion='gini',
+                max_depth=None,
+                max_features='auto',
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.0,
+                min_impurity_split=None,
+                min_samples_leaf=1,
+                min_samples_split=2,
+                min_weight_fraction_leaf=0.0,
+                n_estimators=200, n_jobs=1,
+                oob_score=False,
+                random_state=0,
+                verbose=0,
+                warm_start=False)
     else:
         logging.error("Unknown classifier: "+ classifier_type)
         sys.exit(1)
 
+    # If parameters is defined perform grid search
+    try:
+        parameters
+    except NameError:
+        pass
+    else:
+        clf = GridSearchCV(clf, parameters, n_jobs=-1)
+
     clf.fit(dataset['data'], dataset['target'])
 
     # Log sorted feature importances with their names
-    if classifier_type in ('random_forest', 'adaboost'):
+    if classifier_type in ('random_forest', 'adaboost', 'extra_trees'):
         feat_names = Features.cols + Features.optional
-        feat_dict = dict(zip(feat_names, clf.feature_importances_))
+        if isinstance(clf, GridSearchCV):
+            feat_dict = dict(zip(feat_names, clf.best_estimator_.feature_importances_))
+        else:
+            feat_dict = dict(zip(feat_names, clf.feature_importances_))
         sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
     else:
         sorted_feat = None
@@ -183,23 +243,21 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     dataset = np.array(feats)
     prediction = clf.predict_proba(dataset)
-    
+
     pos = 0
     good = []
     wrong = []
     for pred in prediction:
         if labels[pos] == 1:
-           good.append(pred[1])
+            good.append(pred[1])
         else:
-           wrong.append(pred[1])
+            wrong.append(pred[1])
         pos += 1
 
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
     return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
-
-
 
 # Writes all features of the input TUs into a temporary file
 def reduce_process(output_queue, output_file):
@@ -340,7 +398,18 @@ def perform_training(args):
     if count_input_lines < 10000:
         logging.error("Training corpus must be at least 10K sentences long (was {}).".format(count_input_lines))
         sys.exit(1)
-    
+
+    # Load dictionaries
+    if args.source_word_freqs:
+        args.sl_word_freqs = WordZipfFreqDist(args.source_word_freqs)
+    if args.target_word_freqs:
+        args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
+    else:
+        args.tl_word_freqs = None
+
+    # Train porn removal classifier
+    train_porn_removal(args)
+
     stats=None
     with open(input.name) as input_f:
         args.input=input_f
@@ -348,7 +417,13 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        total_size, length_ratio, good_sentences, wrong_sentences = shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        if args.target_tokeniser_path:
+            target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+        else:
+            target_tokeniser = MosesTokenizer(args.target_lang)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
+        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
+        target_tokeniser.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio
@@ -356,7 +431,6 @@ def perform_training(args):
     # Load dictionaries
     args.dict_sl_tl = ProbabilisticDictionary(args.source_dictionary)
     args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
-
 
     features_file = TemporaryFile('w+')
     # Start reducer
@@ -453,5 +527,4 @@ def main(args):
 
 if __name__ == '__main__':
     args = initialization()
-    print(args.classifier_type)
     main(args)

@@ -117,11 +117,14 @@ def main(args):
         #Noise removal
         if not re.match('^[-\w\']+$', source) or not re.match('^[-\w\']+$', target):
             continue
-        if "NULL" in [source, target]:
+        if target == "NULL":
             continue
         temp_file.write(target.lower())
         temp_file.write(" ")
-        temp_file.write(source.lower())
+        if source == "NULL":
+            temp_file.write(source)
+        else:
+            temp_file.write(source.lower())
         temp_file.write(" ")
         temp_file.write("{0:1.7f}\n".format(prob))
  

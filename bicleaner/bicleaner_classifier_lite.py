@@ -1,4 +1,4 @@
-#!/usr/bin/uenv python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -13,18 +13,21 @@ import numpy as np
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 from toolwrapper import ToolWrapper
-#from mosestokenizer import MosesTokenizer
 from sacremoses import MosesTokenizer
 
 #Allows to load modules while inside or outside the package
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
+    from .word_freqs_list import WordFreqList
+    from .word_freqs_zipf import WordZipfFreqDist
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
+    from word_freqs_list import WordFreqList
+    from word_freqs_zipf import WordZipfFreqDist
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
 
@@ -74,7 +77,8 @@ def initialization():
      
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
-        
+    groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+
     # Logging group
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -111,24 +115,36 @@ def initialization():
 
         try:
             args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
-        except:            
+        except:
             args.clf=joblib.load(metadata_yaml["classifier"])
-        
-#        args.clf.n_jobs = None    
+
+#        args.clf.n_jobs = None
         args.classifier_type=metadata_yaml["classifier_type"]
-        
-        
 
         try:
             args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["source_dictionary"]))
         except:
-            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
-        try:            
-            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))        
+            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])
+        try:
+            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))
         except:
-            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
-        
-                
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
+
+        try:
+            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
+        except:
+            try:
+                args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
+            except:
+                args.sl_word_freqs = None
+        try:
+            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
+        except:
+            try:
+                args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
+            except:
+                args.tl_word_freqs = None
+
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
@@ -156,9 +172,16 @@ def initialization():
         if not args.disable_lm_filter:
             if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
                 args.disable_lm_filter = True
-                logging.warning("Error loading metadata. LM filtering disabled.")
+                logging.warning("LM filter not present in metadata, disabling.")
         else:
             logging.info("LM filtering disabled")
+
+        if not args.disable_porn_removal:
+            if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
+                args.disable_porn_removal = True
+                logging.warning("Porn removal not present in metadata, disabling.")
+        else:
+            logging.info("Porn removal disabled")
                
         
                 
@@ -204,6 +227,16 @@ def classify(args):
     else:
         lm_filter = None
 
+    if not args.disable_porn_removal:
+        porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
+        if args.metadata_yaml['porn_removal_side'] == 'tl':
+            tokenizer = MosesTokenizer(args.target_lang)
+        else:
+            tokenizer = MosesTokenizer(args.source_lang)
+    else:
+        porn_removal = None
+        tokenizer = None
+
     for i in args.input:
         nline += 1
         parts = i.split("\t")
@@ -216,7 +249,7 @@ def classify(args):
         else:
             logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
                        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
             buf_sent.append((1, i))
             features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
             buf_feat.append([float(v) for v in features])

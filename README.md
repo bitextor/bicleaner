@@ -52,7 +52,7 @@ make -j all install
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
-After installation, four binary files (`bicleaner-train`, `bicleaner-train-lite`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
+After installation, three binary files (`bicleaner-train`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
 
 ## Cleaning
 
@@ -88,6 +88,7 @@ bicleaner-classify [-h]
                    [--score_only]
                    [--disable_hardrules]
                    [--disable_lm_filter]
+                   [--disable_porn_removal]
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -117,6 +118,8 @@ bicleaner-classify [-h]
   * `--lm_threshold LM_THRESHOLD`: Threshold for language model fluency scoring. All sentence pairs whose LM fluency score falls below the threshold are removed (classifier score set to 0), unless the option --keep_lm_result is set. (default: 0.5)
   * `--score_only`: Only output one column which is the bicleaner score (default: False)
   * `--disable_hardrules`: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
+  * `--disable_lm_filter`: Disables LM filtering.
+  * `--disable_porn_removal`: Disables porn removal.
 
 * Logging:
   * `-q, --quiet`: Silent logging mode (default: False)
@@ -158,14 +161,22 @@ whether a pair of sentences are mutual translations or not and discards too nois
 ### Requirements 
 
 In order to train a new classifier, you must provide:
-* A clean parallel corpus (100k pairs of sentences is the recommended size)
-* SL-to-TL and TL-to-SL gzipped probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs
+* A clean parallel corpus (100k pairs of sentences is the recommended size).
+* SL-to-TL and TL-to-SL gzipped probabilistic bilingual dictionaries. You can check their format by downloading any of the available language packs.
    * The SL-to-TL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: TL word, SL word, probability.
    * The TL-to-SL probabilistic bilingual dictionary must contain one entry per line. Each entry must contain the following 3 fields, split by space, in this order: SL word, TL word, probability.
    * We recommend filtering out entries with a very low probability: removing those with a probability 10 times lower than the maximum translation probability for each word speeds up the process and does not decrease accuracy.
    * Prior to inferring the probabilistic dictionaries, sentences must be tokenizer with the Moses tokenizer (with the `-a` flag) and lowercased.
    * You can uses Moses and MGIZA++ to obtain probabilistic dictionaries from a parallel corpus.
    * Please note that both target and source words in probabilistic bilingual dictionaries must be single words. 
+* Gzipped lists of monolingual word frequencies. You can check their format by downloading any of the available language packs.
+   * The SL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), SL word.
+   * The TL list of word frequencies with one entry per line. Each entry must contain the following 2 fields, split by space, in this order: word frequency (number of times a word appears in text), TL word.
+   * These lists can easily be obtained from a monolingual corpus (i.e. newscrawl or the same text used to train probabilistic bilingual dictionaries) and a command line in bash:
+```bash
+$ cat monolingual.SL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.SL.gz
+$ cat monolingual.TL | tokenizer.sh | tr ' ' '\n' | awk '{print tolower($0)' | sort | uniq -c | gzip > wordfreq.TL.gz
+```
 
 Optionally, if you want the classifier to include an improved fluency filter based on language models, you must also provide:
 * A monolingual corpus made ONLY of noisy sentences in the SL (100k sentences is the recommended size)
@@ -189,11 +200,11 @@ Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its no
                       [--tmp_dir TMP_DIR]
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
-                      [--
-                      _lang_ident]
+                      [--disable_lang_ident]
                       [--scol SCOL]
                       [--tcol TCOL]
                       [--disable_lm_filter] 
+                      [--disable_porn_removal]
                       [--metadata METADATA]
                       [--lm_threshold LM_THRESHOLD]
                       [-q] 
@@ -205,8 +216,8 @@ Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its no
 
 where `INPUT_FILE` contains a sentence-aligned parallel corpus, with a sentence pair per line. Sentences are split by tab. `OUTPUT_FILE` will contain all the input sentences, with an extra score column with `0` (if the sentence is noisy and should be discarded) or `1` (if the sentence is ok). When the `--annotated_output` flag is in use, `OUTPUT_FILE` will contain another extra column, specifying the heuristic rule applied to decide discarding each sentence (or `keep`, if the sentence is ok and should not be discarded). If the `--disable_lang_ident` flag is in use, rules that require language identification are not used. '--scol' and '--tcol' allow to indicate which columns contains source and target in the input file (default: `1`and `2`, respectively).
 
-In order to use the LM filtering, you must provide the `--metadata` (it is: the .yaml file generated by Bicleaner training).
-To disable LM filtering, just use the `--disable_lm_filter` flag.
+In order to use the LM filtering and/or porn removal, you must provide the `--metadata` (it is: the .yaml file generated by Bicleaner training).
+To disable LM filtering and/or porn removal, just use the `--disable_lm_filter` and/or `--disable_porn_removal` flags.
 
 You can then obtain the monolingual noisy corpora by "cutting" the appropriate columns (after running `bicleaner-hardrules` with the `--annotated_output` flag). Asuming scol=1 and tcol=2, and no more columns in the input corpus (so the hardrules score is the 3rd column in the output):
 
@@ -230,45 +241,50 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
 
 
 ```bash
- bicleaner-train [-h]
-                 -m METADATA              
-                 -c CLASSIFIER 
-                 -s SOURCE_LANG 
-                 -t TARGET_LANG 
-                 -d SOURCE_TO_TARGET_DICTIONARY 
-                 -D TARGET_TO_SOURCE_DICTIONARY               
-                 [-S SOURCE_TOKENISER_PATH]
-                 [-T TARGET_TOKENISER_PATH]
-                 [--normalize_by_length]
-                 [--treat_oovs]
-                 [--qmax_limit QMAX_LIMIT]
-                 [--disable_features_quest]
-                 [-g GOOD_EXAMPLES]
-                 [-w WRONG_EXAMPLES]
-                 [--good_test_examples GOOD_TEST_EXAMPLES]
-                 [--wrong_test_examples WRONG_TEST_EXAMPLES]
-                 [--classifier_type {svm,nn,nn1,adaboost,random_forest}]
-                 [--dump_features DUMP_FEATURES]
-                 [-b BLOCK_SIZE]
-                 [-p PROCESSES]
-                 [--wrong_examples_file WRONG_EXAMPLES_FILE]
-                 [--features_version FEATURES_VERSION]
-                 [--disable_lang_ident]
-                 [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
-                 [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
-                 [--lm_dev_size LM_DEV_SIZE]
-                 [--lm_file_sl LM_FILE_SL]
-                 [--lm_file_tl LM_FILE_TL]
-                 [--lm_training_file_sl LM_TRAINING_FILE_SL]
-                 [--lm_training_file_tl LM_TRAINING_FILE_TL]
-                 [--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL]
-                 [--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL]
-                 [-q]
-                 [--debug]
-                 [--logfile LOGFILE]
-                 [input]
-                 
-```                          
+bicleaner_train.py [-h]
+    -m METADATA
+    -c CLASSIFIER
+    -s SOURCE_LANG
+    -t TARGET_LANG
+    -d SOURCE_DICTIONARY
+    -D TARGET_DICTIONARY
+    -f SOURCE_WORD_FREQS
+    -F TARGET_WORD_FREQS
+    [-S SOURCE_TOKENISER_PATH]
+    [-T TARGET_TOKENISER_PATH]
+    [--normalize_by_length]
+    [--treat_oovs]
+    [--qmax_limit QMAX_LIMIT]
+    [--disable_features_quest]
+    [-g GOOD_EXAMPLES]
+    [-w WRONG_EXAMPLES]
+    [--good_test_examples GOOD_TEST_EXAMPLES]
+    [--wrong_test_examples WRONG_TEST_EXAMPLES]
+    [--classifier_type {mlp,svm,nn,nn1,adaboost,random_forest,extra_trees}]
+    [--dump_features DUMP_FEATURES]
+    [-b BLOCK_SIZE]
+    [-p PROCESSES]
+    [--wrong_examples_file WRONG_EXAMPLES_FILE]
+    [--features_version FEATURES_VERSION]
+    [--disable_lang_ident]
+    [--seed SEED]
+    [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
+    [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
+    [--lm_dev_size LM_DEV_SIZE]
+    [--lm_file_sl LM_FILE_SL]
+    [--lm_file_tl LM_FILE_TL]
+    [--lm_training_file_sl LM_TRAINING_FILE_SL]
+    [--lm_training_file_tl LM_TRAINING_FILE_TL]
+    [--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL]
+    [--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL]
+    [--porn_removal_train PORN_REMOVAL_TRAIN]
+    [--porn_removal_test PORN_REMOVAL_TEST]
+    [--porn_removal_file PORN_REMOVAL_FILE]
+    [--porn_removal_side {sl,tl}]
+    [-q] [--debug] [--logfile LOGFILE]
+    [input]
+
+```
 
 * positional arguments:
   * `input`: Tab-separated bilingual input file (default: Standard input)(line format: SOURCE_SENTENCE TARGET_SENTENCE, tab-separated)
@@ -276,11 +292,13 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * `-h, --help`: show this help message and exit
 * Mandatory:
   * `-m METADATA, --metadata METADATA`: Output training metadata (YAML file) that will be created after training.
-  * `-c CLASSIFIER, --classifier CLASSIFIER`: Classifier data file that will be created after training. 
-  * `-s SOURCE_LANG, --source_lang SOURCE_LANG`: Source language code 
+  * `-c CLASSIFIER, --classifier CLASSIFIER`: Classifier data file that will be created after training.
+  * `-s SOURCE_LANG, --source_lang SOURCE_LANG`: Source language code
   * `-t TARGET_LANG, --target_lang TARGET_LANG`: Target language code
-  * `-d SOURCE_TO_TARGET_DICTIONARY, --source_dictionary SOURCE_TO_TARGET_DICTIONARY`: SL-to-TL gzipped probabilistic dictionary 
+  * `-d SOURCE_TO_TARGET_DICTIONARY, --source_dictionary SOURCE_TO_TARGET_DICTIONARY`: SL-to-TL gzipped probabilistic dictionary
   * `-D TARGET_TO_SOURCE_DICTIONARY, --target_dictionary TARGET_TO_SOURCE_DICTIONARY`: TL-to-SL gzipped probabilistic dictionary
+  * `-f SOURCE_WORD_FREQ_DICTIONARY, --source_word_freqs SOURCE_WORD_FREQ_DICTIONARY`: SL gzipped word frequencies dictionary
+  * `-F TARGET_WORD_FREQ_DICTIONARY, --target_word_freqs TARGET_WORD_FREQ_DICTIONARY`: TL gzipped word frequencies dictionary
 * Options:
   * `-S SL_TOKENIZER_PATH`: Source language tokenizer absolute path. If not given, Moses tokenizer is used.
   * `-T TL_TOKENIZER_PATH`: Target language tokenizer absolute path. If not given, Moses tokenizer is used.
@@ -308,6 +326,10 @@ It can be used as follows. Note that the parameters `--noisy_examples_file_sl`, 
   * `--lm_training_file_tl LM_TRAINING_FILE_TL`: TL text from which the TL LM is trained. If this parameter is not specified, TL LM is trained from the TL side of the input file, after removing --lm_dev_size sentences.
   * `--lm_clean_examples_file_sl LM_CLEAN_EXAMPLES_FILE_SL`: File with clean text in the SL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_sl and both files must not have common sentences. This option replaces --lm_dev_size.
   * `--lm_clean_examples_file_tl LM_CLEAN_EXAMPLES_FILE_TL`: File with clean text in the TL. Used to estimate the perplexity of clean text. This option must be used together with --lm_training_file_tl and both files must not have common sentences. This option replaces --lm_dev_size."
+  * `--porn_removal_train PORN_REMOVAL_TRAIN`: File with training dataset for porn removal classifier. Each sentence must contain at the beginning the `'__label__negative'` or `'__label__positive'` according to FastText [convention](https://fasttext.cc/docs/en/supervised-tutorial.html#getting-and-preparing-the-data). It should be lowercased and tokenized.
+  * `--porn_removal_test PORN_REMOVAL_TEST`: Test set to compute precision and accuracy of the porn removal classifier.
+  * `--porn_removal_file PORN_REMOVAL_FILE`: Porn removal classifier output file.
+  * `--porn_removal_side {sl,tl}`: Whether the porn removal should be applied at the source or at the target language. (default: sl)
 * Logging:
   * `-q, --quiet`: Silent logging mode (default: False)
   * `--debug`: Debug logging mode (default: False)
@@ -324,6 +346,8 @@ bicleaner-train \
           -t cs \
           -d dict-en-cs.gz \
           -D dict-cs-en.gz \
+          -f wordfreqs-en.gz \
+          -F wordfreqs-cs.gz \
           -b 1000 \
           -c en-cs.classifier \
           -g 50000 \
@@ -332,7 +356,7 @@ bicleaner-train \
           --classifier_type random_forest
 ```
 
-This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train and the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`. 
+This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train, the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`, and the word frequency dictionaries `wordfreqs-en.gz` and `wordfreqs-cs.gz`.
 This training will use 50000 good and 50000 bad examples, and a block size of 1000 sentences.
 The classifier data will be stored in `en-cs.classifier`, with the metadata in `training.en-cs.yaml`. The improved fluency language model filter will not be included.
 
@@ -345,6 +369,8 @@ source_lang: en
 target_lang: cs
 source_dictionary: dict-en-cs.gz
 target_dictionary: dict-cs-en.gz
+source_word_freqs: wordfreqs-en.gz
+target_word_freqs: wordfreqs-cs.gz
 normalize_by_length: True
 treat_oovs: True
 qmax_limit: 20
@@ -371,9 +397,10 @@ disable_lang_ident: False
 
 ```
 
-## Lite versions
+## Lite version
 
-Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread versions of Bicleaner scripts are provided: `bicleaner-train-lite` and `bicleaner-classify-lite`. The usage is exactly the same as for the full versions, but omitting the blocksize (-b) and processes (-p) parameter.
+Although `bicleaner-train` and `bicleaner-classify` make use of parallelization by distributing workload to the available cores, some users might prefer to implement their own parallelization strategies. For that reason, single-thread version of Bicleaner classifier script is provided: `bicleaner-classify-lite`. The usage is exactly the same as for the full version, but omitting the blocksize (-b) and processes (-p) parameter.
+**Note**: `bicleaner-train-lite` was removed due to the lack of usage by the users and to avoid code duplication.
 
 ___
 
