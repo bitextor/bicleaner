@@ -21,7 +21,8 @@ from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+#from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
 
 #Allows to load modules while inside or outside the package
 try:
@@ -229,11 +230,11 @@ def classifier_process(i, jobs_queue, output_queue, args):
     if args.source_tokeniser_path:    
         source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
     else:
-        source_tokeniser = MosesTokenizer(args.source_lang)
+        source_tokeniser = MosesTokenizer(lang=args.source_lang)
     if args.target_tokeniser_path:
         target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
     else:
-        target_tokeniser = MosesTokenizer(args.target_lang)
+        target_tokeniser = MosesTokenizer(lang=args.target_lang)
         
     '''
     #Load LM for fluency scoring

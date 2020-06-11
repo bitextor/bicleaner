@@ -22,7 +22,8 @@ import sklearn
 import sys
 import json
 from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+#from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
 
 #Allows to load modules while inside or outside the package  
 try:

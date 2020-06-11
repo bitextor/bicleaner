@@ -10,7 +10,8 @@ import joblib
 from tempfile import TemporaryFile, NamedTemporaryFile
 from timeit import default_timer
 from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+#from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
 
 import argparse
 import logging

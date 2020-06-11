@@ -343,7 +343,7 @@ def wrong_tu(left, right, args, lm_filter = None):
         return "c_reliable_long_language(left, sourcelang)"
     elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
-    elif  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
+    if  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
         return "lm_filter.score(left, right) < args.lm_threshold"
     return False
     

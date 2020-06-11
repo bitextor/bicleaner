@@ -13,7 +13,8 @@ import numpy as np
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
 from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+#from mosestokenizer import MosesTokenizer
+from sacremoses import MosesTokenizer
 
 #Allows to load modules while inside or outside the package
 try:
