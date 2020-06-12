@@ -365,13 +365,9 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, doub
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
-        
-        #target_tokeniser.writeline(parts[1].rstrip('\n'))
-        #t_toks = target_tokeniser.readline().rstrip('\n').split()
-        
-        tt = target_tokeniser.tokenize(parts[1].rstrip('\n'), escape=False)
-        t_toks = tt.rstrip('\n').split()    
-    
+
+        t_toks = target_tokeniser.tokenize(parts[1], escape=False)
+
         parts[1] = " ".join(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
@@ -400,9 +396,7 @@ def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, target
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
-        target_tokeniser.writeline(parts[1].rstrip('\n'))
-        t_toks = target_tokeniser.readline().rstrip('\n').split()
-        parts[1] = " ".join(remove_words_randomly_from_sentence(t_toks))
+        t_toks = target_tokeniser.tokenize(parts[1], escape=False)
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
         wrong_sentences.write(parts[1])

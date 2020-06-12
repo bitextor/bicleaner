@@ -293,10 +293,9 @@ def c_no_glued_words(sentence):
 
 def c_no_porn(left, right, model, side, tokenizer):
     if side == "sl":
-        t = tokenizer.tokenize(left.rstrip('\n'), escape=False)
+        t = tokenizer.tokenize(left.lower(), escape=False)
     else:
-        t = tokenizer.tokenize(right.rstrip('\n'), escape=False) 
-    tok = t.lower()
+        t = tokenizer.tokenize(right.lower(), escape=False)
     return model.predict(tok)[0][0] == '__label__negative'
 
 def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, tokenizer = None):
