@@ -320,33 +320,19 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         valid_sentences.append(False)
 
-                try:
-                    predictions_prob = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
-                except AttributeError:
-                    predictions_prob = None
-                    pass
-                predictions = args.clf.predict(np.array(feats)) if len(feats) > 0 else []
+                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
 
                 piter = iter(predictions)
-                if predictions_prob is not None:
-                    piter_prob = iter(predictions_prob)
 
                 for i, valid_sentence in zip(filein, valid_sentences):
                     if valid_sentence:
                         p = next(piter)
-                        if predictions_prob is not None:
-                            p_prob = next(piter_prob)
                         if args.score_only:
-                            fileout.write("{0:.3f}".format((p_prob[1])))
-                            fileout.write("\t")
-                            fileout.write("{0:.3f}".format((p)))
+                            fileout.write("{0:.3f}".format(p[1]))
                         else:
                             fileout.write(i.strip())
-                            fileout.write("\t")
-                            fileout.write("{0:.3f}".format((p_prob[1])))
-                            fileout.write("\t")
-                            fileout.write("{0:.3f}".format((p)))
+                            fileout.write("\t{0:.3f}".format(p[1]))
 
                         fileout.write("\n")
                     else:

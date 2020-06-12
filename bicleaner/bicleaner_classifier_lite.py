@@ -267,8 +267,7 @@ def classify(args):
                         args.output.write("{0:.3f}".format((next(p)[1])))
                     else:
                         args.output.write(l.strip())
-                        args.output.write("\t")
-                        args.output.write("{0:.3f}".format((next(p)[1])))                       
+                        args.output.write("\t{0:.3f}".format((next(p)[1])))                       
                     args.output.write("\n")
                 else:
                     if args.score_only:
