@@ -340,8 +340,8 @@ def worker_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
-            source_tokeniser.close()
-            target_tokeniser.close()
+            #source_tokeniser.close()
+            #target_tokeniser.close()
             break
 
 # Divides the input among processors to speed up the throughput
@@ -423,7 +423,7 @@ def perform_training(args):
             target_tokeniser = MosesTokenizer(args.target_lang)
         total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
         #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
-        target_tokeniser.close()
+        #target_tokeniser.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio
