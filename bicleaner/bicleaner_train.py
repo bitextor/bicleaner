@@ -81,8 +81,8 @@ def initialization():
     groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
-    groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
-    groupO.add_argument('-T', '--target_tokeniser_path', help="Target language tokeniser absolute path")
+    groupO.add_argument('-S', '--source_tokenizer_path', help="Source language tokenizer absolute path")
+    groupO.add_argument('-T', '--target_tokenizer_path', help="Target language tokenizer absolute path")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
@@ -306,14 +306,14 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    if args.source_tokeniser_path:
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    if args.source_tokenizer_path:
+        source_tokenizer = ToolWrapper(args.source_tokenizer_path.split(' '))
     else:
-        source_tokeniser = MosesTokenizer(args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+        source_tokenizer = MosesTokenizer(args.source_lang)
+    if args.target_tokenizer_path:
+        target_tokenizer = ToolWrapper(args.target_tokenizer_path.split(' '))
     else:
-        target_tokeniser = MosesTokenizer(args.target_lang)
+        target_tokenizer = MosesTokenizer(args.target_lang)
     while True:
         job = jobs_queue.get()
         if job:
@@ -326,7 +326,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                     srcsen,trgsen = i.split("\t")[:2]
                     trgsen = trgsen.strip()
 #                    print(str(srcsen) + " --- " + str(trgsen))
-                    features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
+                    features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
                     
                     for j in features:
                         fileout.write("{}".format(j))
@@ -340,8 +340,8 @@ def worker_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
-            #source_tokeniser.close()
-            #target_tokeniser.close()
+            #source_tokenizer.close()
+            #target_tokenizer.close()
             break
 
 # Divides the input among processors to speed up the throughput
@@ -417,13 +417,13 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        if args.target_tokeniser_path:
-            target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+        if args.target_tokenizer_path:
+            target_tokenizer = ToolWrapper(args.target_tokenizer_path.split(' '))
         else:
-            target_tokeniser = MosesTokenizer(args.target_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
+            target_tokenizer = MosesTokenizer(args.target_lang)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokenizer)
         #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
-        #target_tokeniser.close()
+        #target_tokenizer.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio

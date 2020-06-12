@@ -77,8 +77,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
-    groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+    groupO.add_argument("-S", "--source_tokenizer_path", type=str, help="Source language (SL) tokenizer executable absolute path")
+    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenixer executable absolute path")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -125,10 +125,10 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokeniser_path" in metadata_yaml:
-            args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        if "target_tokeniser_path" in metadata_yaml:
-            args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
+        if "source_tokenizer_path" in metadata_yaml:
+            args.source_tokenizer_path=metadata_yaml["source_tokenizer_path"]
+        if "target_tokenizer_path" in metadata_yaml:
+            args.target_tokenizer_path=metadata_yaml["target_tokenizer_path"]        
 
         try:
             args.clf=joblib.load( os.path.join(yamlpath , metadata_yaml["classifier"]))
@@ -250,14 +250,14 @@ def initialization():
 
 def classifier_process(i, jobs_queue, output_queue, args):
     
-    if args.source_tokeniser_path:    
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
+    if args.source_tokenizer_path:    
+        source_tokenizer = ToolWrapper(args.source_tokenizer_path.split(' '))
     else:
-        source_tokeniser = MosesTokenizer(lang=args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
+        source_tokenizer = MosesTokenizer(lang=args.source_lang)
+    if args.target_tokenizer_path:
+        target_tokenizer = ToolWrapper(args.target_tokenizer_path.split(' '))
     else:
-        target_tokeniser = MosesTokenizer(lang=args.target_lang)
+        target_tokenizer = MosesTokenizer(lang=args.target_lang)
         
     '''
     #Load LM for fluency scoring
@@ -313,7 +313,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         
                     if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
                         
                         feats.append([float(v) for v in features])
                         valid_sentences.append(True)
