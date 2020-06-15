@@ -14,7 +14,13 @@ import argparse
 import logging
 import numpy
 import regex
-from sacremoses import MosesTokenizer, MosesPunctNormalizer
+from sacremoses import MosesPunctNormalizer
+
+try:
+    from .tokenizer import Tokenizer
+except (SystemError, ImportError):
+    from tokenizer import Tokenizer     
+
 
 
 class LMType(Enum):

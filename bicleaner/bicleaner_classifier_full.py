@@ -20,8 +20,8 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from toolwrapper import ToolWrapper
-from sacremoses import MosesTokenizer
+#from toolwrapper import ToolWrapper
+#from sacremoses import MosesTokenzer
 
 #Allows to load modules while inside or outside the package
 try:
@@ -29,18 +29,18 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_list import WordFreqList
     from .word_freqs_zipf import WordZipfFreqDist
-
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
-
+    from .tokenizer import Tokenizer
+    
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from word_freqs_list import WordFreqList
     from word_freqs_zipf import WordZipfFreqDist
-
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
+    from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -78,7 +78,7 @@ def initialization():
     # Options group
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokenizer_path", type=str, help="Source language (SL) tokenizer executable absolute path")
-    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenixer executable absolute path")
+    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenizer executable absolute path")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -110,11 +110,11 @@ def initialization():
 
     logging_level = logging.getLogger().level    
     
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+#        #Getting rid of INFO messages when Moses processes start
+#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
 
             
     try: 
@@ -250,14 +250,9 @@ def initialization():
 
 def classifier_process(i, jobs_queue, output_queue, args):
     
-    if args.source_tokenizer_path:    
-        source_tokenizer = ToolWrapper(args.source_tokenizer_path.split(' '))
-    else:
-        source_tokenizer = MosesTokenizer(lang=args.source_lang)
-    if args.target_tokenizer_path:
-        target_tokenizer = ToolWrapper(args.target_tokenizer_path.split(' '))
-    else:
-        target_tokenizer = MosesTokenizer(lang=args.target_lang)
+    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+
         
     '''
     #Load LM for fluency scoring
@@ -276,12 +271,12 @@ def classifier_process(i, jobs_queue, output_queue, args):
     if not args.disable_porn_removal:
         porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            tokenizer = MosesTokenizer(args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
         else:
-            tokenizer = MosesTokenizer(args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
     else:
         porn_removal = None
-        tokenizer = None
+        porn_tokenizer = None
 
     while True:
         job = jobs_queue.get()
@@ -311,7 +306,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
                         features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
                         

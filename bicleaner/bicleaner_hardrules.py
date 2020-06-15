@@ -15,16 +15,18 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from sacremoses import MosesTokenizer
+#from sacremoses import MosesTokenizer
 
 
 #Allows to load modules while inside or outside the package
 try:
     from .util import logging_setup, check_positive, check_positive_between_zero_and_one
     from .lm import DualLMFluencyFilter,LMType, DualLMStats
+    from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from util import logging_setup, check_positive, check_positive_between_zero_and_one
     from lm import DualLMFluencyFilter,LMType, DualLMStats
+    from tokenizer import Tokenizer 
 
 regex_blank = regex.compile("[ \u00A0]")
 regex_digit = regex.compile("[[:digit:]]")
@@ -91,11 +93,11 @@ def initialization():
     
     logging_level = logging.getLogger().level
     
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
         #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
+#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
+#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
+#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
     
     # Ensure that directory exists; if not, create it
     if not os.path.exists(args.tmp_dir):
@@ -291,14 +293,14 @@ def c_no_escaped_unicode(sentence):
 def c_no_glued_words(sentence):
     return regex_glued_words.search(sentence) == None
 
-def c_no_porn(left, right, model, side, tokenizer):
+def c_no_porn(left, right, model, side, porn_tokenizer):
     if side == "sl":
-        t = tokenizer.tokenize(left.lower(), escape=False)
+        t = porn_tokenizer.tokenize(left.lower())
     else:
-        t = tokenizer.tokenize(right.lower(), escape=False)
+        t = porn_tokenizer.tokenize(right.lower())
     return model.predict(tok)[0][0] == '__label__negative'
 
-def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, tokenizer = None):
+def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, porn_tokenizer = None):
     if len(left) >= 1024:
         return "len(left) >= 1024"
     if len(right) >= 1024:
@@ -377,7 +379,7 @@ def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, tokenizer
         return "c_reliable_long_language(left, sourcelang)"
     elif (not args.disable_lang_ident and  not c_reliable_long_language(right, args.target_lang)):
         return "c_reliable_long_language(right, targetlang)"
-    elif not args.disable_porn_removal and porn_removal != None and not c_no_porn(left, right, porn_removal, args.metadata_yaml['porn_removal_side'], tokenizer):
+    elif not args.disable_porn_removal and porn_removal != None and not c_no_porn(left, right, porn_removal, args.metadata_yaml['porn_removal_side'], porn_tokenizer):
         return "c_no_porn"
     elif  args.disable_lm_filter == False and lm_filter != None and lm_filter.score(left, right) < args.lm_threshold:    
         return "lm_filter.score(left, right) < args.lm_threshold"
@@ -436,12 +438,12 @@ def worker_process(i, jobs_queue, output_queue, args):
     if not args.disable_porn_removal:
         porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            tokenizer = MosesTokenizer(args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
         else:
-            tokenizer = MosesTokenizer(args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
     else:
         porn_removal = None
-        tokenizer = None
+        porn_tokenizer = None
 
     while True:
         job = jobs_queue.get()
@@ -463,7 +465,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("WARNING: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))        
                         continue
-                    wrong_tu_results = wrong_tu(left,right, args, lm_filter, porn_removal, tokenizer)
+                    wrong_tu_results = wrong_tu(left,right, args, lm_filter, porn_removal, porn_tokenizer)
                     if wrong_tu_results != False:
                         fileout.write("\t".join(parts)+"\t0")
                         if args.annotated_output:                            

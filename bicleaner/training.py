@@ -257,7 +257,7 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, target_tokenizer=None):
+def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noise_tokenizer=None):
     logging.info("Shuffle starts")
     good_sentences  = TemporaryFile("w+")
     wrong_sentences = TemporaryFile("w+")
@@ -325,10 +325,10 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             deletion_noise_end_offset = end_wrong_offsets
             if double_linked_zipf_freqs is not None:
                 frequence_based_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
-                                     double_linked_zipf_freqs, target_tokenizer)
+                                     double_linked_zipf_freqs, noise_tokenizer)
             shuffle_noise(freq_noise_end_offset+1, shuf_noise_end_offset, offsets, temp, wrong_sentences)
             missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
-                                target_tokenizer)
+                                noise_tokenizer)
         temp.close()
     logging.info("Shuffling ends")
 
@@ -360,13 +360,13 @@ def shuffle_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, double_linked_zipf_freqs,
-                         target_tokenizer):
+                         noise_tokenizer):
     for i in offsets[from_idx:to_idx+1]:
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
 
-        t_toks = target_tokenizer.tokenize(parts[1], escape=False)
+        t_toks = noise_tokenizer.tokenize(parts[1])
 
         parts[1] = " ".join(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
         wrong_sentences.write(parts[0])
@@ -391,12 +391,12 @@ def add_freqency_replacement_noise_to_sentence(sentence, double_linked_zipf_freq
 
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, target_tokenizer):
+def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, noise_tokenizer):
     for i in offsets[from_idx:to_idx+1]:
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
-        t_toks = target_tokenizer.tokenize(parts[1], escape=False)
+        t_toks = noise_tokenizer.tokenize(parts[1])
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
         wrong_sentences.write(parts[1])
