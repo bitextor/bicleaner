@@ -93,8 +93,8 @@ def train_fluency_filter(args):
         logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
         logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
     else:
-        logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the Random Forest classifier), after randomly removing {} sentences".format(args.lm_dev_size))
-        logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the Random Forest classifier): {} sentences".format(args.lm_dev_size))
+        logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the classifier), after randomly removing {} sentences".format(args.lm_dev_size))
+        logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the classifier): {} sentences".format(args.lm_dev_size))
        
         
         lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
@@ -112,7 +112,7 @@ def train_fluency_filter(args):
         logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
 
     try:
-        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang)
+        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang, args.source_tokenizer_path, args.target_tokenizer_path)
         stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
     finally:
         if inputIsTmp:

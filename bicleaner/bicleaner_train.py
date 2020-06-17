@@ -50,7 +50,7 @@ except (SystemError, ImportError):
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
-    
+    from tokenizer import Tokenizer    
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.

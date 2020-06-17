@@ -52,14 +52,14 @@ class UnicodeWordClassifier:
 
 class LMFluencyFilter:
     
-    def __init__(self, lm_type:LMType , language:str):
+    def __init__(self, lm_type:LMType , language:str, tokenizer_path):
         """
             lm_type: LMType
             language: language code
         """
         
         self.language=language
-        self.tokenizer=MosesTokenizer(lang=self.language)
+        self.tokenizer=Tokenizer(tokenizer_path, self.language)
         self.normalizer=MosesPunctNormalizer(lang=self.language)
 #        self.splitter=sent_tokenize()
         self.type=lm_type
@@ -104,7 +104,7 @@ class LMFluencyFilter:
         sentence=self.normalizer.normalize(sentence)
 
         if self.type != LMType.CHARACTER:
-            tokline=" ".join(self.tokenizer.tokenize(sentence, escape=False))
+            tokline=" ".join(self.tokenizer.tokenize(sentence))
         else:
             tokline=" ".join([ "SPACE" if c == " " else c for c in sentence  ])
         return tokline
@@ -220,9 +220,9 @@ class DualLMStats:
             return 1-  ((perp - self.upper_limit) /( self.middle_point - self.upper_limit ) )*0.5 
 
 class DualLMFluencyFilter:
-    def __init__(self, lm_type:LMType , sl:str, tl:str):
-        self.sl_filter=LMFluencyFilter(lm_type,sl)
-        self.tl_filter=LMFluencyFilter(lm_type,tl)
+    def __init__(self, lm_type:LMType , sl:str, tl:str, sl_tokenizer, tl_tokenizer):
+        self.sl_filter=LMFluencyFilter(lm_type,sl, sl_tokenizer)
+        self.tl_filter=LMFluencyFilter(lm_type,tl, tl_tokenizer)
         self.scoring_stats=None
     
     def load(self,sl_lm_path:str,tl_lm_path:str,stats: DualLMStats):
@@ -263,6 +263,9 @@ if __name__ == "__main__":
     parser.add_argument("--lm_file_b")
     parser.add_argument("--stats_file_clean")
     parser.add_argument("--stats_file_noisy")
+
+    parser.add_argument("--tokenizer_path", default=None)
+    parser.add_argument("--tokenizer_path_b", default=None)
     
     parser.add_argument("--debug",action='store_true')
     
@@ -273,28 +276,28 @@ if __name__ == "__main__":
     
     
     if args.train:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_path)
         ff.train_lm(args.corpus)
         ff.copy_lm(args.lm_file)
         ff.cleanup()
     
     if args.score:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_path)
         ff.load_lm(args.lm_file)
         with open(args.corpus) as corpus_f:
             for line in corpus_f:
                 line=line.rstrip("\n")
                 print(ff.score(line))
     if args.stats:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_path)
         ff.load_lm(args.lm_file)
-        ff_b=LMFluencyFilter(args.lm_type, args.language_b)
+        ff_b=LMFluencyFilter(args.lm_type, args.language_b, args.tokenizer_path_b)
         ff_b.load_lm(args.lm_file_b)
         mean,stdev=LMFluencyFilter.estimate_threshold(ff,ff_b,args.corpus,args.corpus_b)
         print("{} {}".format(mean,stdev))
     
     if args.score_dual:
-        ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b)
+        ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b, args.tokenizer_path, args.tokenizer_path_b)
         with open(args.stats_file_clean) as stats_f:
             content=stats_f.readline().strip()
             clean_mean=float(content.split(" ")[0])

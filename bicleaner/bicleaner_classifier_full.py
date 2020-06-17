@@ -178,32 +178,7 @@ def initialization():
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
-        
-        '''
-        #Load LM stuff if model was trained with it 
-        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
-            if os.path.isfile(fullpath_source_lm):
-                args.source_lm= fullpath_source_lm
-            else:
-                args.source_lm= metadata_yaml['source_lm']
-            
-            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
-            if os.path.isfile(fullpath_target_lm):
-                args.target_lm=fullpath_target_lm
-            else:
-                args.target_lm=metadata_yaml['target_lm']
-            
-            
-            args.lm_type=LMType[metadata_yaml['lm_type']]
-            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            args.lm_filter_stats=stats
-        else:
-            args.source_lm=None
-            args.target_lm=None
-            args.lm_type=None
-            args.lm_filter_stats=None
-        '''           
+
 
         #Try loading metadata for LM filtering                  
         if not args.disable_lm_filter:
@@ -251,20 +226,10 @@ def initialization():
 def classifier_process(i, jobs_queue, output_queue, args):
     
     source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
-
-        
-    '''
-    #Load LM for fluency scoring
-    lm_filter=None
-    if args.source_lm and args.target_lm:
-
-        lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
-        lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
-    '''
+    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)        
 
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
     else:
         lm_filter = None
 

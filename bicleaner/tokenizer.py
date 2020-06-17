@@ -11,18 +11,26 @@ except (SystemError, ImportError):
 
 class Tokenizer:
     def __init__(self, path=None,  l="en"):
-        if args.path:        
-            tokenizer=ToolWrapper(args.path.split(' '))
-            external =  True         
+        if path:        
+            self.tokenizer=ToolWrapper(path.split(' '))
+            self.external =  True         
         else:
-            tokenizer = MosesTokenizer(lang=l)
-            external = False
+            self.tokenizer = MosesTokenizer(lang=l)
+            self.external = False
           
     
     def tokenize(self, text):
         if self.external:
             self.tokenizer.writeline(text.rstrip('\n'))
-            return ([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split())
+            #print([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split()])
+            return ([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split()])
         else:   
+#            print (" ***************************************************************** SUPER WARNING ********************************************************************************" )
             return self.tokenizer.tokenize(text, escape=False)
-                
+
+    def close(self):
+        if self.external:
+            try:
+                self.tokenizer.close()                
+            except:
+                return

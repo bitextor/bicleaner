@@ -220,7 +220,7 @@ def classify(args):
     target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
     
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
     else:
         lm_filter = None
 

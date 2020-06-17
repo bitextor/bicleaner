@@ -74,6 +74,10 @@ def initialization():
     groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=2, type=check_positive, help ="Target sentence column (starting in 1)")  
     
+    groupO.add_argument("-S", "--source_tokenizer_path", default=None, type=str, help="Source language (SL) tokenizer executable absolute path")
+    groupO.add_argument("-T", "--target_tokenizer_path", default=None, type=str, help="Target language (TL) tokenizer executable absolute path")
+
+    
     #LM  filtering
     groupO.add_argument('--disable_lm_filter', default=False, action='store_true', help="Don't apply LM filtering")
     groupO.add_argument('--metadata', type=argparse.FileType('r'), default=None, help="Training metadata (YAML file)")    
@@ -103,6 +107,7 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
+        
     #Try loading metadata for LM filtering and porn removal
     if not (args.disable_lm_filter and args.disable_porn_removal) and args.metadata != None:
         logging.info("Loading metadata info")
@@ -117,7 +122,14 @@ def initialization():
             if not ("porn_removal_file" in args.metadata_yaml):
                 args.disable_porn_removal = True
                 logging.warning("Porn removal classifier not present in metadata.")
+
+            if "source_tokenizer_path" in args.metadata_yaml:
+                args.source_tokenizer_path=args.metadata_yaml["source_tokenizer_path"]
+            if "target_tokenizer_path" in args.metadata_yaml:
+                args.target_tokenizer_path=args.metadata_yaml["target_tokenizer_path"]                
+    
             parser.set_defaults(**args.metadata_yaml)
+            
         except:
             logging.warning("Error loading metadata.")
             args.disable_lm_filter  = True
@@ -137,11 +149,11 @@ def initialization():
 
     return args
     
-def load_lm_filter(source_lang, target_lang, metadata_yaml):
+def load_lm_filter(source_lang, target_lang, metadata_yaml, source_tokenizer_path, target_tokenizer_path):
     
     logging.debug("Loading LM filter")
 
-    lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']], source_lang, target_lang)
+    lmFilter = DualLMFluencyFilter( LMType[metadata_yaml['lm_type']], source_lang, target_lang, source_tokenizer_path, target_tokenizer_path)
     stats=DualLMStats(metadata_yaml['clean_mean_perp'], metadata_yaml['clean_stddev_perp'], metadata_yaml['noisy_mean_perp'], metadata_yaml['noisy_stddev_perp'] )
 
     fullpath_source_lm=os.path.join(metadata_yaml["yamlpath"], metadata_yaml['source_lm'])
@@ -431,7 +443,7 @@ def reduce_process(output_queue, args):
     
 def worker_process(i, jobs_queue, output_queue, args):
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
     else:
         lm_filter = None
 
