@@ -112,7 +112,7 @@ def train_fluency_filter(args):
         logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
 
     try:
-        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang, args.source_tokenizer_path, args.target_tokenizer_path)
+        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang, args.source_tokenizer_command, args.target_tokenizer_command)
         stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
     finally:
         if inputIsTmp:
@@ -505,7 +505,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         out.write("porn_removal_file: {}\n".format(myargs.porn_removal_file))
         out.write("porn_removal_side: {}\n".format(myargs.porn_removal_side))
 
-    if myargs.source_tokenizer_path is not None:
-        out.write("source_tokenizer_path: {}\n".format(myargs.source_tokenizer_path))
-    if myargs.target_tokenizer_path is not None:
-        out.write("target_tokenizer_path: {}\n".format(myargs.target_tokenizer_path))            
+    if myargs.source_tokenizer_command is not None:
+        out.write("source_tokenizer_command: {}\n".format(myargs.source_tokenizer_command))
+    if myargs.target_tokenizer_command is not None:
+        out.write("target_tokenizer_command: {}\n".format(myargs.target_tokenizer_command))            

@@ -61,8 +61,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-S", "--source_tokenizer_path", type=str, help="Source language (SL) tokenizer executable absolute path")
-    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenizer executable absolute path")
+    groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
+    groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -103,10 +103,10 @@ def initialization():
        
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokenizer_path" in metadata_yaml:
-            args.source_tokenizer_path=metadata_yaml["source_tokenizer_path"]
-        if "target_tokenizer_path" in metadata_yaml:
-            args.target_tokenizer_path=metadata_yaml["target_tokenizer_path"]
+        if "source_tokenizer_command" in metadata_yaml:
+            args.source_tokenizer_command=metadata_yaml["source_tokenizer_command"]
+        if "target_tokenizer_command" in metadata_yaml:
+            args.target_tokenizer_command=metadata_yaml["target_tokenizer_command"]
 
         try:
             args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
@@ -208,20 +208,20 @@ def classify(args):
     buf_sent = []
     buf_feat = []
     
-    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
     
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
     else:
         lm_filter = None
 
     if not args.disable_porn_removal:
         porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            porn_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         else:
-            porn_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     else:
         porn_removal = None
         porn_tokenizer = None
