@@ -6,14 +6,12 @@ import argparse
 import logging
 import traceback
 import yaml
-#from sklearn.externals import joblib
 import joblib
 import numpy as np
 
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from toolwrapper import ToolWrapper
-from sacremoses import MosesTokenizer
+
 
 #Allows to load modules while inside or outside the package
 try:
@@ -23,6 +21,7 @@ try:
     from .word_freqs_zipf import WordZipfFreqDist
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
+    from .tokenizer import Tokenizer
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
@@ -30,6 +29,7 @@ except (ImportError, SystemError):
     from word_freqs_zipf import WordZipfFreqDist
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
+    from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -61,8 +61,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
-    groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+    groupO.add_argument("-S", "--source_tokenizer_path", type=str, help="Source language (SL) tokenizer executable absolute path")
+    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenizer executable absolute path")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -93,11 +93,6 @@ def initialization():
     
     logging_level = logging.getLogger().level    
 
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
             
     try: 
 
@@ -108,10 +103,10 @@ def initialization():
        
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokeniser_path" in metadata_yaml:
-            args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        if "target_tokeniser_path" in metadata_yaml:
-            args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]
+        if "source_tokenizer_path" in metadata_yaml:
+            args.source_tokenizer_path=metadata_yaml["source_tokenizer_path"]
+        if "target_tokenizer_path" in metadata_yaml:
+            args.target_tokenizer_path=metadata_yaml["target_tokenizer_path"]
 
         try:
             args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
@@ -191,7 +186,7 @@ def initialization():
         parser.set_defaults(**metadata_yaml)   
    
     except:
-        print("Error loading metadata")
+        logging.error("Error loading metadata")
         traceback.print_exc()
         sys.exit(1)
     
@@ -212,30 +207,24 @@ def classify(args):
     batch_size = 10000
     buf_sent = []
     buf_feat = []
-    if args.source_tokeniser_path:
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    else:
-        source_tokeniser = MosesTokenizer(args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-    else:    
-        target_tokeniser = MosesTokenizer(args.target_lang)
-
-
+    
+    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+    
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
     else:
         lm_filter = None
 
     if not args.disable_porn_removal:
         porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            tokenizer = MosesTokenizer(args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
         else:
-            tokenizer = MosesTokenizer(args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
     else:
         porn_removal = None
-        tokenizer = None
+        porn_tokenizer = None
 
     for i in args.input:
         nline += 1
@@ -249,9 +238,9 @@ def classify(args):
         else:
             logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
                        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
+        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
             buf_sent.append((1, i))
-            features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+            features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
             buf_feat.append([float(v) for v in features])
         else:
             buf_sent.append((0, i))

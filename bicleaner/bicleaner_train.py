@@ -12,7 +12,7 @@ from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-#from sklearn.externals import joblib
+
 import joblib
 from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
@@ -27,8 +27,7 @@ import random
 import sklearn
 import sys
 import json
-from toolwrapper import ToolWrapper
-from sacremoses import MosesTokenizer
+
 
 import numpy as np
 
@@ -41,6 +40,7 @@ try:
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
+    from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
@@ -49,6 +49,7 @@ except (SystemError, ImportError):
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
     from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
+    from tokenizer import Tokenizer    
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -81,8 +82,8 @@ def initialization():
     groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
-    groupO.add_argument('-S', '--source_tokeniser_path', help="Source language tokeniser absolute path")
-    groupO.add_argument('-T', '--target_tokeniser_path', help="Target language tokeniser absolute path")
+    groupO.add_argument('-S', '--source_tokenizer_path', help="Source language tokenizer absolute path")
+    groupO.add_argument('-T', '--target_tokenizer_path', help="Target language tokenizer absolute path")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
@@ -129,12 +130,6 @@ def initialization():
     # Logging
     logging_setup(args)
     logging_level = logging.getLogger().level
-
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
 
     return args
 
@@ -247,13 +242,13 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     pos = 0
     good = []
     wrong = []
-    for pred in prediction:
+    for pred in prediction:    
         if labels[pos] == 1:
             good.append(pred[1])
         else:
             wrong.append(pred[1])
         pos += 1
-
+    
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
@@ -306,14 +301,9 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    if args.source_tokeniser_path:
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    else:
-        source_tokeniser = MosesTokenizer(args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-    else:
-        target_tokeniser = MosesTokenizer(args.target_lang)
+    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+
     while True:
         job = jobs_queue.get()
         if job:
@@ -325,8 +315,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                 for i in filein:
                     srcsen,trgsen = i.split("\t")[:2]
                     trgsen = trgsen.strip()
-#                    print(str(srcsen) + " --- " + str(trgsen))
-                    features = feature_extract(srcsen, trgsen, source_tokeniser, target_tokeniser, args)
+                    features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
                     
                     for j in features:
                         fileout.write("{}".format(j))
@@ -340,8 +329,8 @@ def worker_process(i, jobs_queue, output_queue, args):
             os.unlink(filein_name)
         else:
             logging.debug("Exiting worker")
-            source_tokeniser.close()
-            target_tokeniser.close()
+            source_tokenizer.close()
+            target_tokenizer.close()
             break
 
 # Divides the input among processors to speed up the throughput
@@ -417,13 +406,10 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        if args.target_tokeniser_path:
-            target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-        else:
-            target_tokeniser = MosesTokenizer(args.target_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, target_tokeniser)
-        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
-        target_tokeniser.close()
+        noise_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+        
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
+        noise_tokenizer.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio
@@ -519,8 +505,6 @@ def perform_training(args):
 
 # Main function: setup logging and calling the main loop
 def main(args):
-    # Parameter parsing
-#    args = initialization()
 
     # Filtering
     perform_training(args)

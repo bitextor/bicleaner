@@ -12,9 +12,9 @@ FEATURES_VERSION = 4
 
 #Allows to load modules while inside or outside the package
 try:
-    from .util import no_escaping, regex_alpha
+    from .util import regex_alpha
 except (SystemError, ImportError):
-    from util import no_escaping, regex_alpha
+    from util import  regex_alpha
     
 from collections import Counter
 
@@ -551,15 +551,12 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     lang1 = args.source_lang
     lang2 = args.target_lang
     fv    = args.features_version
-    
-#    parts = row.strip().split("\t")
 
-#    if len(parts) == 1:
-#        parts.append("")
         
     # Sentence tokenization, with and without capital letters
-    lt = tokenize_l.tokenize(srcsen.rstrip('\n'), escape=False)
-    rt = tokenize_r.tokenize(trgsen.rstrip('\n'), escape=False)
+    lt = tokenize_l.tokenize(srcsen)
+    rt = tokenize_r.tokenize(trgsen)
+
     left_sentence_orig_tok  = lt[0:250]
     right_sentence_orig_tok = rt[0:250]
 

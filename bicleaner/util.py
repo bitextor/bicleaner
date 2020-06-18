@@ -99,7 +99,7 @@ def shuffle_file(input: typing.TextIO, output: typing.TextIO):
             temp.seek(offset)
             output.write(temp.readline())
         
-        
+# DEPRECATED!!!
 class MosesTokenizer(ToolWrapper):
     """A module for interfacing with ``tokenizer.perl`` from Moses.
 
@@ -142,3 +142,4 @@ class MosesTokenizer(ToolWrapper):
             return []
         self.writeline(sentence)
         return self.readline().split()
+

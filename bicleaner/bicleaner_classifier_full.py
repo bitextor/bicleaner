@@ -11,7 +11,6 @@ import gzip
 import re
 import yaml
 import sklearn
-#from sklearn.externals import joblib
 import joblib
 import numpy as np
 
@@ -20,8 +19,7 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from toolwrapper import ToolWrapper
-from sacremoses import MosesTokenizer
+
 
 #Allows to load modules while inside or outside the package
 try:
@@ -29,18 +27,18 @@ try:
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_list import WordFreqList
     from .word_freqs_zipf import WordZipfFreqDist
-
     from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from .bicleaner_hardrules import *
-
+    from .tokenizer import Tokenizer
+    
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
     from word_freqs_list import WordFreqList
     from word_freqs_zipf import WordZipfFreqDist
-
     from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
     from bicleaner_hardrules import *
+    from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -77,8 +75,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
-    groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+    groupO.add_argument("-S", "--source_tokenizer_path", type=str, help="Source language (SL) tokenizer executable absolute path")
+    groupO.add_argument("-T", "--target_tokenizer_path", type=str, help="Target language (TL) tokenizer executable absolute path")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -110,12 +108,6 @@ def initialization():
 
     logging_level = logging.getLogger().level    
     
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
-
             
     try: 
         metadata_yaml = yaml.safe_load(args.metadata)
@@ -125,10 +117,10 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokeniser_path" in metadata_yaml:
-            args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        if "target_tokeniser_path" in metadata_yaml:
-            args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
+        if "source_tokenizer_path" in metadata_yaml:
+            args.source_tokenizer_path=metadata_yaml["source_tokenizer_path"]
+        if "target_tokenizer_path" in metadata_yaml:
+            args.target_tokenizer_path=metadata_yaml["target_tokenizer_path"]        
 
         try:
             args.clf=joblib.load( os.path.join(yamlpath , metadata_yaml["classifier"]))
@@ -178,32 +170,7 @@ def initialization():
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
-        
-        '''
-        #Load LM stuff if model was trained with it 
-        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
-            if os.path.isfile(fullpath_source_lm):
-                args.source_lm= fullpath_source_lm
-            else:
-                args.source_lm= metadata_yaml['source_lm']
-            
-            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
-            if os.path.isfile(fullpath_target_lm):
-                args.target_lm=fullpath_target_lm
-            else:
-                args.target_lm=metadata_yaml['target_lm']
-            
-            
-            args.lm_type=LMType[metadata_yaml['lm_type']]
-            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            args.lm_filter_stats=stats
-        else:
-            args.source_lm=None
-            args.target_lm=None
-            args.lm_type=None
-            args.lm_filter_stats=None
-        '''           
+
 
         #Try loading metadata for LM filtering                  
         if not args.disable_lm_filter:
@@ -231,7 +198,7 @@ def initialization():
         parser.set_defaults(**metadata_yaml)   
    
     except:
-        print("Error loading metadata")
+        logging.error("Error loading metadata")
         traceback.print_exc()
         sys.exit(1)
     
@@ -239,8 +206,6 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
-    #if args.score_only and args.keep_lm_result:
-    #    raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -250,38 +215,23 @@ def initialization():
 
 def classifier_process(i, jobs_queue, output_queue, args):
     
-    if args.source_tokeniser_path:    
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    else:
-        source_tokeniser = MosesTokenizer(lang=args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-    else:
-        target_tokeniser = MosesTokenizer(lang=args.target_lang)
-        
-    '''
-    #Load LM for fluency scoring
-    lm_filter=None
-    if args.source_lm and args.target_lm:
-
-        lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
-        lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
-    '''
+    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)        
 
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_path, args.target_tokenizer_path)
     else:
         lm_filter = None
 
     if not args.disable_porn_removal:
         porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            tokenizer = MosesTokenizer(args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
         else:
-            tokenizer = MosesTokenizer(args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
     else:
         porn_removal = None
-        tokenizer = None
+        porn_tokenizer = None
 
     while True:
         job = jobs_queue.get()
@@ -311,9 +261,9 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, tokenizer)== False):
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
                         
                         feats.append([float(v) for v in features])
                         valid_sentences.append(True)
