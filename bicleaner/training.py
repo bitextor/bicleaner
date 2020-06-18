@@ -252,6 +252,7 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
     good_sentences.seek(0)
     wrong_sentences.seek(0)
+    
 
     return total_size, length_ratio, good_sentences, wrong_sentences
 
@@ -335,6 +336,18 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
     good_sentences.seek(0)
     wrong_sentences.seek(0)
 
+    cont = 0
+    for i in good_sentences:
+        cont +=1
+    print("Good: " + str(cont))
+    cont = 0
+    for i in wrong_sentences:
+        cont += 1
+    print("Wrong: " + str(cont))
+
+    good_sentences.seek(0)
+    wrong_sentences.seek(0)
+
     return total_size, length_ratio, good_sentences, wrong_sentences
 
 # Random shuffle corpora to ensure fairness of training and estimates.
@@ -397,6 +410,7 @@ def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, noise_
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
         t_toks = noise_tokenizer.tokenize(parts[1])
+        parts[1] = " ".join(remove_words_randomly_from_sentence(t_toks))
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
         wrong_sentences.write(parts[1])

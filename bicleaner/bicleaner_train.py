@@ -249,13 +249,15 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     pos = 0
     good = []
     wrong = []
-    for pred in prediction:
+    for pred in prediction:    
         if labels[pos] == 1:
             good.append(pred[1])
         else:
             wrong.append(pred[1])
         pos += 1
-
+    
+    print(pos)    
+    
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 

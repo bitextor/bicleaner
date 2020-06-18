@@ -113,7 +113,6 @@ class LMFluencyFilter:
         if self.type != LMType.PLACEHOLDER:
             return sentence
         else:
-#            toks=[ self._replace_placeholder(t) for t in sentence.split() ]
             toks = self._replace_placeholder(sentence)
             return " ".join(toks)
     
@@ -124,12 +123,7 @@ class LMFluencyFilter:
         #Tokenize text
         with open(text_path) as input_f:
             for line in input_f:
-                line=line.rstrip("\n")
-#                sentences=self._sentence_split(line)
-#                for s in sentences:
-#                    tokline=self._tokenize(s)
-#                    tokenized_f.write(tokline)
-#                    tokenized_f.write("\n")
+                #line=line.rstrip("\n")
                 tokline = self._tokenize(line)
                 tokenized_f.write(tokline)
                 tokenized_f.write("\n")
