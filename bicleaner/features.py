@@ -551,11 +551,7 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     lang1 = args.source_lang
     lang2 = args.target_lang
     fv    = args.features_version
-    
-#    parts = row.strip().split("\t")
 
-#    if len(parts) == 1:
-#        parts.append("")
         
     # Sentence tokenization, with and without capital letters
     lt = tokenize_l.tokenize(srcsen)

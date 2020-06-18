@@ -12,7 +12,7 @@ from sklearn import neighbors
 from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-#from sklearn.externals import joblib
+
 import joblib
 from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
@@ -27,8 +27,7 @@ import random
 import sklearn
 import sys
 import json
-#from toolwrapper import ToolWrapper
-#from sacremoses import MosesTokenizer
+
 
 import numpy as np
 
@@ -131,12 +130,6 @@ def initialization():
     # Logging
     logging_setup(args)
     logging_level = logging.getLogger().level
-
-#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
 
     return args
 
@@ -256,8 +249,6 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
             wrong.append(pred[1])
         pos += 1
     
-    print(pos)    
-    
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
@@ -324,7 +315,6 @@ def worker_process(i, jobs_queue, output_queue, args):
                 for i in filein:
                     srcsen,trgsen = i.split("\t")[:2]
                     trgsen = trgsen.strip()
-#                    print(str(srcsen) + " --- " + str(trgsen))
                     features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
                     
                     for j in features:
@@ -419,7 +409,6 @@ def perform_training(args):
         noise_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
         
         total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
-        #total_size, length_ratio, good_sentences, wrong_sentences = old_shuffle(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file)
         noise_tokenizer.close()
     os.remove(input.name)
     
@@ -516,8 +505,6 @@ def perform_training(args):
 
 # Main function: setup logging and calling the main loop
 def main(args):
-    # Parameter parsing
-#    args = initialization()
 
     # Filtering
     perform_training(args)

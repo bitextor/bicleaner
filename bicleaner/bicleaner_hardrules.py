@@ -97,11 +97,6 @@ def initialization():
     
     logging_level = logging.getLogger().level
     
-#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
     
     # Ensure that directory exists; if not, create it
     if not os.path.exists(args.tmp_dir):

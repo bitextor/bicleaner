@@ -22,10 +22,8 @@ class Tokenizer:
     def tokenize(self, text):
         if self.external:
             self.tokenizer.writeline(text.rstrip('\n'))
-            #print([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split()])
             return ([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split()])
         else:   
-#            print (" ***************************************************************** SUPER WARNING ********************************************************************************" )
             return self.tokenizer.tokenize(text, escape=False)
 
     def close(self):

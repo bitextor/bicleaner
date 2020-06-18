@@ -6,14 +6,11 @@ import argparse
 import logging
 import traceback
 import yaml
-#from sklearn.externals import joblib
 import joblib
 import numpy as np
 
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-#from toolwrapper import ToolWrapper
-#from sacremoses import MosesTokenizer
 
 
 #Allows to load modules while inside or outside the package
@@ -96,11 +93,6 @@ def initialization():
     
     logging_level = logging.getLogger().level    
 
-#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-#        #Getting rid of INFO messages when Moses processes start
-#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
             
     try: 
 
@@ -194,7 +186,7 @@ def initialization():
         parser.set_defaults(**metadata_yaml)   
    
     except:
-        print("Error loading metadata")
+        logging.error("Error loading metadata")
         traceback.print_exc()
         sys.exit(1)
     

@@ -11,7 +11,6 @@ import gzip
 import re
 import yaml
 import sklearn
-#from sklearn.externals import joblib
 import joblib
 import numpy as np
 
@@ -20,8 +19,7 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-#from toolwrapper import ToolWrapper
-#from sacremoses import MosesTokenzer
+
 
 #Allows to load modules while inside or outside the package
 try:
@@ -110,12 +108,6 @@ def initialization():
 
     logging_level = logging.getLogger().level    
     
-#    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-#        #Getting rid of INFO messages when Moses processes start
-#        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-#        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-#        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
-
             
     try: 
         metadata_yaml = yaml.safe_load(args.metadata)
@@ -206,7 +198,7 @@ def initialization():
         parser.set_defaults(**metadata_yaml)   
    
     except:
-        print("Error loading metadata")
+        logging.error("Error loading metadata")
         traceback.print_exc()
         sys.exit(1)
     
@@ -214,8 +206,6 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
-    #if args.score_only and args.keep_lm_result:
-    #    raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args

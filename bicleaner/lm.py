@@ -1,11 +1,6 @@
 import kenlm
 from enum import Enum
-#try:
-#    from .util import MosesTokenizer
-#except (ImportError, SystemError):
-#    from util import MosesTokenizer
 
-#from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
 import shutil
@@ -56,12 +51,12 @@ class LMFluencyFilter:
         """
             lm_type: LMType
             language: language code
+            tokenizer_path: tokenizer full command (with flags if needed)
         """
         
         self.language=language
         self.tokenizer=Tokenizer(tokenizer_path, self.language)
         self.normalizer=MosesPunctNormalizer(lang=self.language)
-#        self.splitter=sent_tokenize()
         self.type=lm_type
     
     @classmethod

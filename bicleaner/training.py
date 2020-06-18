@@ -336,18 +336,6 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
     good_sentences.seek(0)
     wrong_sentences.seek(0)
 
-    cont = 0
-    for i in good_sentences:
-        cont +=1
-    print("Good: " + str(cont))
-    cont = 0
-    for i in wrong_sentences:
-        cont += 1
-    print("Wrong: " + str(cont))
-
-    good_sentences.seek(0)
-    wrong_sentences.seek(0)
-
     return total_size, length_ratio, good_sentences, wrong_sentences
 
 # Random shuffle corpora to ensure fairness of training and estimates.
