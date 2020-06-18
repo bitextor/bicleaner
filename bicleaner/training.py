@@ -516,3 +516,8 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     if myargs.porn_removal_file is not None and myargs.porn_removal_train is not None:
         out.write("porn_removal_file: {}\n".format(myargs.porn_removal_file))
         out.write("porn_removal_side: {}\n".format(myargs.porn_removal_side))
+
+    if myargs.source_tokenizer_path is not None:
+        out.write("source_tokenizer_path: {}\n".format(myargs.source_tokenizer_path))
+    if myargs.target_tokenizer_path is not None:
+        out.write("target_tokenizer_path: {}\n".format(myargs.target_tokenizer_path))            
