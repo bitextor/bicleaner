@@ -406,10 +406,10 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        noise_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+        noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
-        noise_tokenizer.close()
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, noisy_target_tokenizer)
+        noisy_target_tokenizer.close()
     os.remove(input.name)
     
     args.length_ratio = length_ratio
