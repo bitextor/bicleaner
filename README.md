@@ -331,7 +331,7 @@ bicleaner_train.py [-h]
   * `-w WRONG_EXAMPLES, --wrong_examples WRONG_EXAMPLES`: Number of wrong examples (default: 50000)
   * `--good_test_examples GOOD_TEST_EXAMPLES`: Number of good test examples (default: 2000)
   * `--wrong_test_examples WRONG_TEST_EXAMPLES`: Number of wrong test examples (default: 2000)
-  * `--classifier_type {svm,nn,nn1,adaboost,random_forest}`: Classifier type (default: random_forest)
+  * `--classifier_type {svm,nn,nn1,adaboost,random_forest,extra_trees}`: Classifier type (default: extra_trees)
   * `--dump_features DUMP_FEATURES`: Dump training features to file (default: None)
   * `-b BLOCK_SIZE, --block_size BLOCK_SIZE`: Sentence pairs per block (default: 10000)
   * `-p PROCESSES, --processes PROCESSES`: Number of process to use (default: all CPUs minus one)
@@ -387,7 +387,7 @@ The generated .yaml file provides the following information, that is useful to g
 
 ```yml
 classifier: en-cs.classifier
-classifier_type: random_forest
+classifier_type: extra_trees
 source_lang: en
 target_lang: cs
 source_dictionary: dict-en-cs.gz
