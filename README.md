@@ -353,7 +353,6 @@ bicleaner_train.py [-h]
 ```bash
 bicleaner-train \
           corpus.en-cs.train\
-          --treat_oovs \
           --normalize_by_length \
           -s en \
           -t cs \
@@ -361,7 +360,6 @@ bicleaner-train \
           -D dict-cs-en.gz \
           -f wordfreqs-en.gz \
           -F wordfreqs-cs.gz \
-          -b 1000 \
           -c en-cs.classifier \
           --lm_training_file_sl lmtrain.en-cs.en --lm_training_file_tl lmtrain.en-cs.cs \
           --lm_file_sl model.en-cs.en  --lm_file_tl model.en-cs.cs \
@@ -370,7 +368,7 @@ bicleaner-train \
 ```
 
 This will train an Extra Trees classifier for English-Czech using the corpus corpus.en-cs.train, the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`, and the word frequency dictionaries `wordfreqs-en.gz` and `wordfreqs-cs.gz`.
-This training will use 50000 good and 50000 bad examples, and a block size of 1000 sentences.
+This training will use 50000 good and 50000 bad examples.
 The classifier data will be stored in `en-cs.classifier`, with the metadata in `training.en-cs.yaml`. The improved fluency language models will be `model.en-cs.en` and `model.en-cs.cs`, and the porn filter model will be `porn-model.en`.
 
 The generated .yaml file provides the following information, that is useful to get a sense on how good or bad was the training (and is also a needed input file for classifying):
@@ -385,7 +383,6 @@ target_dictionary: dict-cs-en.gz
 source_word_freqs: wordfreqs-en.gz
 target_word_freqs: wordfreqs-cs.gz
 normalize_by_length: True
-treat_oovs: True
 qmax_limit: 40
 disable_features_quest: True
 good_test_histogram: [0, 7, 39, 45, 112, 172, 514, 2199, 6912, 0]
