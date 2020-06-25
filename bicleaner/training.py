@@ -259,14 +259,14 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noisy_target_tokenizer=None):
-    logging.info("Shuffle starts")
+    logging.info("Building training set.")
     good_sentences  = TemporaryFile("w+")
     wrong_sentences = TemporaryFile("w+")
     total_size   = 0
     length_ratio = 0
 
     with TemporaryFile("w+") as temp:
-        logging.info("Indexing file")
+        logging.info("Indexing input file.")
         # (1) Calculate the number of lines, length_ratio, offsets
         offsets = []
         nline = 0
@@ -298,7 +298,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
         except ZeroDivisionError:
             length_ratio = math.nan
 
-        logging.info("Shuffling good sentences")
+        logging.info("Shuffling input sentences.")
         # (2) Get good sentences
         random.shuffle(offsets)
 
@@ -306,7 +306,6 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             temp.seek(i)
             good_sentences.write(temp.readline())
 
-        logging.info("Shuffling wrong sentences")
         # (3) Get wrong sentences
         if wrong_examples_file:
             # The file is already shuffled
@@ -315,6 +314,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             for i in wrong_examples_file:
                 wrong_sentences.write(i)
         else:
+            logging.info("Building wrong sentences with synthetic method.")
             init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
             freq_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)/3)
@@ -327,7 +327,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
                                 noisy_target_tokenizer)
         temp.close()
-    logging.info("Shuffling ends")
+    logging.info("Training set built.")
 
     good_sentences.seek(0)
     wrong_sentences.seek(0)

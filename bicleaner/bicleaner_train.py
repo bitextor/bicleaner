@@ -332,7 +332,6 @@ def worker_process(i, jobs_queue, output_queue, args):
 
 # Divides the input among processors to speed up the throughput
 def map_process(input, block_size, jobs_queue, label, first_block=0):
-    logging.info("Start mapping")
     nblock = first_block
     nline = 0
     mytemp = None
@@ -414,6 +413,7 @@ def perform_training(args):
     args.dict_sl_tl = ProbabilisticDictionary(args.source_dictionary)
     args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
 
+    logging.info("Start computing features")
     features_file = TemporaryFile('w+')
     # Start reducer
     reduce = Process(target = reduce_process,
@@ -443,7 +443,7 @@ def perform_training(args):
     for _ in workers:
         jobs_queue.put(None)
 
-    logging.info("End mapping")
+    logging.info("End computing features")
 
     for w in workers:
         w.join()
