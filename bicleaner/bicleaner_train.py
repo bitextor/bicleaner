@@ -88,10 +88,6 @@ def initialization():
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
     groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
-    groupO.add_argument('-g', '--good_examples',  type=check_positive_or_zero, default=50000, help="Number of good examples")
-    groupO.add_argument('-w', '--wrong_examples', type=check_positive_or_zero, default=50000, help="Number of wrong examples")
-    groupO.add_argument('--good_test_examples',  type=check_positive_or_zero, default=10000, help="Number of good test examples")
-    groupO.add_argument('--wrong_test_examples', type=check_positive_or_zero, default=10000, help="Number of wrong test examples")
     groupO.add_argument('--classifier_type', choices=['mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'svm_regressor'], default="extra_trees", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
@@ -407,8 +403,7 @@ def perform_training(args):
 
         # Shuffle and get length ratio
         noise_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
-        
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, args.good_examples + args.good_test_examples, args.wrong_examples + args.wrong_test_examples, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
         noise_tokenizer.close()
     os.remove(input.name)
     
@@ -467,16 +462,30 @@ def perform_training(args):
 
     logging.info("Start training")
 
+    # Use 90% of the input to train and 10% for test
+    if args.wrong_examples_file is not None:
+        good_examples = int(count_input_lines*0.9)
+        good_examples_test = int(count_input_lines*0.1)
+        wrong_examples = 0
+        with args.examples_file as file:
+            wrong_examples = sum(1 for line in file)
+        wrong_esamples_test = min(good_examples_test, int(wrong_examples*0.1))
+    else:
+        good_examples = int(count_input_lines//2*0.9)
+        good_examples_test = int(count_input_lines//2*0.1)
+        wrong_examples = good_examples
+        wrong_examples_test = good_examples_test
+
     hgood = []
     hwrong = []
     with TemporaryFile("w+") as features_train, TemporaryFile("w+") as features_test:
         nline = 0
         for line in features_file:
-            if nline < args.good_examples:
+            if nline < good_examples:
                 features_train.write(line)
-            elif nline < args.good_examples + args.good_test_examples:
+            elif nline < good_examples + good_examples_test:
                 features_test.write(line)
-            elif nline < args.good_examples + args.good_test_examples + args.wrong_examples:
+            elif nline < good_examples + good_examples_test + wrong_examples:
                 features_train.write(line)
             else:
                 features_test.write(line)

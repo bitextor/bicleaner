@@ -256,10 +256,6 @@ bicleaner_train.py [-h]
     [--treat_oovs]
     [--qmax_limit QMAX_LIMIT]
     [--disable_features_quest]
-    [-g GOOD_EXAMPLES]
-    [-w WRONG_EXAMPLES]
-    [--good_test_examples GOOD_TEST_EXAMPLES]
-    [--wrong_test_examples WRONG_TEST_EXAMPLES]
     [--classifier_type {mlp,svm,nn,nn1,adaboost,random_forest,extra_trees}]
     [--dump_features DUMP_FEATURES]
     [-b BLOCK_SIZE]
@@ -306,10 +302,6 @@ bicleaner_train.py [-h]
   * `--treat_oovs`: Special treatment for OOVs in qmax dict feature
   * `--qmax_limit`: Number of max target words to be taken into account, sorted by length (default: 20)
   * `--disable_features_quest`: Disable less important features 
-  * `-g GOOD_EXAMPLES, --good_examples GOOD_EXAMPLES`: Number of good examples (default: 50000)
-  * `-w WRONG_EXAMPLES, --wrong_examples WRONG_EXAMPLES`: Number of wrong examples (default: 50000)
-  * `--good_test_examples GOOD_TEST_EXAMPLES`: Number of good test examples (default: 2000)
-  * `--wrong_test_examples WRONG_TEST_EXAMPLES`: Number of wrong test examples (default: 2000)
   * `--classifier_type {svm,nn,nn1,adaboost,random_forest}`: Classifier type (default: random_forest)
   * `--dump_features DUMP_FEATURES`: Dump training features to file (default: None)
   * `-b BLOCK_SIZE, --block_size BLOCK_SIZE`: Sentence pairs per block (default: 10000)
@@ -350,14 +342,12 @@ bicleaner-train \
           -F wordfreqs-cs.gz \
           -b 1000 \
           -c en-cs.classifier \
-          -g 50000 \
-          -w 50000 \
           -m training.en-cs.yaml \
           --classifier_type random_forest
 ```
 
 This will train a Random Forest classifier for English-Czech using the corpus corpus.en-cs.train, the probabilistic dictionaries `dict-en-cs.gz` and `dict-cs-en.gz`, and the word frequency dictionaries `wordfreqs-en.gz` and `wordfreqs-cs.gz`.
-This training will use 50000 good and 50000 bad examples, and a block size of 1000 sentences.
+This training will use a half of the input file as good examples and the other half to create synthetic wrong examples, and a block size of 1000 sentences.
 The classifier data will be stored in `en-cs.classifier`, with the metadata in `training.en-cs.yaml`. The improved fluency language model filter will not be included.
 
 The generated .yaml file provides the following information, that is useful to get a sense on how good or bad was the training (and is also a needed input file for classifying):
@@ -375,10 +365,6 @@ normalize_by_length: True
 treat_oovs: True
 qmax_limit: 20
 disable_features_quest: True
-good_examples: 50000
-wrong_examples: 50000
-good_test_examples: 10000
-wrong_test_examples: 10000
 good_test_histogram: [0, 7, 39, 45, 112, 172, 514, 2199, 6912, 0]
 wrong_test_histogram: [14, 4548, 4551, 747, 118, 18, 3, 1, 0, 0]
 precision_histogram: [0.5000000, 0.5003502, 0.6475925, 0.9181810, 0.9860683, 0.9977594, 0.9995846, 0.9998903, 1.0000000, nan]

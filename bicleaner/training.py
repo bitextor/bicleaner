@@ -312,12 +312,8 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             # The file is already shuffled
             logging.info("Using wrong examples from file {} instead the synthetic method".format(wrong_examples_file.name))
 
-            count = 0
             for i in wrong_examples_file:
                 wrong_sentences.write(i)
-                count += 1
-                if count == n_misaligned:
-                    break
         else:
             init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
@@ -479,10 +475,6 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("treat_oovs: {}\n".format(myargs.treat_oovs))
     out.write("qmax_limit: {}\n".format(myargs.qmax_limit))
     out.write("disable_features_quest: {}\n".format(myargs.disable_features_quest))
-    out.write("good_examples: {}\n".format(myargs.good_examples))
-    out.write("wrong_examples: {}\n".format(myargs.wrong_examples))
-    out.write("good_test_examples: {}\n".format(myargs.good_test_examples))
-    out.write("wrong_test_examples: {}\n".format(myargs.wrong_test_examples))
     out.write(good_test_hist)
     out.write(wrong_test_hist)
     out.write(precision_hist)

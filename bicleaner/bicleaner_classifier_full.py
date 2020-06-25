@@ -159,10 +159,6 @@ def initialization():
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
         args.disable_features_quest = metadata_yaml["disable_features_quest"]
-        args.good_examples = metadata_yaml["good_examples"]
-        args.wrong_examples = metadata_yaml["wrong_examples"]
-        args.good_test_examples = metadata_yaml["good_test_examples"]
-        args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
         args.length_ratio = metadata_yaml["length_ratio"]
         args.features_version = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
 
