@@ -112,7 +112,7 @@ def train_fluency_filter(args):
         logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
 
     try:
-        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang, args.source_tokenizer_path, args.target_tokenizer_path)
+        ff=DualLMFluencyFilter(LMType.CHARACTER,args.source_lang, args.target_lang, args.source_tokenizer_command, args.target_tokenizer_command)
         stats=ff.train(lm_train_path_sl, lm_train_path_tl,lm_dev_clean_sl,lm_dev_clean_tl, args.noisy_examples_file_sl,args.noisy_examples_file_tl, args.lm_file_sl, args.lm_file_tl)
     finally:
         if inputIsTmp:
@@ -258,7 +258,7 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noise_tokenizer=None):
+def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noisy_target_tokenizer=None):
     logging.info("Shuffle starts")
     good_sentences  = TemporaryFile("w+")
     wrong_sentences = TemporaryFile("w+")
@@ -322,10 +322,10 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             deletion_noise_end_offset = end_wrong_offsets
             if double_linked_zipf_freqs is not None:
                 frequence_based_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
-                                     double_linked_zipf_freqs, noise_tokenizer)
+                                     double_linked_zipf_freqs, noisy_target_tokenizer)
             shuffle_noise(freq_noise_end_offset+1, shuf_noise_end_offset, offsets, temp, wrong_sentences)
             missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
-                                noise_tokenizer)
+                                noisy_target_tokenizer)
         temp.close()
     logging.info("Shuffling ends")
 
@@ -357,13 +357,13 @@ def shuffle_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, double_linked_zipf_freqs,
-                         noise_tokenizer):
+                         noisy_target_tokenizer):
     for i in offsets[from_idx:to_idx+1]:
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
 
-        t_toks = noise_tokenizer.tokenize(parts[1])
+        t_toks = noisy_target_tokenizer.tokenize(parts[1])
 
         parts[1] = " ".join(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
         wrong_sentences.write(parts[0])
@@ -388,12 +388,12 @@ def add_freqency_replacement_noise_to_sentence(sentence, double_linked_zipf_freq
 
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, noise_tokenizer):
+def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, noisy_target_tokenizer):
     for i in offsets[from_idx:to_idx+1]:
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
-        t_toks = noise_tokenizer.tokenize(parts[1])
+        t_toks = noisy_target_tokenizer.tokenize(parts[1])
         parts[1] = " ".join(remove_words_randomly_from_sentence(t_toks))
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
@@ -497,7 +497,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         out.write("porn_removal_file: {}\n".format(myargs.porn_removal_file))
         out.write("porn_removal_side: {}\n".format(myargs.porn_removal_side))
 
-    if myargs.source_tokenizer_path is not None:
-        out.write("source_tokenizer_path: {}\n".format(myargs.source_tokenizer_path))
-    if myargs.target_tokenizer_path is not None:
-        out.write("target_tokenizer_path: {}\n".format(myargs.target_tokenizer_path))            
+    if myargs.source_tokenizer_command is not None:
+        out.write("source_tokenizer_command: {}\n".format(myargs.source_tokenizer_command))
+    if myargs.target_tokenizer_command is not None:
+        out.write("target_tokenizer_command: {}\n".format(myargs.target_tokenizer_command))

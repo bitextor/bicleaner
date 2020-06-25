@@ -9,7 +9,7 @@ import bicleaner
 
 def setup_function():
 	print("Running test setup...")
-	langpackurl = "https://github.com/bitextor/bitextor-data/releases/download/bicleaner-v1.1/en-de.tar.gz"
+	langpackurl = "https://github.com/bitextor/bicleaner-data/releases/latest/download/en-de.tar.gz"
 	tar = "tar -xzvf en-de.tar.gz"
 	command = "mkdir -p test_langpacks && cd test_langpacks && wget -q {0} && {1}  && cd ..".format(langpackurl, tar)	
 	p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
@@ -53,22 +53,21 @@ def bicleaner_test(executable, training_yaml ):
 	return scores
 
 def test_full_process():
-
-	expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.3, 0]
+	expected = [0, 0, 0, 0, 0, 0.7, 0, 0, 0.3, 0]
 	results = bicleaner_test("bicleaner-classify","en-de.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 	
 def test_full_process_nolm():
-	expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.3, 0]
+	expected = [0, 0, 0, 0.8, 0, 0.7, 0, 0, 0.3, 0]
 	results = bicleaner_test("bicleaner-classify","en-de.nolm.yaml")
 	print("Checking test results...")
 	for  i in range(len(expected)):
 		assert(results[i] == expected[i])
 
 def test_lite_process():
-        expected = [0, 0, 0, 0, 0, 0.6, 0, 0, 0.3, 0]
+        expected = [0, 0, 0, 0, 0, 0.7, 0, 0, 0.3, 0]
         results = bicleaner_test("bicleaner-classify-lite","en-de.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):
@@ -76,7 +75,7 @@ def test_lite_process():
 
 
 def test_lite_process_nolm():
-        expected = [0, 0, 0, 0.8, 0, 0.6, 0, 0, 0.3, 0]
+        expected = [0, 0, 0, 0.8, 0, 0.7, 0, 0, 0.3, 0]
         results = bicleaner_test("bicleaner-classify-lite","en-de.nolm.yaml")
         print("Checking test results...")
         for  i in range(len(expected)):

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 
 from toolwrapper import ToolWrapper
 from sacremoses import MosesTokenizer
@@ -10,9 +9,9 @@ except (SystemError, ImportError):
 
 
 class Tokenizer:
-    def __init__(self, path=None,  l="en"):
-        if path:        
-            self.tokenizer=ToolWrapper(path.split(' '))
+    def __init__(self, command=None,  l="en"):
+        if command:        
+            self.tokenizer=ToolWrapper(command.split(' '))
             self.external =  True         
         else:
             self.tokenizer = MosesTokenizer(lang=l)

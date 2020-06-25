@@ -82,8 +82,8 @@ def initialization():
     groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
-    groupO.add_argument('-S', '--source_tokenizer_path', help="Source language tokenizer absolute path")
-    groupO.add_argument('-T', '--target_tokenizer_path', help="Target language tokenizer absolute path")
+    groupO.add_argument('-S', '--source_tokenizer_command', help="Source language tokenizer full command")
+    groupO.add_argument('-T', '--target_tokenizer_command', help="Target language tokenizer full command")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
@@ -297,8 +297,8 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    source_tokenizer = Tokenizer(args.source_tokenizer_path, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
+    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
     while True:
         job = jobs_queue.get()
@@ -402,11 +402,11 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        noise_tokenizer = Tokenizer(args.target_tokenizer_path, args.target_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noise_tokenizer)
-        noise_tokenizer.close()
+        noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noisy_target_tokenizer)
+        noisy_target_tokenizer.close()
     os.remove(input.name)
-    
+
     args.length_ratio = length_ratio
 
     # Load dictionaries
