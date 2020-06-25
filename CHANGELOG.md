@@ -16,8 +16,10 @@ Bicleaner 0.14:
     * `--good_examples` and `--wrong_examples` are not used anymore.
     * Training will automatically use one half of the input file for good examples and the other half to synthesize wrong examples.
     * Of this partitions, 90% will be used for training and the remaining 10% for testing.
+  * Add an option to save model files paths relative instead of absolute. Useful for training distributable models.
 * Other
    * Now using [sacremoses](https://github.com/alvations/sacremoses) instead of [mosestokenizer](https://github.com/luismsgomes/mosestokenizer)
+
 
 Bicleaner 0.13:
 * Bicleaner hardrules changes:
