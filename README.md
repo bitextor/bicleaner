@@ -285,6 +285,7 @@ bicleaner_train.py [-h]
     [--features_version FEATURES_VERSION]
     [--disable_lang_ident]
     [--seed SEED]
+    [--relative_paths]
     [--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL]
     [--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL]
     [--lm_dev_size LM_DEV_SIZE]
@@ -330,6 +331,7 @@ bicleaner_train.py [-h]
   * `--wrong_examples_file WRONG_EXAMPLES_FILE`: File with wrong examples extracted to replace the synthetic examples from method used by default (default: None)
   * `--features_version FEATURES_VERSION`: Version of the feature (default: extracted from the features.py file)
   * `--disable_lang_ident`: Don't apply features that use language detecting (default: False). Useful when the language in use is too similar to other languages, making the automatic identification of language not realiable.
+  * `--relative_paths`: Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models. (default: False)
   * `--noisy_examples_file_sl NOISY_EXAMPLES_FILE_SL`: File with noisy text in the SL. These are used to estimate the perplexity of noisy text. (Optional)
   * `--noisy_examples_file_tl NOISY_EXAMPLES_FILE_TL`: File with noisy text in the TL. These are used to estimate the perplexity of noisy text. (Optional)
   * `--lm_dev_size SIZE`: Number of sentences to be removed from clean text before training LMs. These are used to estimate the perplexity of clean text. (default: 2000)

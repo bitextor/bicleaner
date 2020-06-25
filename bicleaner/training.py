@@ -446,6 +446,33 @@ def repr_right(numeric_list, numeric_fmt = "{:1.7f}"):
             result_str.append("]")
     return "".join(result_str)
 
+
+# Check if all the files are in the same directory as metadata
+def check_relative_paths(args):
+    if not args.relative_paths:
+        return False
+
+    checkable = [
+            '_dictionary',
+            'source_word_freqs',
+            'target_word_freqs',
+            'classifier',
+            'lm_file',
+            'porn_removal_file'
+        ]
+    yaml_path = os.path.dirname(os.path.abspath(args.metadata.name))
+
+    for var, value in vars(args).items():
+        for c in checkable:
+            if var.find(c) != -1 and value is not None:
+                path = value if isinstance(value, str) else value.name
+                dirname = os.path.dirname(os.path.abspath(path))
+                if dirname != yaml_path:
+                    logging.warning("{} is not in the same directory as metadata. Absolute paths will be used instead of relative.".format(var))
+                    return False
+    return True
+
+
 # Write YAML with the training parameters and quality estimates
 def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out = myargs.metadata
@@ -462,15 +489,38 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     logging.debug(recall_hist)
     logging.debug(accuracy_hist)
 
+    if check_relative_paths(myargs):
+        classifier = myargs.classifier.name
+        source_dictionary = myargs.source_dictionary.name
+        target_dictionary = myargs.target_dictionary.name
+        source_word_freqs = myargs.source_word_freqs.name
+        target_word_freqs = myargs.target_word_freqs.name
+        if lm_stats != None:
+            lm_file_sl = myargs.lm_file_sl
+            lm_file_tl = myargs.lm_file_tl
+        if myargs.porn_removal_file is not None:
+            porn_removal_file = myargs.porn_removal_file
+    else:
+        classifier = os.path.abspath(myargs.classifier.name)
+        source_dictionary = os.path.abspath(myargs.source_dictionary.name)
+        target_dictionary = os.path.abspath(myargs.target_dictionary.name)
+        source_word_freqs = os.path.abspath(myargs.source_word_freqs.name)
+        target_word_freqs = os.path.abspath(myargs.target_word_freqs.name)
+        if lm_stats != None:
+            lm_file_sl = os.path.abspath(myargs.lm_file_sl)
+            lm_file_tl = os.path.abspath(myargs.lm_file_tl)
+        if myargs.porn_removal_file is not None:
+            porn_removal_file = os.path.abspath(myargs.porn_removal_file)
+
     # Writing it by hand (not using YAML libraries) to preserve the order
-    out.write("classifier: {}\n".format(os.path.abspath(myargs.classifier.name)))
+    out.write("classifier: {}\n".format(classifier))
     out.write("classifier_type: {}\n".format(myargs.classifier_type))
     out.write("source_lang: {}\n".format(myargs.source_lang))
     out.write("target_lang: {}\n".format(myargs.target_lang))
-    out.write("source_dictionary: {}\n".format(os.path.abspath(myargs.source_dictionary.name)))
-    out.write("target_dictionary: {}\n".format(os.path.abspath(myargs.target_dictionary.name)))
-    out.write("source_word_freqs: {}\n".format(os.path.abspath(myargs.source_word_freqs.name)))
-    out.write("target_word_freqs: {}\n".format(os.path.abspath(myargs.target_word_freqs.name)))
+    out.write("source_dictionary: {}\n".format(source_dictionary))
+    out.write("target_dictionary: {}\n".format(target_dictionary))
+    out.write("source_word_freqs: {}\n".format(source_word_freqs))
+    out.write("target_word_freqs: {}\n".format(target_word_freqs))
     out.write("normalize_by_length: {}\n".format(myargs.normalize_by_length))
     out.write("treat_oovs: {}\n".format(myargs.treat_oovs))
     out.write("qmax_limit: {}\n".format(myargs.qmax_limit))
@@ -484,17 +534,17 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("features_version: {}\n".format(myargs.features_version))
 
     if lm_stats != None:
-        out.write("source_lm: {}\n".format(os.path.abspath(myargs.lm_file_sl)))
-        out.write("target_lm: {}\n".format(os.path.abspath(myargs.lm_file_tl)))
+        out.write("source_lm: {}\n".format(lm_file_sl))
+        out.write("target_lm: {}\n".format(lm_file_tl))
         out.write("lm_type: {}\n".format(str(LMType.CHARACTER)))
         out.write("clean_mean_perp: {}\n".format(lm_stats.clean_mean) )
         out.write("clean_stddev_perp: {}\n".format(lm_stats.clean_stddev) )
         out.write("noisy_mean_perp: {}\n".format(lm_stats.noisy_mean) )
         out.write("noisy_stddev_perp: {}\n".format(lm_stats.noisy_stddev) )
-    out.write("disable_lang_ident: {}\n".format(myargs.disable_lang_ident))     
+    out.write("disable_lang_ident: {}\n".format(myargs.disable_lang_ident))
 
     if myargs.porn_removal_file is not None and myargs.porn_removal_train is not None:
-        out.write("porn_removal_file: {}\n".format(myargs.porn_removal_file))
+        out.write("porn_removal_file: {}\n".format(porn_removal_file))
         out.write("porn_removal_side: {}\n".format(myargs.porn_removal_side))
 
     if myargs.source_tokenizer_command is not None:

@@ -96,6 +96,7 @@ def initialization():
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
+    groupO.add_argument('--relative_paths', action='store_true', help="Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models.")
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
