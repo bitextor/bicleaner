@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from sklearn.neural_network import MLPRegressor
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.preprocessing import MinMaxScaler
@@ -20,36 +19,29 @@ from timeit import default_timer
 
 import argparse
 import logging
-import math
 import numpy as np
 import os
 import random
-import sklearn
 import sys
 import json
-
-
-import numpy as np
 
 #Allows to load modules while inside or outside the package  
 try:
     from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
-    from .word_freqs_list import WordFreqList
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
+    from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
     from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
-    from word_freqs_list import WordFreqList
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import build_noisy_set, precision_recall, repr_right, write_metadata, train_fluency_filter, old_shuffle, train_porn_removal
-    from tokenizer import Tokenizer    
+    from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from tokenizer import Tokenizer
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -88,7 +80,7 @@ def initialization():
     groupO.add_argument('--treat_oovs', action='store_true', help="Special treatment for OOVs in qmax dict feature")
     groupO.add_argument('--qmax_limit', type=check_positive_or_zero, default=40, help="Number of max target words to be taken into account, sorted by length")
     groupO.add_argument('--disable_features_quest', action='store_false', help="Disable less important features")
-    groupO.add_argument('--classifier_type', choices=['mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest', 'svm_regressor'], default="extra_trees", help="Classifier type")
+    groupO.add_argument('--classifier_type', choices=['mlp', 'extra_trees', 'svm', 'nn', 'nn1', 'adaboost', 'random_forest'], default="extra_trees", help="Classifier type")
     groupO.add_argument('--dump_features', type=argparse.FileType('w'), default=None, help="Dump training features to file")
     groupO.add_argument('-b', '--block_size', type=check_positive, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=check_positive, default=max(1, cpu_count()-1), help="Number of process to use")
