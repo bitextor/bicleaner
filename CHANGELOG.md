@@ -4,21 +4,22 @@ Bicleaner 0.14:
   * Rule change: Relaxed c_different_language rule for similar languages.
   * New rule: filter out porn sentences using FastText classifier.
 * Bicleaner train changes:
-  * Added monolingual word frequency dictionaries.
-  * Added new Qmax features:
+  * Default classifier is now `extra_trees`
+  * New parameters: `-f`  and `-F`, source and target word frequency dictionaries.
+  * New qmax features:
     * `qmax_nosmooth_nolimit_freq`: removes OOV smoothing, word limits and weights each target word with its monolingual probability using the word frequency dictionary.
     * `qmax_nosmooth_nolimit_cummulated_prob_zipf_freq`: uses accumulated probability instead of maximum and splits the score into quartiles based on word frequencies.
   * Added more bilingual dictionary coverage features, splitting them into quartiles based on monolingual word frequencies.
   * Added new noise function that synthesizes negative samples cutting sentences and replacing words (this is not used by default, needs more testing).
   * Changed classifier training behavior and use grid search.
-    * Removed `bicleaner_train_lite.py`
-  * Changed good/wrong examples parameters:
-    * `--good_examples` and `--wrong_examples` are not used anymore.
-    * Training will automatically use one half of the input file for good examples and the other half to synthesize wrong examples.
+  * Removed `bicleaner_train_lite.py`
+  * Removed parameters: `-g` (`--good_examples`) and `-w` (`--wrong_examples`):
+    * Now, training automatically uses one half of the input file for good examples and the other half to synthesize wrong examples.
     * Of this partitions, 90% will be used for training and the remaining 10% for testing.
-  * Add an option to save model files paths relative instead of absolute. Useful for training distributable models.
+  * New parameter: `--relative_paths` allows to save model files paths relative instead of absolute  (useful for training distributable models)
 * Other
    * Now using [sacremoses](https://github.com/alvations/sacremoses) instead of [mosestokenizer](https://github.com/luismsgomes/mosestokenizer)
+   * New script:  `./utils/download-pack.sh` allows to download language packs for a given language pair.
 
 
 Bicleaner 0.13:
