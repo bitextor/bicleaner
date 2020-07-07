@@ -10,6 +10,7 @@ import logging
 import numpy
 import regex
 from sacremoses import MosesPunctNormalizer
+from subprocess import PIPE
 
 try:
     from .tokenizer import Tokenizer
@@ -85,8 +86,12 @@ class LMFluencyFilter:
     
     @classmethod
     def _estimate_kenlm(cls, corpus:str, lm_file:str, params:str):
-        subprocess.run("lmplz "+params+" < "+corpus+" > "+lm_file+".arpa", shell=True)
-        subprocess.run("build_binary "+lm_file+".arpa "+ lm_file, shell=True)
+        output = subprocess.run("lmplz "+params+" < "+corpus+" > "+lm_file+".arpa", shell=True, stderr=PIPE, stdout=PIPE)
+        logging.debug(output.stderr.decode())
+        logging.debug(output.stdout.decode())
+        output = subprocess.run("build_binary "+lm_file+".arpa "+ lm_file, shell=True, stderr=PIPE, stdout=PIPE)
+        logging.debug(output.stderr.decode())
+        logging.debug(output.stdout.decode())
     
     def load_lm(self, lm_path:str):
         self.lm_path=lm_path
