@@ -215,7 +215,10 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     else:
         sorted_feat = None
 
-    joblib.dump(clf, classifier_output)
+    if isinstance(clf, GridSearchCV):
+        joblib.dump(clf.best_estimator_, classifier_output, compress=3)
+    else:
+        joblib.dump(clf, classifier_output, compress=3)
 
     feats = []
     labels = []
