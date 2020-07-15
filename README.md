@@ -107,6 +107,7 @@ bicleaner-classify [-h]
                    [--disable_hardrules]
                    [--disable_lm_filter]
                    [--disable_porn_removal]
+                   [--disable_minimal_length]
                    [-q] 
                    [--debug] 
                    [--logfile LOGFILE] 
@@ -143,6 +144,7 @@ bicleaner-classify [-h]
   * `--disable_hardrules`: Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied) (default: False)
   * `--disable_lm_filter`: Disables LM filtering.
   * `--disable_porn_removal`: Disables porn removal.
+  * `--disable_minimal_length` : Don't apply minimal length rule (default: False).
 
 * Logging:
   * `-q, --quiet`: Silent logging mode (default: False)
@@ -227,6 +229,7 @@ Given a parallel corpus, you use `bicleaner-hardrules` to extract some of its no
                       [-b BLOCK_SIZE]
                       [-p PROCESSES]
                       [--disable_lang_ident]
+                      [--disable_minimal_length]
                       [--scol SCOL]
                       [--tcol TCOL]
                       [--disable_lm_filter] 

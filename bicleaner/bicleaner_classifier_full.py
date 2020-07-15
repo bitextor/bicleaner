@@ -90,6 +90,7 @@ def initialization():
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+    groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
 
     # Logging group
     groupL = parser.add_argument_group('Logging')
