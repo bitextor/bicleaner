@@ -117,6 +117,11 @@ def initialization():
             if not ("porn_removal_file" in args.metadata_yaml):
                 args.disable_porn_removal = True
                 logging.warning("Porn removal classifier not present in metadata.")
+            else:
+                try:
+                    args.porn_removal = fasttext.load_model(os.path.join(args.metadata_yaml["yamlpath"], args.metadata_yaml['porn_removal_file']))
+                except:
+                    args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
 
             if "source_tokenizer_command" in args.metadata_yaml:
                 args.source_tokenizer_command=args.metadata_yaml["source_tokenizer_command"]
@@ -443,7 +448,7 @@ def worker_process(i, jobs_queue, output_queue, args):
         lm_filter = None
 
     if not args.disable_porn_removal:
-        porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
+        porn_removal = args.porn_removal
         if args.metadata_yaml['porn_removal_side'] == 'tl':
             porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         else:
