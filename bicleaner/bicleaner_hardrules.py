@@ -69,6 +69,7 @@ def initialization():
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
 
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
+    groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
 
     groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
@@ -310,7 +311,7 @@ def c_no_porn(left, right, model, side, porn_tokenizer):
         tok = porn_tokenizer.tokenize(left.lower())
     else:
         tok = porn_tokenizer.tokenize(right.lower())
-    return model.predict(tok)[0][0] == '__label__negative'
+    return model.predict(' '.join(tok))[0][0] == '__label__negative'
 
 def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, porn_tokenizer = None):
     if len(left) >= 1024:
@@ -321,7 +322,7 @@ def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, porn_toke
         return "c_no_literals(['Re:'], left)"
     elif not c_no_literals(["Re:"], right):
         return "c_no_literals(['Re:'], right)"            
-    elif not (c_minimal_length(left) or c_minimal_length(right)):
+    elif not args.disable_minimal_length and not (c_minimal_length(left) or c_minimal_length(right)):
         return "c_minimal_length(left) and c_minimal_length(right)"
     elif not (c_length(left, right) or c_length_bytes(left, right)): 
         return "c_length or c_length_bytes"
