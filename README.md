@@ -200,8 +200,23 @@ In order to train a new classifier, you must provide:
    * These lists can easily be obtained from a monolingual corpus (i.e. newscrawl or the same text used to train probabilistic bilingual dictionaries) and a command line in bash:
    
 ```bash
-$ cat monolingual.SL | tokenizer.sh | awk '{print tolower($0)}' | tr ' ' '\n' | sort | uniq -c | grep -v '[[:space:]]*1' | gzip > wordfreq-SL.gz
-$ cat monolingual.TL | tokenizer.sh | awk '{print tolower($0)}' | tr ' ' '\n' | sort | uniq -c | grep -v '[[:space:]]*1' | gzip > wordfreq-TL.gz
+$ cat monolingual.SL \
+    | sacremoses -l SL tokenize -x \
+    | awk '{print tolower($0)}' \
+    | tr ' ' '\n' \
+    | LC_ALL=C sort | uniq -c \
+    | LC_ALL=C sort -nr \ \
+    | grep -v '[[:space:]]*1' \
+    | gzip > wordfreq-SL.gz
+$ cat monolingual.TL \
+    | sacremoses -l TL tokenize -x \
+    | awk '{print tolower($0)}' \
+    | tr ' ' '\n' \
+    | LC_ALL=C sort | uniq -c \
+    | LC_ALL=C sort -nr \ \
+    | grep -v '[[:space:]]*1' \
+    | gzip > wordfreq-TL.gz
+
 ```
 Optionally, if you want the classifier to include a porn filter, you must also provide:
 * File with training dataset for porn removal classifier. Each sentence must contain at the beginning the `__label__negative` or `__label__positive` according to FastText convention. It should be lowercased and tokenized.
