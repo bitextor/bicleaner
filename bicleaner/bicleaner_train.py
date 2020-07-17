@@ -125,7 +125,7 @@ def initialization():
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
 # and returns some quality estimates.
-def train_classifier(input_features, test_features, classifier_type, classifier_output):
+def train_classifier(input_features, test_features, classifier_type, classifier_output, feat_names):
     feats=[]
     labels=[]
 
@@ -206,7 +206,6 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     # Log sorted feature importances with their names
     if classifier_type in ('random_forest', 'adaboost', 'extra_trees'):
-        feat_names = Features.cols + Features.optional
         if isinstance(clf, GridSearchCV):
             feat_dict = dict(zip(feat_names, clf.best_estimator_.feature_importances_))
         else:
@@ -499,7 +498,7 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
         features_train.close()
         features_test.close()
 
