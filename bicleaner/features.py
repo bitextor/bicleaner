@@ -60,8 +60,6 @@ class Features(object):
             "ent2", "maxrep2", "maxword2",
             "ntok1", "ntok2",
             "poisson1", "poisson2",
-            "qmax1q1", "qmax1q2", "qmax1q3", "qmax1q4",
-            "qmax2q1", "qmax2q2", "qmax2q3", "qmax2q4",
             "qmax_freq1q1", "qmax_freq1q2", "qmax_freq1q3", "qmax_freq1q4",
             "qmax_freq2q1", "qmax_freq2q2", "qmax_freq2q3", "qmax_freq2q4",
             "cov11q1", "cov11q2", "cov11q3", "cov11q4",

@@ -77,7 +77,7 @@ def train_fluency_filter(args):
     if not (args.lm_file_sl and args.lm_file_tl):
         return None
 
-    logging.info("Training LM-based fluency filter")
+    logging.info("Training LM-based fluency filter.")
 
     inputIsTmp=True
     if args.lm_training_file_sl and args.lm_training_file_tl and args.lm_clean_examples_file_sl and args.lm_clean_examples_file_tl:
@@ -93,8 +93,8 @@ def train_fluency_filter(args):
         logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
         logging.info("TL LM dev noisy corpus: {}".format(args.noisy_examples_file_tl))
     else:
-        logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the classifier), after randomly removing {} sentences".format(args.lm_dev_size))
-        logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the classifier): {} sentences".format(args.lm_dev_size))
+        logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the classifier), after randomly removing {} sentences.".format(args.lm_dev_size))
+        logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the classifier): {} sentences.".format(args.lm_dev_size))
        
         
         lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)

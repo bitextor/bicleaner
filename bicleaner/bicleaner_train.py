@@ -211,12 +211,19 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
             feat_dict = dict(zip(feat_names, clf.best_estimator_.feature_importances_))
         else:
             feat_dict = dict(zip(feat_names, clf.feature_importances_))
-        sorted_feat = {k: v for k, v in sorted(feat_dict.items(), key=lambda item: item[1])}
-    else:
-        sorted_feat = None
 
+        logging.info("Top 5 important features: ")
+        sorted_f = sorted(feat_dict.items(), key=lambda item: item[1], reverse=True)
+        for feat in sorted_f[:5]:
+            logging.info("\t{:.5f}: {}".format(feat[1], feat[0]))
+
+
+    # Save classifier and log best params found by grid search
     if isinstance(clf, GridSearchCV):
         joblib.dump(clf.best_estimator_, classifier_output, compress=3)
+        logging.info('Best classifier parameters found:')
+        for k, v in clf.best_params_.items():
+            logging.info('\t {}: {}'.format(k,v))
     else:
         joblib.dump(clf, classifier_output, compress=3)
 
@@ -244,7 +251,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
-    return hgood[0].tolist(), hwrong[0].tolist(), sorted_feat
+    return hgood[0].tolist(), hwrong[0].tolist()
 
 # Writes all features of the input TUs into a temporary file
 def reduce_process(output_queue, output_file):
@@ -408,7 +415,7 @@ def perform_training(args):
     args.dict_sl_tl = ProbabilisticDictionary(args.source_dictionary)
     args.dict_tl_sl = ProbabilisticDictionary(args.target_dictionary)
 
-    logging.info("Start computing features")
+    logging.info("Start computing features.")
     features_file = TemporaryFile('w+')
     # Start reducer
     reduce = Process(target = reduce_process,
@@ -438,7 +445,7 @@ def perform_training(args):
     for _ in workers:
         jobs_queue.put(None)
 
-    logging.info("End computing features")
+    logging.info("End computing features.")
 
     for w in workers:
         w.join()
@@ -456,7 +463,7 @@ def perform_training(args):
         args.dump_features.close()
         features_file.seek(0)
 
-    logging.info("Start training")
+    logging.info("Start training.")
 
     # Use 90% of the input to train and 10% for test
     if args.wrong_examples_file is not None:
@@ -492,21 +499,19 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong, feat_importances = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier)
         features_train.close()
         features_test.close()
 
-    logging.info("End training")
+    logging.info("End training.")
 
-    if feat_importances is not None:
-        logging.debug('Feature importances: ' + json.dumps(feat_importances, indent=4))
     write_metadata(args, length_ratio, hgood, hwrong, stats)
     args.metadata.close()
 
     # Stats
-    logging.info("Finished")
+    logging.info("Finished.")
     elapsed_time = default_timer() - time_start
-    logging.info("Elapsed time {:.2f} s".format(elapsed_time))
+    logging.info("Elapsed time {:.2f}s.".format(elapsed_time))
 
 # Main function: setup logging and calling the main loop
 def main(args):
