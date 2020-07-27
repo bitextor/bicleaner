@@ -64,8 +64,10 @@ class Features(object):
             "qmax_freq2q1", "qmax_freq2q2", "qmax_freq2q3", "qmax_freq2q4",
             "cov11q1", "cov11q2", "cov11q3", "cov11q4",
             "cov21q1", "cov21q2", "cov21q3", "cov21q4",
+            "cov11", "cov21",
             "cov12q1", "cov12q2", "cov12q3", "cov12q4",
-            "cov22q1", "cov22q2", "cov22q3", "cov22q4"]
+            "cov22q1", "cov22q2", "cov22q3", "cov22q4"
+            "cov11", "cov21"]
     optional = ["avg_tok_l1","avg_tok_l2",
                      "npunct_tok1", "npunct_tok2",
                      "comma1", "period1", "semicolon1", "colon1", "doubleapos1", "quot1", "slash1",
