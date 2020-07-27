@@ -10,24 +10,31 @@ except (SystemError, ImportError):
 
 class Tokenizer:
     def __init__(self, command=None,  l="en"):
-        if command:        
+        if command:
             self.tokenizer=ToolWrapper(command.split(' '))
-            self.external =  True         
+            self.external =  True
+            self.spm = command.find('spm_encode') == -1
         else:
             self.tokenizer = MosesTokenizer(lang=l)
             self.external = False
-          
-    
+            self.spm = False
+
     def tokenize(self, text):
         if self.external:
             self.tokenizer.writeline(text.rstrip('\n'))
             return ([no_escaping(t) for t in self.tokenizer.readline().rstrip('\n').split()])
-        else:   
+        else:
             return self.tokenizer.tokenize(text, escape=False)
+
+    def detokenize(self, text):
+        if self.spm:
+            return ''.join(text).replace('\u200b',' ')
+        else:
+            return ' '.join(text)
 
     def close(self):
         if self.external:
             try:
-                self.tokenizer.close()                
+                self.tokenizer.close()
             except:
                 return
