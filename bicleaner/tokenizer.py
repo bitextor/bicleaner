@@ -13,7 +13,7 @@ class Tokenizer:
         if command:
             self.tokenizer=ToolWrapper(command.split(' '))
             self.external =  True
-            self.spm = command.find('spm_encode') == -1
+            self.spm = command.find('spm_encode') > -1
         else:
             self.tokenizer = MosesTokenizer(lang=l)
             self.external = False
@@ -28,7 +28,7 @@ class Tokenizer:
 
     def detokenize(self, text):
         if self.spm:
-            return ''.join(text).replace('\u200b',' ')
+            return ''.join(text).replace('\u2581',' ')
         else:
             return ' '.join(text)
 
