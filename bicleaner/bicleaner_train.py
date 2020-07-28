@@ -211,9 +211,9 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
         else:
             feat_dict = dict(zip(feat_names, clf.feature_importances_))
 
-        logging.info("Top 5 important features: ")
+        logging.info("Top 10 important features: ")
         sorted_f = sorted(feat_dict.items(), key=lambda item: item[1], reverse=True)
-        for feat in sorted_f[:5]:
+        for feat in sorted_f[:10]:
             logging.info("\t{:.5f}: {}".format(feat[1], feat[0]))
 
 
