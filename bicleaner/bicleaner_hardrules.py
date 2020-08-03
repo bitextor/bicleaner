@@ -59,9 +59,9 @@ def initialization():
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
     parser.add_argument('--annotated_output',default=False, action='store_true', help="Adds an extra column with each sentence's evaluation (\"keep\" if the sentence is good, otherwise the reason for rejecting")
     
-    groupM = parser.add_argument_group('Mandatory')
-    groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
-    groupM.add_argument("-t", "--target_lang", type=str, required=True, help="Target language (TL) of the input")
+    #groupM = parser.add_argument_group('Mandatory')
+    #groupM.add_argument("-s", "--source_lang", type=str, required=True, help="Source language (SL) of the input")
+    #groupM.add_argument("-t", "--target_lang", type=str, required=True, help="Target language (TL) of the input")
     
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
@@ -71,6 +71,9 @@ def initialization():
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
     groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+
+    groupO.add_argument("-s", "--source_lang", type=str, default=None,  help="Source language (SL) of the input")
+    groupO.add_argument("-t", "--target_lang", type=str, default=None,  help="Target language (TL) of the input")
 
     groupO.add_argument("--scol", default=1, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=2, type=check_positive, help ="Target sentence column (starting in 1)")  
@@ -143,6 +146,23 @@ def initialization():
             args.disable_lm_filter = True
             args.disable_porn_removal = True
 
+    if (args.source_lang == None or args.target_lang == None):
+        if (args.metadata == None):
+            logging.error("No source or target languages provided.")
+            sys.exit(1)
+        else:
+            try:
+                if not "metadata_yaml" in args  or args.metadata_yaml == None:
+                    args.metadata_yaml = yaml.safe_load(args.metadata)
+                #args.metadata_yaml["yamlpath"] = os.path.dirname(os.path.abspath(args.metadata.name))
+
+                args.source_lang=args.metadata_yaml["source_lang"]
+                args.target_lang=args.metadata_yaml["target_lang"]    
+            except:
+                traceback.print_exc()
+                logging.error("Error retrieving source or target languages from metadata.")
+                sys.exit(1)
+                
     if args.disable_lm_filter:
         logging.info("LM filtering disabled.")
     if args.disable_porn_removal:
