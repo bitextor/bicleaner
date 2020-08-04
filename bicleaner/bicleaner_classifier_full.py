@@ -6,12 +6,10 @@ import argparse
 import logging
 import traceback
 import subprocess
-import math
 import gzip
 import re
 import yaml
 import sklearn
-#from sklearn.externals import joblib
 import joblib
 import numpy as np
 
@@ -20,21 +18,24 @@ from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile, gettempdir
 from timeit import default_timer
-from toolwrapper import ToolWrapper
-from mosestokenizer import MosesTokenizer
+
 
 #Allows to load modules while inside or outside the package
 try:
     from .features import feature_extract, Features
     from .prob_dict import ProbabilisticDictionary
-    from .util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
+    from .word_freqs_zipf import WordZipfFreqDist
+    from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
-
+    from .tokenizer import Tokenizer
+    
 except (ImportError, SystemError):
     from features import feature_extract, Features
     from prob_dict import ProbabilisticDictionary
-    from util import no_escaping, check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup, check_positive
+    from word_freqs_zipf import WordZipfFreqDist
+    from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from bicleaner_hardrules import *
+    from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
 
@@ -71,8 +72,8 @@ def initialization():
 
     # Options group
     groupO = parser.add_argument_group('Optional')
-    groupO.add_argument("-S", "--source_tokeniser_path", type=str, help="Source language (SL) tokeniser executable absolute path")
-    groupO.add_argument("-T", "--target_tokeniser_path", type=str, help="Target language (TL) tokeniser executable absolute path")
+    groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
+    groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
@@ -88,9 +89,9 @@ def initialization():
     groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)   
     groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
+    groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+    groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
 
-
-    
     # Logging group
     groupL = parser.add_argument_group('Logging')
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
@@ -105,12 +106,6 @@ def initialization():
 
     logging_level = logging.getLogger().level    
     
-    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
-        #Getting rid of INFO messages when Moses processes start
-        logging.getLogger("MosesTokenizer").setLevel(logging.WARNING)
-        logging.getLogger("MosesSentenceSplitter").setLevel(logging.WARNING)
-        logging.getLogger("MosesPunctuationNormalizer").setLevel(logging.WARNING)
-
             
     try: 
         metadata_yaml = yaml.safe_load(args.metadata)
@@ -120,10 +115,10 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokeniser_path" in metadata_yaml:
-            args.source_tokeniser_path=metadata_yaml["source_tokeniser_path"]
-        if "target_tokeniser_path" in metadata_yaml:
-            args.target_tokeniser_path=metadata_yaml["target_tokeniser_path"]        
+        if "source_tokenizer_command" in metadata_yaml:
+            args.source_tokenizer_command=metadata_yaml["source_tokenizer_command"]
+        if "target_tokenizer_command" in metadata_yaml:
+            args.target_tokenizer_command=metadata_yaml["target_tokenizer_command"]        
 
         try:
             args.clf=joblib.load( os.path.join(yamlpath , metadata_yaml["classifier"]))
@@ -141,60 +136,55 @@ def initialization():
         try:            
             args.dict_tl_sl = ProbabilisticDictionary( os.path.join( yamlpath , metadata_yaml["target_dictionary"]))        
         except:
-            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])        
-        
-                
+            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
+
+        try:
+            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
+        except:
+            try:
+                args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
+            except:
+                args.sl_word_freqs = None
+        try:
+            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
+        except:
+            try:
+                args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
+            except:
+                args.tl_word_freqs = None
+
         args.normalize_by_length = metadata_yaml["normalize_by_length"]
         args.treat_oovs = metadata_yaml["treat_oovs"]
         args.qmax_limit = metadata_yaml["qmax_limit"]
         args.disable_features_quest = metadata_yaml["disable_features_quest"]
-        args.good_examples = metadata_yaml["good_examples"]
-        args.wrong_examples = metadata_yaml["wrong_examples"]
-        args.good_test_examples = metadata_yaml["good_test_examples"]
-        args.wrong_test_examples = metadata_yaml["wrong_test_examples"]
         args.length_ratio = metadata_yaml["length_ratio"]
         args.features_version = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
-        
+
         threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
         logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
         logging.info("Ideal threshold: {:1.1f}".format(threshold))
         metadata_yaml["threshold"] = threshold
-        
-        '''
-        #Load LM stuff if model was trained with it 
-        if "source_lm" in metadata_yaml and "target_lm" in metadata_yaml:
-            fullpath_source_lm=os.path.join(yamlpath,metadata_yaml['source_lm'])
-            if os.path.isfile(fullpath_source_lm):
-                args.source_lm= fullpath_source_lm
-            else:
-                args.source_lm= metadata_yaml['source_lm']
-            
-            fullpath_target_lm=os.path.join(yamlpath,metadata_yaml['target_lm'])
-            if os.path.isfile(fullpath_target_lm):
-                args.target_lm=fullpath_target_lm
-            else:
-                args.target_lm=metadata_yaml['target_lm']
-            
-            
-            args.lm_type=LMType[metadata_yaml['lm_type']]
-            stats=DualLMStats( metadata_yaml['clean_mean_perp'],metadata_yaml['clean_stddev_perp'],metadata_yaml['noisy_mean_perp'],metadata_yaml['noisy_stddev_perp'] )
-            args.lm_filter_stats=stats
-        else:
-            args.source_lm=None
-            args.target_lm=None
-            args.lm_type=None
-            args.lm_filter_stats=None
-        '''           
+
 
         #Try loading metadata for LM filtering                  
         if not args.disable_lm_filter:
             if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
                 args.disable_lm_filter = True
-                logging.warning("Error loading metadata. LM filtering disabled.")
+                logging.warning("LM filter not present in metadata, disabling.")
         else:
             logging.info("LM filtering disabled")
 
-
+        if not args.disable_porn_removal:
+            if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
+                args.disable_porn_removal = True
+                logging.warning("Porn removal not present in metadata, disabling.")
+            else:
+                try:
+                    args.porn_removal = fasttext.load_model(os.path.join(yamlpath, metadata_yaml['porn_removal_file']))
+                except:
+                    args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
+        else:
+            logging.info("Porn removal disabled")
          
         if "disable_lang_ident" in metadata_yaml:
             args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
@@ -207,7 +197,7 @@ def initialization():
         parser.set_defaults(**metadata_yaml)   
    
     except:
-        print("Error loading metadata")
+        logging.error("Error loading metadata")
         traceback.print_exc()
         sys.exit(1)
     
@@ -215,8 +205,6 @@ def initialization():
     if not os.path.exists(args.tmp_dir):
         os.makedirs(args.tmp_dir)
 
-    #if args.score_only and args.keep_lm_result:
-    #    raise AssertionError("Conflicting arguments: cannot output bicleaner score only AND keep language model result")
     logging.debug("Arguments processed: {}".format(str(args)))
     logging.info("Arguments processed.")
     return args
@@ -226,29 +214,23 @@ def initialization():
 
 def classifier_process(i, jobs_queue, output_queue, args):
     
-    if args.source_tokeniser_path:    
-        source_tokeniser = ToolWrapper(args.source_tokeniser_path.split(' '))
-    else:
-        source_tokeniser = MosesTokenizer(args.source_lang)
-    if args.target_tokeniser_path:
-        target_tokeniser = ToolWrapper(args.target_tokeniser_path.split(' '))
-    else:
-        target_tokeniser = MosesTokenizer(args.target_lang)
-        
-    '''
-    #Load LM for fluency scoring
-    lm_filter=None
-    if args.source_lm and args.target_lm:
-
-        lm_filter=DualLMFluencyFilter(args.lm_type,args.source_lang, args.target_lang)
-        lm_filter.load(args.source_lm, args.target_lm,args.lm_filter_stats)
-    '''
+    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)        
 
     if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml)
+        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
     else:
         lm_filter = None
-                
+
+    if not args.disable_porn_removal:
+        porn_removal = args.porn_removal
+        if args.metadata_yaml['porn_removal_side'] == 'tl':
+            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+        else:
+            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+    else:
+        porn_removal = None
+        porn_tokenizer = None
 
     while True:
         job = jobs_queue.get()
@@ -266,7 +248,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 #  hard rules and lm fluency filtering
                 #feats: vector of tuples, input features to the classifier, length equals number
                 #  of sentences in the input that passed hard rules + lm fluency filtering
-                
+
                 valid_sentences=[]
                 for i in filein:
                     parts = i.split("\t")
@@ -278,30 +260,29 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter)== False):
+                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokeniser, target_tokeniser, args)
+                        features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
+                        
                         feats.append([float(v) for v in features])
                         valid_sentences.append(True)
                     else:
                         valid_sentences.append(False)
-                    
 
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
 
                 piter = iter(predictions)
 
-                for i, valid_sentence in zip(filein,valid_sentences):                    
+                for i, valid_sentence in zip(filein, valid_sentences):
                     if valid_sentence:
                         p = next(piter)
                         if args.score_only:
-                            fileout.write("{0:.3f}".format((p[1])))                        
-                        else:    
+                            fileout.write("{0:.3f}".format(p[1]))
+                        else:
                             fileout.write(i.strip())
-                            fileout.write("\t")
-                            fileout.write("{0:.3f}".format((p[1])))
-                           
+                            fileout.write("\t{0:.3f}".format(p[1]))
+
                         fileout.write("\n")
                     else:
                         if args.score_only:
@@ -322,8 +303,6 @@ def classifier_process(i, jobs_queue, output_queue, args):
         else:
             logging.debug("Exiting worker")
             break	
-
-            
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")

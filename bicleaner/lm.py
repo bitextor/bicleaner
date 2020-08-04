@@ -1,11 +1,6 @@
 import kenlm
 from enum import Enum
-try:
-    from .util import MosesTokenizer
-except (ImportError, SystemError):
-    from util import MosesTokenizer
 
-from mosestokenizer import MosesPunctuationNormalizer, MosesSentenceSplitter
 from tempfile import TemporaryFile, NamedTemporaryFile
 import subprocess
 import shutil
@@ -14,6 +9,15 @@ import argparse
 import logging
 import numpy
 import regex
+from sacremoses import MosesPunctNormalizer
+from subprocess import PIPE
+
+try:
+    from .tokenizer import Tokenizer
+except (SystemError, ImportError):
+    from tokenizer import Tokenizer     
+
+
 
 class LMType(Enum):
     #Needed for argparse
@@ -44,16 +48,16 @@ class UnicodeWordClassifier:
 
 class LMFluencyFilter:
     
-    def __init__(self, lm_type:LMType , language:str):
+    def __init__(self, lm_type:LMType , language:str, tokenizer_command):
         """
             lm_type: LMType
             language: language code
+            tokenizer_command: tokenizer full command (with flags if needed)
         """
         
         self.language=language
-        self.tokenizer=MosesTokenizer(self.language)
-        self.normalizer=MosesPunctuationNormalizer(self.language)
-        self.splitter=MosesSentenceSplitter(self.language, more=False)
+        self.tokenizer=Tokenizer(tokenizer_command, self.language)
+        self.normalizer=MosesPunctNormalizer(lang=self.language)
         self.type=lm_type
     
     @classmethod
@@ -82,20 +86,25 @@ class LMFluencyFilter:
     
     @classmethod
     def _estimate_kenlm(cls, corpus:str, lm_file:str, params:str):
-        subprocess.run("lmplz "+params+" < "+corpus+" > "+lm_file+".arpa", shell=True)
-        subprocess.run("build_binary "+lm_file+".arpa "+ lm_file, shell=True)
+        output = subprocess.run("lmplz "+params+" < "+corpus+" > "+lm_file+".arpa", shell=True, stderr=PIPE, stdout=PIPE)
+        logging.debug(output.stderr.decode())
+        logging.debug(output.stdout.decode())
+        output = subprocess.run("build_binary "+lm_file+".arpa "+ lm_file, shell=True, stderr=PIPE, stdout=PIPE)
+        logging.debug(output.stderr.decode())
+        logging.debug(output.stdout.decode())
     
     def load_lm(self, lm_path:str):
         self.lm_path=lm_path
         self.lm=kenlm.LanguageModel(self.lm_path)
     
-    def _sentence_split(self,sentence:str):
-        return self.splitter([sentence])
+#    def _sentence_split(self,sentence:str):
+#        return self.splitter([sentence])
     
     def _tokenize(self, sentence):
-        sentence=self.normalizer(sentence)
+        sentence=self.normalizer.normalize(sentence)
+
         if self.type != LMType.CHARACTER:
-            tokline=" ".join(self.tokenizer(sentence))
+            tokline=" ".join(self.tokenizer.tokenize(sentence))
         else:
             tokline=" ".join([ "SPACE" if c == " " else c for c in sentence  ])
         return tokline
@@ -104,7 +113,7 @@ class LMFluencyFilter:
         if self.type != LMType.PLACEHOLDER:
             return sentence
         else:
-            toks=[ self._replace_placeholder(t) for t in sentence.split() ]
+            toks = self._replace_placeholder(sentence)
             return " ".join(toks)
     
     def train_lm(self, text_path:str):
@@ -114,12 +123,10 @@ class LMFluencyFilter:
         #Tokenize text
         with open(text_path) as input_f:
             for line in input_f:
-                line=line.rstrip("\n")
-                sentences=self._sentence_split(line)
-                for s in sentences:
-                    tokline=self._tokenize(s)
-                    tokenized_f.write(tokline)
-                    tokenized_f.write("\n")
+                #line=line.rstrip("\n")
+                tokline = self._tokenize(line)
+                tokenized_f.write(tokline)
+                tokenized_f.write("\n")
         tokenized_f.close()
             
         #Perform placeholder replacement if needed
@@ -172,15 +179,17 @@ class LMFluencyFilter:
     
     def score(self, sentence:str):
         #We need to preprocess the sentence in the same way as when training the LM
-        sents= self._sentence_split(sentence)
-        processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
-        logging.debug("Scoring: {}".format(processed_sents))
+        #sents= self._sentence_split(sentence)
+        #processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
+        processed_sent = self._introduce_placeholders(self._tokenize(sentence))
+        logging.debug("Scoring: {}".format(processed_sent))
         
-        raw_scores= [self._raw_score(s) for s in processed_sents]
+        raw_score= self._raw_score(processed_sent)
         
         #Normalize score
-        return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
-
+        #return sum(raw_scores)/(sum([len(s.split()) for s in processed_sents]) + len(processed_sents) ) # We divide by total number of tokens + 1 for each sentence (taken from kenlm perplexity method)
+        return  raw_score/(sum([len(processed_sent.split())]) +1) #the same, but assuming only 1 sentence
+        
 class DualLMStats:
     def __init__(self,clean_mean:float, clean_stddev:float, noisy_mean:float, noisy_stddev: float):
         self.clean_mean=clean_mean
@@ -205,9 +214,9 @@ class DualLMStats:
             return 1-  ((perp - self.upper_limit) /( self.middle_point - self.upper_limit ) )*0.5 
 
 class DualLMFluencyFilter:
-    def __init__(self, lm_type:LMType , sl:str, tl:str):
-        self.sl_filter=LMFluencyFilter(lm_type,sl)
-        self.tl_filter=LMFluencyFilter(lm_type,tl)
+    def __init__(self, lm_type:LMType , sl:str, tl:str, sl_tokenizer, tl_tokenizer):
+        self.sl_filter=LMFluencyFilter(lm_type,sl, sl_tokenizer)
+        self.tl_filter=LMFluencyFilter(lm_type,tl, tl_tokenizer)
         self.scoring_stats=None
     
     def load(self,sl_lm_path:str,tl_lm_path:str,stats: DualLMStats):
@@ -248,6 +257,9 @@ if __name__ == "__main__":
     parser.add_argument("--lm_file_b")
     parser.add_argument("--stats_file_clean")
     parser.add_argument("--stats_file_noisy")
+
+    parser.add_argument("--tokenizer_command", default=None)
+    parser.add_argument("--tokenizer_command_b", default=None)
     
     parser.add_argument("--debug",action='store_true')
     
@@ -258,28 +270,28 @@ if __name__ == "__main__":
     
     
     if args.train:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_command)
         ff.train_lm(args.corpus)
         ff.copy_lm(args.lm_file)
         ff.cleanup()
     
     if args.score:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_command)
         ff.load_lm(args.lm_file)
         with open(args.corpus) as corpus_f:
             for line in corpus_f:
                 line=line.rstrip("\n")
                 print(ff.score(line))
     if args.stats:
-        ff = LMFluencyFilter(args.lm_type, args.language)
+        ff = LMFluencyFilter(args.lm_type, args.language, args.tokenizer_command)
         ff.load_lm(args.lm_file)
-        ff_b=LMFluencyFilter(args.lm_type, args.language_b)
+        ff_b=LMFluencyFilter(args.lm_type, args.language_b, args.tokenizer_command_b)
         ff_b.load_lm(args.lm_file_b)
         mean,stdev=LMFluencyFilter.estimate_threshold(ff,ff_b,args.corpus,args.corpus_b)
         print("{} {}".format(mean,stdev))
     
     if args.score_dual:
-        ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b)
+        ff = DualLMFluencyFilter(args.lm_type,args.language,args.language_b, args.tokenizer_command, args.tokenizer_command_b)
         with open(args.stats_file_clean) as stats_f:
             content=stats_f.readline().strip()
             clean_mean=float(content.split(" ")[0])

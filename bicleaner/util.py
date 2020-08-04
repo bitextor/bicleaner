@@ -83,6 +83,10 @@ def logging_setup(args = None):
         if args.debug:
             logger.setLevel(logging.DEBUG)
 
+    logging_level = logging.getLogger().level
+    if logging_level <= logging.WARNING and logging_level != logging.DEBUG:
+        logging.getLogger("ToolWrapper").setLevel(logging.WARNING)
+
 def shuffle_file(input: typing.TextIO, output: typing.TextIO):
     offsets=[]
     with TemporaryFile("w+") as temp:
@@ -99,7 +103,7 @@ def shuffle_file(input: typing.TextIO, output: typing.TextIO):
             temp.seek(offset)
             output.write(temp.readline())
         
-        
+# DEPRECATED!!!
 class MosesTokenizer(ToolWrapper):
     """A module for interfacing with ``tokenizer.perl`` from Moses.
 
@@ -142,3 +146,4 @@ class MosesTokenizer(ToolWrapper):
             return []
         self.writeline(sentence)
         return self.readline().split()
+
