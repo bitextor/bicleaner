@@ -3,6 +3,7 @@ Bicleaner 0.14:
   * New rule: filter out sentences containing gluedWordsLikeThis.
   * Rule change: Relaxed c_different_language rule for similar languages.
   * New rule: filter out porn sentences using FastText classifier.
+  * Parameters changed: `-s/--source_lang` and `-t/--target_lang` are no longer mandatory (if a metadata .yaml file is provided)
 * Bicleaner train changes:
   * Default classifier is now `extra_trees`
   * New parameters: `-f`  and `-F`, source and target word frequency dictionaries.
