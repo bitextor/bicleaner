@@ -214,24 +214,24 @@ def feature_dict_qmax_nosmooth(slwords, tlwords, dict_stot, normalize_by_length,
 def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by_length, fv):
     logresult = 0
 
-    slwords_s_a = set()
-    slwords_s_n = set()
-    for i in slwords:
-        if regex_alpha.match(i):
-            if i in dict_stot.d:
-                slwords_s_a.add(i)
-        else:
-            slwords_s_n.add(i)
+    #slwords_s_a = set()
+    #slwords_s_n = set()
+    slwords.append("NULL")
+    slwords_s = [s for s in set(slwords) if s in dict_stot.d]
+    #    if regex_alpha.match(i):
+    #        if i in dict_stot.d:
+    #            slwords_s_a.add(i)
+    #    else:
+    #        slwords_s_n.add(i)
 
-    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
     #tlwords2.sort(key=len, reverse=True)
 
     count_t_in_dict = 0
     for tlword in tlwords2:
         if tlword in dict_stot.dinv:
-            t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
-            t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+            t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s]
+            #t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
             prob = max(t, default=dict_stot.smooth)
             logresult += math.log(prob)
             logging.debug("\t"+str(prob)+"\t"+str(logresult))
@@ -239,8 +239,11 @@ def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by
 
     if normalize_by_length:
         if fv >= 2:
-            logresult = float(logresult) / float(
-                max(1, count_t_in_dict))  # the max is to prevent zero division when tl sentence is empty
+            if count_t_in_dict > 0:
+                logresult = float(logresult) / float(
+                    count_t_in_dict)  # the max is to prevent zero division when tl sentence is empty
+            else:
+                return -1 # no word in T could be found in the dictionary, so this feature cannot be computed and the funciton returns -1
         else:
             # old behavior (it was a bug)
             logresult = float(logresult) / float(count_t_in_dict)
@@ -372,7 +375,7 @@ def feature_dict_qmax_nosmooth_zipf_freq(slwords, tlwords, dict_stot, normalize_
 def feature_dict_coverage(slwords, tlwords, dict_stot):
     slwords_s = set(slwords)
     tlfound = [tlword for tlword in tlwords if tlword in dict_stot.dinv]
-    tlwithtrans = [ tlword for tlword in tlfound if  len(dict_stot.dinv[slword] & slwords_s ) >0 ]
+    tlwithtrans = [ tlword for tlword in tlfound if  len(dict_stot.dinv[tlword] & slwords_s ) >0 ]
     return [ len(tlfound)*1.0 / (1+len(tlwords)) , len(tlwithtrans)*1.0 /(1+len(tlfound)) if len(tlfound) > 0 else 1.0 ]
 
 def feature_dict_coverage_zipf_freq(slwords, tlwords, dict_stot, freqs):
