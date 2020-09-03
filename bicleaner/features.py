@@ -230,11 +230,11 @@ def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by
     count_t_in_dict = 0
     for tlword in tlwords2:
         if tlword in dict_stot.dinv:
-	    t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
-	    t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
-	    prob = max(t, default=dict_stot.smooth)
-	    logresult += math.log(prob)
-	    logging.debug("\t"+str(prob)+"\t"+str(logresult))
+            t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
+            t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+            prob = max(t, default=dict_stot.smooth)
+            logresult += math.log(prob)
+            logging.debug("\t"+str(prob)+"\t"+str(logresult))
             count_t_in_dict += 1
 
     if normalize_by_length:
