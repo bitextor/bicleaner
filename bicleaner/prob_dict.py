@@ -19,6 +19,7 @@ class ProbabilisticDictionary(object):
         fname = file if not hasattr(file, 'name') else file.name
         with gzip.open(fname, "rt") as fd:
             self.d = dict()
+            self.dinv = dict()
             self.minprob = 1.0 # minimum probability
             logging.debug("Loading dictionary {0}".format(fname))
             self.load(fd)
@@ -39,6 +40,9 @@ class ProbabilisticDictionary(object):
                 continue
             if prob < self.minprob:
                 self.minprob = prob
+            if l2 not in self.dinv:
+                self.dinv[l2] = set()
+            self.dinv[l2].add(l1)
             if l1 not in self.d:
                 self.d[l1] = dict()
             self.d[l1][l2] = prob
