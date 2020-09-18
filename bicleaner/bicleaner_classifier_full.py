@@ -255,12 +255,12 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     sl_sentence=None
                     tl_sentence=None
                     if len(parts) >= max(args.scol, args.tcol):
-                        sl_sentence=parts[args.scol-1]
-                        tl_sentence=parts[args.tcol-1]
+                        sl_sentence=parts[args.scol-1].strip()
+                        tl_sentence=parts[args.tcol-1].strip()
                     else:
                         logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
                         
-                    if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
+                    if sl_sentence and tl_sentence and len(sl_sentence) != 0 and len(tl_sentence) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence,tl_sentence, args, lm_filter, porn_removal, porn_tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
                         features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
                         

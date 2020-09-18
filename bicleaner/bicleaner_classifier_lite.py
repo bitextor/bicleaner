@@ -230,15 +230,16 @@ def classify(args):
         nline += 1
         parts = i.split("\t")
         
+        
         sl_sentence=None
         tl_sentence=None
         if len(parts) >= max(args.scol, args.tcol):
-            sl_sentence=parts[args.scol -1]
-            tl_sentence=parts[args.tcol -1]
+            sl_sentence=parts[args.scol -1].strip()
+            tl_sentence=parts[args.tcol -1].strip()
         else:
             logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
                        
-        if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
+        if sl_sentence and tl_sentence and len(sl_sentence) != 0 and len(tl_sentence) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence,tl_sentence, args, lm_filter, porn_removal, porn_tokenizer)== False):
             buf_sent.append((1, i))
             features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
             buf_feat.append([float(v) for v in features])
