@@ -125,7 +125,7 @@ def initialization():
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
 # and returns some quality estimates.
-def train_classifier(input_features, test_features, classifier_type, classifier_output, feat_names):
+def train_classifier(input_features, test_features, classifier_type, classifier_output, feat_names, n_jobs):
     feats=[]
     labels=[]
 
@@ -141,9 +141,9 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     # Train classifier
     if classifier_type == "svm":
-        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
+        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True, n_jobs=n_jobs))
     elif classifier_type == "mlp":
-        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1, n_jobs=n_jobs)
     elif classifier_type == "extra_trees":
         parameters = {
             'criterion': ('gini','entropy'),
@@ -165,9 +165,9 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
                 verbose=0,
                 warm_start=False)
     elif classifier_type == "nn":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
+        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=n_jobs)
     elif classifier_type == "nn1":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=-1)
+        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=n_jobs)
     elif classifier_type == "adaboost":
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
@@ -200,7 +200,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     except NameError:
         pass
     else:
-        clf = GridSearchCV(clf, parameters, n_jobs=-1)
+        clf = GridSearchCV(clf, parameters, n_jobs=n_jobs)
 
     clf.fit(dataset['data'], dataset['target'])
 
@@ -498,7 +498,7 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles, args.processes)
         features_train.close()
         features_test.close()
 
