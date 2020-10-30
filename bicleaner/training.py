@@ -5,12 +5,13 @@ import math
 from tempfile import TemporaryFile, NamedTemporaryFile
 import typing
 import fasttext
+import numpy
 
 try:
-    from .lm import DualLMFluencyFilter,LMType, DualLMStats
+    from .lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
     from .util import shuffle_file
 except (SystemError, ImportError):
-    from lm import DualLMFluencyFilter,LMType, DualLMStats
+    from lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
     from util import shuffle_file
 
 
@@ -65,6 +66,20 @@ def shuffle_lm_training_text(input: typing.TextIO,dev_size: int ) -> (str,str,st
     return train_sl.name, train_tl.name, dev_sl.name, dev_tl.name
 
 
+def train_lms_for_feature(args):
+    if not args.add_lm_feature:
+        return None
+    logging.info("Training LMs for features.")
+
+    lm_sl=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
+    lm_sl.train_lm(args.lm_training_file_sl)
+    lm_sl.copy_lm(args.lm_file_sl)
+    lm_sl.cleanup()
+
+    lm_tl=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
+    lm_tl.train_lm(args.lm_training_file_tl)
+    lm_tl.copy_lm(args.lm_file_tl)
+    lm_tl.cleanup()
 
 
 def train_fluency_filter(args):
@@ -73,6 +88,9 @@ def train_fluency_filter(args):
     #  - Training data for LM
     #  - Validation set for estimating perplexity of clean text
     # Input noisy corpus used as validation set for estimating perplexity of noisy text
+
+    if args.add_lm_feature:
+        return None
 
     if not (args.lm_file_sl and args.lm_file_tl):
         return None
@@ -95,17 +113,17 @@ def train_fluency_filter(args):
     else:
         logging.info("SL & TL LM training corpora have been obtained from tab-separated input file (the same ones used for training the classifier), after randomly removing {} sentences.".format(args.lm_dev_size))
         logging.info("SL & TL LM dev clean corpora have been randomly selected from input input file (the same used for training the classifier): {} sentences.".format(args.lm_dev_size))
-       
-        
+
+
         lm_train_path_sl,lm_train_path_tl, lm_dev_clean_sl, lm_dev_clean_tl = shuffle_lm_training_text(args.input,args.lm_dev_size)
 
 
         if not (args.noisy_examples_file_sl):
             #build synthetic noise
-            args.noisy_examples_file_sl = shuffle_chars(lm_train_path_sl)    
-        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))    
-            
-            
+            args.noisy_examples_file_sl = shuffle_chars(lm_train_path_sl)
+        logging.info("SL LM dev noisy corpus: {}".format(args.noisy_examples_file_sl))
+
+
         if not (args.noisy_examples_file_tl):
             #build synthetic noise
             args.noisy_examples_file_tl = shuffle_chars(lm_train_path_tl)
@@ -154,17 +172,17 @@ def train_porn_removal(args):
 def shuffle_chars(input_file_path):
     logging.debug("Shuffling {0} to get noisy corpus".format(input_file_path))
     noisy_file = NamedTemporaryFile("w+", delete=False)
-    logging.debug("Writing noisy file to {0}".format(noisy_file.name))    
+    logging.debug("Writing noisy file to {0}".format(noisy_file.name))
     with open (input_file_path,  "r+") as i:
         for line in i:
             s = line.strip()
             noisy_file.write(''.join(random.sample(s,len(s)))+"\n")
-        
+
         i.flush()
         i.seek(0)
-    
+
         noisy_file.flush()
-        noisy_file.seek(0)    
+        noisy_file.seek(0)
     return noisy_file.name
 
 # Random shuffle corpora to ensure fairness of training and estimates.
@@ -252,13 +270,13 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 
     good_sentences.seek(0)
     wrong_sentences.seek(0)
-    
+
 
     return total_size, length_ratio, good_sentences, wrong_sentences
 
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noisy_target_tokenizer=None):
+def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_linked_zipf_freqs=None, noisy_target_tokenizer=None, noisy_source_tokenizer=None):
     logging.info("Building training set.")
     good_sentences  = TemporaryFile("w+")
     wrong_sentences = TemporaryFile("w+")
@@ -328,6 +346,8 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             shuffle_noise(freq_noise_end_offset+1, shuf_noise_end_offset, offsets, temp, wrong_sentences)
             missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
                                 noisy_target_tokenizer)
+            #TODO:define from_idx and to_idx
+            #shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
         temp.close()
     logging.info("Training set built.")
 
@@ -473,6 +493,42 @@ def remove_words_randomly_from_sentence(sentence):
     for wordpos in idx_words_to_delete:
         del sentence[wordpos]
     return sentence
+
+
+def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , noisy_source_tokenizer, noisy_target_tokenizer):
+    for i in offsets[from_idx:to_idx+1]:
+        temp.seek(i)
+        line = temp.readline()
+        parts = line.rstrip("\n").split("\t")
+        s_toks=noisy_source_tokenizer.tokenize(parts[0])
+        t_toks=noisy_target_tokenizer.tokenize(parts[1])
+
+        wrong_sentences.write(noisy_source_tokenizer.detokenize(randomly_shuffle_words(s_toks)))
+        wrong_sentences.write("\t")
+        wrong_sentences.write(noisy_target_tokenizer.detokenize(randomly_shuffle_words(t_toks)))
+        wrong_sentences.write("\n")
+
+# If shuffle_rate is None, a random shuffle rate (from a uniform distribution)
+# is chosen
+def randomly_shuffle_words(sentence,shuffle_rate=None):
+    num_words=len(sentence)
+
+    #Decide how many words will be shuffled
+    if shuffle_rate is None:
+        num_shuffled=random.randint(1, num_words)
+    else:
+        num_shuffled=int(shuffle_rate*num_words)
+
+    #Decide which words will be shuffled
+    chosen_idx=sorted(numpy.random.choice(num_words,size=num_shuffled,replace=False))
+    shuffled_idx=chosen_idx[:]
+    numpy.random.shuffle(shuffled_idx)
+
+    #Randomly shuffle the chosen words
+    result=sentence[:]
+    for i,s in zip(chosen_idx,shuffled_idx):
+        result[i]=sentence[s]
+    return result
 
 # Calculate precision, recall and accuracy over the 0.0,1.0,0.1 histogram of
 # good and  wrong alignments

@@ -25,14 +25,14 @@ import random
 import sys
 import json
 
-#Allows to load modules while inside or outside the package  
+#Allows to load modules while inside or outside the package
 try:
     from .features import feature_extract, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_lms_for_feature, train_porn_removal
     from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
@@ -40,8 +40,14 @@ except (SystemError, ImportError):
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_lms_for_feature, train_porn_removal
     from tokenizer import Tokenizer
+
+try:
+    from .lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
+except (SystemError, ImportError):
+    from lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
+
 
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
@@ -53,12 +59,12 @@ __version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 
 logging_level = 0
-    
+
 # Argument parsing
 def initialization():
 
     global logging_level
-    
+
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
 
     parser.add_argument('input',  nargs='?', type=argparse.FileType('r'), default=sys.stdin,  help="Tab-separated bilingual input file")
@@ -89,6 +95,8 @@ def initialization():
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
     groupO.add_argument('--relative_paths', action='store_true', help="Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models.")
+
+    groupO.add_argument('--add_lm_feature', type=str, help="Use LM perplexities as features instead of as an independent filter. Use the arguments --lm_file_sl, --lm_file_tl, --lm_training_file_sl and --lm_training_file_tl.")
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -240,13 +248,13 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     pos = 0
     good = []
     wrong = []
-    for pred in prediction:    
+    for pred in prediction:
         if labels[pos] == 1:
             good.append(pred[1])
         else:
             wrong.append(pred[1])
         pos += 1
-    
+
     hgood  = np.histogram(good,  bins = np.arange(0, 1.1, 0.1))
     hwrong = np.histogram(wrong, bins = np.arange(0, 1.1, 0.1))
 
@@ -288,7 +296,6 @@ def reduce_process(output_queue, output_file):
             for i in filein:
                 output_file.write(i)
             filein.close()
-    
         os.unlink(filein_name)
 
     if len(h) != 0:
@@ -302,6 +309,14 @@ def worker_process(i, jobs_queue, output_queue, args):
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
+    sl_lm=None
+    tl_lm=None
+    if args.add_lm_feature:
+        sl_lm=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
+        sl_lm.load_lm(args.lm_file_sl)
+        tl_lm=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
+        tl_lm.load_lm(args.lm_file_tl)
+
     while True:
         job = jobs_queue.get()
         if job:
@@ -314,10 +329,17 @@ def worker_process(i, jobs_queue, output_queue, args):
                     srcsen,trgsen = i.split("\t")[:2]
                     trgsen = trgsen.strip()
                     features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
-                    
+
                     for j in features:
                         fileout.write("{}".format(j))
                         fileout.write("\t")
+
+                    #Add LM features
+                    if sl_lm is not None:
+                        fileout.write("{}".format(sl_lm.score(srcsen)))
+                    if tl_lm is not None:
+                        fileout.write("{}".format(tl_lm.score(trgsen)))
+
                     fileout.write("{}".format(label))
                     fileout.write("\n")
                 ojob = (nblock, fileout.name)
@@ -396,6 +418,7 @@ def perform_training(args):
     # Train porn removal classifier
     train_porn_removal(args)
 
+    train_lms_for_feature(args)
     stats=None
     with open(input.name) as input_f:
         args.input=input_f
@@ -404,8 +427,10 @@ def perform_training(args):
 
         # Shuffle and get length ratio
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noisy_target_tokenizer)
+        noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
         noisy_target_tokenizer.close()
+        noisy_source_tokenizer.close()
     os.remove(input.name)
 
     args.length_ratio = length_ratio
@@ -492,10 +517,10 @@ def perform_training(args):
             else:
                 features_test.write(line)
             nline += 1
-        
+
         features_train.flush()
         features_test.flush()
-        
+
         features_train.seek(0)
         features_test.seek(0)
         hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
