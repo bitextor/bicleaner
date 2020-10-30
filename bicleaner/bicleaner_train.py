@@ -523,7 +523,10 @@ def perform_training(args):
 
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
+        lm_features=[]
+        if args.add_lm_feature:
+            lm_features=['sl_perplexity','tl_perplexity']
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles+lm_features)
         features_train.close()
         features_test.close()
 
