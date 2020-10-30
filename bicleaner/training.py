@@ -347,7 +347,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
                                 noisy_target_tokenizer)
             #TODO:define from_idx and to_idx
-            #shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
+            #shuffled_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
         temp.close()
     logging.info("Training set built.")
 
