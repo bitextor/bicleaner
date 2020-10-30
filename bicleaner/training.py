@@ -317,9 +317,11 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             logging.info("Building wrong sentences with synthetic method.")
             init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
+            #frequence_based_noise(init_wrong_offsets, end_wrong_offsets, offsets, temp, wrong_sentences, double_linked_zipf_freqs, noisy_target_tokenizer)
             freq_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)/3)
             shuf_noise_end_offset = n_aligned + int(2 * (end_wrong_offsets-n_aligned) / 3)
             deletion_noise_end_offset = end_wrong_offsets
+            logging.info("Addign frequency-based noise: %s." % str(freq_noise_end_offset-init_wrong_offsets))
             if double_linked_zipf_freqs is not None:
                 frequence_based_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
                                      double_linked_zipf_freqs, noisy_target_tokenizer)
@@ -357,19 +359,84 @@ def shuffle_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
 
 # Random shuffle corpora to ensure fairness of training and estimates.
 def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, double_linked_zipf_freqs,
-                         noisy_target_tokenizer):
+                         noisy_target_tokenizer, batch_size=100000):
+    sbatch = []
+    tbatch = []
     for i in offsets[from_idx:to_idx+1]:
         temp.seek(i)
         line = temp.readline()
         parts = line.rstrip("\n").split("\t")
 
         t_toks = noisy_target_tokenizer.tokenize(parts[1])
+        sbatch.append(parts[0])
+        tbatch.append(t_toks)
+        if len(tbatch) >= batch_size:
+            logging.info("Running batch")
+            noisy_tbatch = frequency_base_noise_batch(tbatch,double_linked_zipf_freqs)
+            #parts[1] = noisy_target_tokenizer.detokenize(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
+            for ssent,tsent in zip(sbatch,noisy_tbatch):
+                wrong_sentences.write(ssent)
+                wrong_sentences.write("\t")
+                wrong_sentences.write(" ".join(tsent))
+                wrong_sentences.write("\n")
+            sbatch = []
+            tbatch = []
+    if len(tbatch) > 0:
+        noisy_tbatch = frequency_base_noise_batch(tbatch,double_linked_zipf_freqs)
+        #parts[1] = noisy_target_tokenizer.detokenize(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
+        for ssent,tsent in zip(sbatch,noisy_tbatch):
+            wrong_sentences.write(ssent)
+            wrong_sentences.write("\t")
+            wrong_sentences.write(" ".join(tsent))
+            wrong_sentences.write("\n")
 
-        parts[1] = noisy_target_tokenizer.detokenize(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
-        wrong_sentences.write(parts[0])
-        wrong_sentences.write("\t")
-        wrong_sentences.write(parts[1])
-        wrong_sentences.write("\n")
+
+def frequency_base_noise_batch(sentences, double_linked_zipf_freqs):
+    map_freqs_pos_sents = {}
+    map_words_pos_sents = {}
+    sidx = 0
+    for sentence in sentences:
+        # Random number of words that will be replaced
+        if len(sentence) > 1:
+            num_words_replaced = random.randint(1, int(len(sentence)/2))
+        else:
+            num_words_replaced = random.randint(1, int(len(sentence)))
+        # Replacing N words at random positions
+        idx_words_to_replace = random.sample(range(len(sentence)), num_words_replaced)
+
+        for wordpos in idx_words_to_replace:
+            w = sentence[wordpos]
+            if w not in map_words_pos_sents:
+                map_words_pos_sents[w] = {}
+                map_words_pos_sents[w][sidx] = set()
+            elif sidx not in map_words_pos_sents[w]:
+                map_words_pos_sents[w][sidx] = set()
+            map_words_pos_sents[w][sidx].add(wordpos)
+        sidx += 1
+
+    currentw = 0
+    for w,sents_pos in map_words_pos_sents.items():
+        currentw += 1
+        #logging.info("Word "+str(currentw)+" of "+str(len(map_words_pos_sents.keys())))
+
+
+        wfreq = double_linked_zipf_freqs.get_word_freq(w)
+        all_alternatives = double_linked_zipf_freqs.get_words_for_freq(wfreq)
+        if all_alternatives is not None:
+            alternatives = list(all_alternatives)
+            random.shuffle(alternatives)
+            for sidx,wposset in sents_pos.items():
+                #logging.info("\tReplacing in sentence "+str(sidx))
+                for wpos in wposset:
+                    #logging.info("\t\tReplacing for word in "+str(wpos))
+                    alt = alternatives.pop()
+                    sentences[sidx][wpos] = alt
+                    if len(alternatives) == 0:
+                        alternatives = list(all_alternatives)
+                        random.shuffle(alternatives)
+
+    return sentences
+
 
 # Introduce noise to sentences using word frequence
 def add_freqency_replacement_noise_to_sentence(sentence, double_linked_zipf_freqs):
