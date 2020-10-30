@@ -108,7 +108,11 @@ def main(args):
     for e in dict_file:
         parts = e.split()
         target = parts[0] #target
-        source = parts[1] #source
+        try:
+            source = parts[1] #source
+        except:
+            logging.warning("No source for {0}".format(e))            
+            continue
         try:
             prob = float(parts[2])
         except:
