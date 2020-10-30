@@ -96,7 +96,7 @@ def initialization():
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
     groupO.add_argument('--relative_paths', action='store_true', help="Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models.")
 
-    groupO.add_argument('--add_lm_feature', type=str, help="Use LM perplexities as features instead of as an independent filter. Use the arguments --lm_file_sl, --lm_file_tl, --lm_training_file_sl and --lm_training_file_tl.")
+    groupO.add_argument('--add_lm_feature', action='store_true', help="Use LM perplexities as features instead of as an independent filter. Use the arguments --lm_file_sl, --lm_file_tl, --lm_training_file_sl and --lm_training_file_tl.")
 
     #For LM filtering
     groupO.add_argument('--noisy_examples_file_sl', type=str, help="File with noisy text in the SL. These are used to estimate the perplexity of noisy text.")
@@ -337,8 +337,10 @@ def worker_process(i, jobs_queue, output_queue, args):
                     #Add LM features
                     if sl_lm is not None:
                         fileout.write("{}".format(sl_lm.score(srcsen)))
+                        fileout.write("\t")
                     if tl_lm is not None:
                         fileout.write("{}".format(tl_lm.score(trgsen)))
+                        fileout.write("\t")
 
                     fileout.write("{}".format(label))
                     fileout.write("\n")
