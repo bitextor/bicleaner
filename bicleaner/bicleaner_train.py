@@ -43,12 +43,6 @@ except (SystemError, ImportError):
     from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_lms_for_feature, train_porn_removal
     from tokenizer import Tokenizer
 
-try:
-    from .lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
-except (SystemError, ImportError):
-    from lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
-
-
 __author__ = "Sergio Ortiz-Rojas"
 # Please, don't delete the previous descriptions. Just add new version description at the end.
 
@@ -309,13 +303,6 @@ def worker_process(i, jobs_queue, output_queue, args):
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
-    sl_lm=None
-    tl_lm=None
-    if args.add_lm_feature:
-        sl_lm=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
-        sl_lm.load_lm(args.lm_file_sl)
-        tl_lm=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
-        tl_lm.load_lm(args.lm_file_tl)
 
     while True:
         job = jobs_queue.get()
@@ -332,14 +319,6 @@ def worker_process(i, jobs_queue, output_queue, args):
 
                     for j in features:
                         fileout.write("{}".format(j))
-                        fileout.write("\t")
-
-                    #Add LM features
-                    if sl_lm is not None:
-                        fileout.write("{}".format(sl_lm.score(srcsen)))
-                        fileout.write("\t")
-                    if tl_lm is not None:
-                        fileout.write("{}".format(tl_lm.score(trgsen)))
                         fileout.write("\t")
 
                     fileout.write("{}".format(label))
@@ -525,10 +504,7 @@ def perform_training(args):
 
         features_train.seek(0)
         features_test.seek(0)
-        lm_features=[]
-        if args.add_lm_feature:
-            lm_features=['sl_perplexity','tl_perplexity']
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles+lm_features)
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
         features_train.close()
         features_test.close()
 

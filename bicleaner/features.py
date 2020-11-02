@@ -7,6 +7,10 @@ import re
 import regex
 import random
 import string
+try:
+    from .lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
+except (SystemError, ImportError):
+    from lm import LMFluencyFilter,DualLMFluencyFilter,LMType, DualLMStats
 
 FEATURES_VERSION = 4
 
@@ -75,7 +79,7 @@ class Features(object):
                      "numeric_expr1", "numeric proportion_preserved1",
                      "numeric_expr2", "numeric_proportion_preserved2",
                      "uppercase1", "capital_proportion_preserved1",
-                     "uppercase2", "capital_proportion_preserved2"]
+                     "uppercase2", "capital_proportion_preserved2", 'sl_perplexity','tl_perplexity']
 
     def __init__(self, mylist, disable_feat_quest=True, disable_feat_lang = False):
         self.feat = mylist
@@ -557,6 +561,14 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     lang2 = args.target_lang
     fv    = args.features_version
 
+    #Loading character-level language models for LM-based features
+    sl_lm=None
+    tl_lm=None
+    if args.add_lm_feature:
+        sl_lm=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
+        sl_lm.load_lm(args.lm_file_sl)
+        tl_lm=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
+        tl_lm.load_lm(args.lm_file_tl)
         
     # Sentence tokenization, with and without capital letters
     lt = tokenize_l.tokenize(srcsen)
@@ -624,5 +636,13 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         # Capitalized letter preservation
         features.extend(feature_capitalized_preservation(left_sentence_orig_tok, right_sentence_orig_tok))
         features.extend(feature_capitalized_preservation(left_sentence_orig_tok, right_sentence_orig_tok))
+
+        #Add LM features
+        if sl_lm is not None:
+            fileout.write("{}".format(sl_lm.score(srcsen)))
+            fileout.write("\t")
+        if tl_lm is not None:
+            fileout.write("{}".format(tl_lm.score(trgsen)))
+            fileout.write("\t")
 
     return features

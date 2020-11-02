@@ -336,15 +336,17 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
             init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
             #frequence_based_noise(init_wrong_offsets, end_wrong_offsets, offsets, temp, wrong_sentences, double_linked_zipf_freqs, noisy_target_tokenizer)
-            freq_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)/3)
-            shuf_noise_end_offset = n_aligned + int(2 * (end_wrong_offsets-n_aligned) / 3)
+            freq_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)/4)
+            shuf_sent_noise_end_offset = n_aligned + int(2 * (end_wrong_offsets-n_aligned) / 4)
+            shuf_word_noise_end_offset = n_aligned + int(3 * (end_wrong_offsets-n_aligned) / 4)
             deletion_noise_end_offset = end_wrong_offsets
             logging.info("Addign frequency-based noise: %s." % str(freq_noise_end_offset-init_wrong_offsets))
             if double_linked_zipf_freqs is not None:
                 frequence_based_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
                                      double_linked_zipf_freqs, noisy_target_tokenizer)
-            shuffle_noise(freq_noise_end_offset+1, shuf_noise_end_offset, offsets, temp, wrong_sentences)
-            missing_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
+            shuffle_sent_noise(freq_noise_end_offset+1, shuf_sent_noise_end_offset, offsets, temp, wrong_sentences)
+            shuffled_words_noise(shuf_sent_noise_end_offset+1, shuf_word_noise_end_offset, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
+            missing_words_noise(shuf_word_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
                                 noisy_target_tokenizer)
             #TODO:define from_idx and to_idx
             #shuffled_words_noise(shuf_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
@@ -357,7 +359,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, double_
     return total_size, length_ratio, good_sentences, wrong_sentences
 
 # Random shuffle corpora to ensure fairness of training and estimates.
-def shuffle_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
+def shuffle_sent_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
     random_idxs = list(range(from_idx, to_idx))
     random.shuffle ( random_idxs )
     sorted_idx = range(from_idx, to_idx)
