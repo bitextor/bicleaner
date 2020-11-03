@@ -564,7 +564,7 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
     #Loading character-level language models for LM-based features
     sl_lm=None
     tl_lm=None
-    if args.add_lm_feature:
+    if args.lm_file_sl and args.lm_file_tl:
         sl_lm=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
         sl_lm.load_lm(args.lm_file_sl)
         tl_lm=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
@@ -639,10 +639,8 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 
         #Add LM features
         if sl_lm is not None:
-            fileout.write("{}".format(sl_lm.score(srcsen)))
-            fileout.write("\t")
+            features.append(sl_lm.score(srcsen))
         if tl_lm is not None:
-            fileout.write("{}".format(tl_lm.score(trgsen)))
-            fileout.write("\t")
+            features.append(tl_lm.score(trgsen))
 
     return features

@@ -620,7 +620,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         target_dictionary = myargs.target_dictionary.name
         source_word_freqs = myargs.source_word_freqs.name
         target_word_freqs = myargs.target_word_freqs.name
-        if lm_stats != None:
+        if myargs.add_lm_feature:
             lm_file_sl = myargs.lm_file_sl
             lm_file_tl = myargs.lm_file_tl
         if myargs.porn_removal_file is not None:
@@ -631,7 +631,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
         target_dictionary = os.path.abspath(myargs.target_dictionary.name)
         source_word_freqs = os.path.abspath(myargs.source_word_freqs.name)
         target_word_freqs = os.path.abspath(myargs.target_word_freqs.name)
-        if lm_stats != None:
+        if myargs.add_lm_feature:
             lm_file_sl = os.path.abspath(myargs.lm_file_sl)
             lm_file_tl = os.path.abspath(myargs.lm_file_tl)
         if myargs.porn_removal_file is not None:
@@ -658,7 +658,11 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats:DualLMStats):
     out.write("length_ratio: {:1.7f}\n".format(length_ratio))
     out.write("features_version: {}\n".format(myargs.features_version))
 
-    if lm_stats != None:
+    if myargs.add_lm_feature:
+        out.write("lm_file_sl: {}\n".format(lm_file_sl))
+        out.write("lm_file_tl: {}\n".format(lm_file_tl))
+
+    if lm_stats is not None:
         out.write("source_lm: {}\n".format(lm_file_sl))
         out.write("target_lm: {}\n".format(lm_file_tl))
         out.write("lm_type: {}\n".format(str(LMType.CHARACTER)))

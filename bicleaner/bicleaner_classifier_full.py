@@ -91,6 +91,8 @@ def initialization():
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
     groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
+    groupO.add_argument('--lm_file_sl', type=str, help="SL language model input file.")
+    groupO.add_argument('--lm_file_tl', type=str, help="TL language model input file.")
 
     # Logging group
     groupL = parser.add_argument_group('Logging')
@@ -115,6 +117,10 @@ def initialization():
 
         args.source_lang=metadata_yaml["source_lang"]
         args.target_lang=metadata_yaml["target_lang"]
+        if "lm_file_sl" in metadata_yaml:
+            args.lm_file_sl=metadata_yaml["lm_file_sl"]
+        if "lm_file_tl" in metadata_yaml:
+            args.lm_file_tl=metadata_yaml["lm_file_tl"]
         if "source_tokenizer_command" in metadata_yaml:
             args.source_tokenizer_command=metadata_yaml["source_tokenizer_command"]
         if "target_tokenizer_command" in metadata_yaml:
