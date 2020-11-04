@@ -89,6 +89,7 @@ def initialization():
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
     groupO.add_argument('--relative_paths', action='store_true', help="Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models.")
+    groupO.add_argument('--noise_proportions', default="25,25,25,25", help="Four types of noise are implemented in bicleaner: adding sentences that are unrelated (not parallel), truncating one of the sentences in a pair, replacing words by other words with similar frequency, and randomly reordering words in one of the sentences. By default, the total amount of noise is equally divided between these four types, but percentages can be modified by providing a comma-separated list of percentages. Default: 25,25,25,25")
 
     groupO.add_argument('--add_lm_feature', action='store_true', help="Use LM perplexities as features instead of as an independent filter. Use the arguments --lm_file_sl, --lm_file_tl, --lm_training_file_sl and --lm_training_file_tl.")
 
@@ -112,6 +113,7 @@ def initialization():
     groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
     groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
     groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
+
 
     args = parser.parse_args()
     if args.seed is not None:
@@ -409,7 +411,8 @@ def perform_training(args):
         # Shuffle and get length ratio
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
+        noise_props = [float(p)/100.0 for p in args.noise_proportions.split(",")]
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, noise_props, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
         noisy_target_tokenizer.close()
         noisy_source_tokenizer.close()
     os.remove(input.name)
