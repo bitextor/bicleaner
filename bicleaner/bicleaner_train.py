@@ -394,7 +394,8 @@ def perform_training(args):
     if args.source_word_freqs:
         args.sl_word_freqs = WordZipfFreqDist(args.source_word_freqs)
     if args.target_word_freqs:
-        args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
+        args.tl_word_freqs = WordZipfFreqDist(args.target_word_freqs)
+        #args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
     else:
         args.tl_word_freqs = None
 
@@ -412,7 +413,7 @@ def perform_training(args):
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
         noise_props = [float(p)/100.0 for p in args.noise_proportions.split(",")]
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, noise_props, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, noise_props, args.sl_word_freqs, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
         noisy_target_tokenizer.close()
         noisy_source_tokenizer.close()
     os.remove(input.name)
