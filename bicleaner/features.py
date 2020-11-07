@@ -79,7 +79,8 @@ class Features(object):
                      "numeric_expr1", "numeric proportion_preserved1",
                      "numeric_expr2", "numeric_proportion_preserved2",
                      "uppercase1", "capital_proportion_preserved1",
-                     "uppercase2", "capital_proportion_preserved2", 'sl_perplexity','tl_perplexity']
+                     "uppercase2", "capital_proportion_preserved2", 'sl_perplexity','tl_perplexity',
+                     'sl_tl_perplexity_ratio','tl_sl_perplexity_ratio']
 
     def __init__(self, mylist, disable_feat_quest=True, disable_feat_lang = False):
         self.feat = mylist
@@ -639,8 +640,15 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 
         #Add LM features
         if sl_lm is not None:
-            features.append(sl_lm.score(srcsen))
-        if tl_lm is not None:
-            features.append(tl_lm.score(trgsen))
+            sl_score = sl_lm.score(srcsen)
+            features.append(sl_score)
+            if tl_lm is not None:
+                tl_score = tl_lm.score(trgsen)
+                features.append(tl_score)
+                features.append(tl_score/sl_score)
+                features.append(sl_score/tl_score)
+        else:
+            if tl_lm is not None:
+                features.append(tl_lm.score(trgsen))
 
     return features
