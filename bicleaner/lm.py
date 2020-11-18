@@ -56,7 +56,10 @@ class LMFluencyFilter:
         """
         
         self.language=language
-        self.tokenizer=Tokenizer(tokenizer_command, self.language)
+        if type(tokenizer_command) == Tokenizer:
+            self.tokenizer = tokenizer_command
+        else:
+            self.tokenizer=Tokenizer(tokenizer_command, self.language)
         self.normalizer=MosesPunctNormalizer(lang=self.language)
         self.type=lm_type
     
@@ -177,11 +180,14 @@ class LMFluencyFilter:
         return numpy.mean(scores),numpy.std(scores)
         
     
-    def score(self, sentence:str):
+    def score(self, sentence:str, is_tok=False):
         #We need to preprocess the sentence in the same way as when training the LM
         #sents= self._sentence_split(sentence)
         #processed_sents=[self._introduce_placeholders(self._tokenize(s)) for s in sents]
-        processed_sent = self._introduce_placeholders(self._tokenize(sentence))
+        if is_tok:
+            processed_sent = self._introduce_placeholders(sentence)
+        else:
+            processed_sent = self._introduce_placeholders(self._tokenize(sentence))
         logging.debug("Scoring: {}".format(processed_sent))
         
         raw_score= self._raw_score(processed_sent)
