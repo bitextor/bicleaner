@@ -71,6 +71,7 @@ def initialization():
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply rules that use language detecting")
     groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+    groupO.add_argument('--disable_length', default=False, action='store_true', help="Don't apply length proportion rule")
 
     groupO.add_argument("-s", "--source_lang", type=str, default=None,  help="Source language (SL) of the input")
     groupO.add_argument("-t", "--target_lang", type=str, default=None,  help="Target language (TL) of the input")
@@ -344,7 +345,7 @@ def wrong_tu(left, right, args, lm_filter = None, porn_removal = None, porn_toke
         return "c_no_literals(['Re:'], right)"            
     elif not args.disable_minimal_length and not (c_minimal_length(left) or c_minimal_length(right)):
         return "c_minimal_length(left) and c_minimal_length(right)"
-    elif not (c_length(left, right) or c_length_bytes(left, right)): 
+    elif  not getattr( args, 'disable_length', False)  and  not (c_length(left, right) or c_length_bytes(left, right)):
         return "c_length or c_length_bytes"
     elif not c_identical(left, right, args.source_lang, args.target_lang):
         return "c_identical"

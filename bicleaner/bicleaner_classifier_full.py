@@ -92,6 +92,7 @@ def initialization():
     groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
     groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
     groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
+    groupO.add_argument('--disable_length', default=False, action='store_true', help="Don't apply length proportion rule")
     groupO.add_argument('--lm_file_sl', type=str, help="SL language model input file.")
     groupO.add_argument('--lm_file_tl', type=str, help="TL language model input file.")
 
