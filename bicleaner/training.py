@@ -498,7 +498,7 @@ def frequency_base_noise_batch(sentences, double_linked_zipf_freqs):
         if len(sentence) > 1:
             num_words_replaced = random.randint(1, int(len(sentence)/2))
         else:
-            num_words_replaced = random.randint(1, int(len(sentence)))
+            num_words_replaced = int(len(sentence))
         # Replacing N words at random positions
         idx_words_to_replace = random.sample(range(len(sentence)), num_words_replaced)
 
@@ -710,22 +710,26 @@ def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , nois
 def randomly_shuffle_words(sentence,shuffle_rate=None):
     num_words=len(sentence)
 
-    #Decide how many words will be shuffled
-    if shuffle_rate is None:
-        num_shuffled=random.randint(1, num_words)
+    #Run only if there is anything to shuffle
+    if num_words > 1:
+        #Decide how many words will be shuffled
+        if shuffle_rate is None:
+            num_shuffled=random.randint(1, num_words)
+        else:
+            num_shuffled=int(shuffle_rate*num_words)
+    
+        #Decide which words will be shuffled
+        chosen_idx=sorted(numpy.random.choice(num_words,size=num_shuffled,replace=False))
+        shuffled_idx=chosen_idx[:]
+        numpy.random.shuffle(shuffled_idx)
+    
+        #Randomly shuffle the chosen words
+        result=sentence[:]
+        for i,s in zip(chosen_idx,shuffled_idx):
+            result[i]=sentence[s]
+        return result
     else:
-        num_shuffled=int(shuffle_rate*num_words)
-
-    #Decide which words will be shuffled
-    chosen_idx=sorted(numpy.random.choice(num_words,size=num_shuffled,replace=False))
-    shuffled_idx=chosen_idx[:]
-    numpy.random.shuffle(shuffled_idx)
-
-    #Randomly shuffle the chosen words
-    result=sentence[:]
-    for i,s in zip(chosen_idx,shuffled_idx):
-        result[i]=sentence[s]
-    return result
+        return sentence
 
 # Calculate precision, recall and accuracy over the 0.0,1.0,0.1 histogram of
 # good and  wrong alignments
