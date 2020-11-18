@@ -22,7 +22,7 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .features import feature_extract, Features
+    from .features import build_features_generator, Features
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
@@ -30,7 +30,7 @@ try:
     from .tokenizer import Tokenizer
     
 except (ImportError, SystemError):
-    from features import feature_extract, Features
+    from features import build_features_generator, Features
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
     from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
@@ -75,6 +75,7 @@ def initialization():
     groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
     groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
+    groupO.add_argument("--dump_feats",  type=argparse.FileType('w'), default=None, help ="If defined, all feats are dumped to the file specified")
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
     
@@ -222,6 +223,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
     
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)        
+    features_generator = build_features_generator(source_tokenizer, target_tokenizer, args)
 
     if not args.disable_lm_filter:
         lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
@@ -241,11 +243,11 @@ def classifier_process(i, jobs_queue, output_queue, args):
     while True:
         job = jobs_queue.get()
         if job:
-            logging.debug("Job {0}".format(job.__repr__()))
+            logging.debug("Job {0} got from the queue".format(job.__repr__()))
             nblock, filein_name = job
             ojob = None
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
-                logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
+                logging.debug("Classification for Job {0}: creating temporary filename {1}".format(job.__repr__(),fileout.name))
                 feats = []
                 lm_scores=[]
                 
@@ -268,15 +270,27 @@ def classifier_process(i, jobs_queue, output_queue, args):
                         
                     if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
                         #if disable_hardrules == 1 --> the second part (and) is always true
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
+                        logging.debug("Computing features for Job {0}".format(job.__repr__()))
+                        features = features_generator.run(sl_sentence, tl_sentence)
+                        logging.debug("Features obtained for Job {0}".format(job.__repr__()))
                         
                         feats.append([float(v) for v in features])
                         valid_sentences.append(True)
                     else:
                         valid_sentences.append(False)
 
+                if args.dump_feats:
+                    with NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as featout:
+                        for f in feats:
+                            featout.write("\t".join([str(feat) for feat in f]))
+                            featout.write("\n")
+                    featoutname=featout.name
+                else:
+                    featoutname=None
+
                 predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
                 filein.seek(0)
+                logging.debug("Classification completed for Job {0}".format(job.__repr__()))
 
                 piter = iter(predictions)
 
@@ -298,11 +312,12 @@ def classifier_process(i, jobs_queue, output_queue, args):
                             fileout.write("\t0")
                         fileout.write("\n")
 
-                ojob = (nblock, fileout.name)
+                ojob = (nblock, fileout.name, featoutname)
                 filein.close()
                 fileout.close()
              
-            if ojob:                    
+            if ojob:
+                logging.debug("Job {0} classified; putting into output queue".format(job.__repr__()))
                 output_queue.put(ojob)
                 
             os.unlink(filein_name)
@@ -316,6 +331,7 @@ def mapping_process(args, jobs_queue):
     nline = 0
     mytemp = None
     for line in args.input:
+
         if (nline % args.block_size) == 0:
             logging.debug("Creating block {}".format(nblock))
             if mytemp:
@@ -342,7 +358,7 @@ def reduce_process(output_queue, args):
     while True:
         logging.debug("Reduce: heap status {0}".format(h.__str__()))
         while len(h) > 0 and h[0][0] == last_block:
-            nblock, filein_name = heappop(h)
+            nblock, filein_name, featfile_name = heappop(h)
             last_block += 1
 
             with open(filein_name, 'r') as filein:
@@ -354,10 +370,17 @@ def reduce_process(output_queue, args):
                 filein.close()
             os.unlink(filein_name)
 
+            if featfile_name is not None:
+                with open(featfile_name, 'r') as filein:
+                    for i in filein:
+                        args.dump_feats.write(i)
+                    filein.close()
+                os.unlink(featfile_name)
+
         job = output_queue.get()
         if job:
-            nblock, filein_name = job
-            heappush(h, (nblock, filein_name))
+            nblock, filein_name, featfile = job
+            heappush(h, (nblock, filein_name, featfile))
         else:
             logging.debug("Exiting reduce loop")
             break
@@ -366,10 +389,12 @@ def reduce_process(output_queue, args):
         logging.debug("Still elements in heap")
 
     while len(h) > 0 and h[0][0] == last_block:
-        nblock, filein_name = heapq.heappop(h)
+        nblock, filein_name, featfile = heapq.heappop(h)
         last_block += 1
 
         os.unlink(filein_name)
+        if featfile is not None:
+            os.unlink(featfile)
 
     if len(h) != 0:
         logging.error("The queue is not empty and it should!")
@@ -395,12 +420,12 @@ def perform_classification(args):
     worker_count = process_count
 
     # Start reducer
-    logging.disable(logging.INFO)
+    #logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, args))
     
     reduce.start()
-    logging.disable(logging.DEBUG)
+    #logging.disable(logging.DEBUG)
     
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)

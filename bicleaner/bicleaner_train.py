@@ -27,7 +27,7 @@ import json
 
 #Allows to load modules while inside or outside the package
 try:
-    from .features import feature_extract, FEATURES_VERSION, Features
+    from .features import build_features_generator, FEATURES_VERSION, Features
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
@@ -35,7 +35,7 @@ try:
     from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_lms_for_feature, train_porn_removal
     from .tokenizer import Tokenizer
 except (SystemError, ImportError):
-    from features import feature_extract, FEATURES_VERSION, Features
+    from features import build_features_generator, FEATURES_VERSION, Features
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
@@ -305,7 +305,7 @@ def worker_process(i, jobs_queue, output_queue, args):
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
-
+    features_generator = build_features_generator(source_tokenizer, target_tokenizer, args)
     while True:
         job = jobs_queue.get()
         if job:
@@ -317,7 +317,7 @@ def worker_process(i, jobs_queue, output_queue, args):
                 for i in filein:
                     srcsen,trgsen = i.split("\t")[:2]
                     trgsen = trgsen.strip()
-                    features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
+                    features = features_generator.run(srcsen, trgsen)
 
                     for j in features:
                         fileout.write("{}".format(j))
@@ -392,10 +392,11 @@ def perform_training(args):
 
     # Load dictionaries
     if args.source_word_freqs:
-        args.sl_word_freqs = WordZipfFreqDist(args.source_word_freqs)
+        #args.sl_word_freqs = WordZipfFreqDist(args.source_word_freqs)
+        args.sl_word_freqs = WordZipfFreqDistDoubleLinked(args.source_word_freqs)
     if args.target_word_freqs:
-        args.tl_word_freqs = WordZipfFreqDist(args.target_word_freqs)
-        #args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
+        #args.tl_word_freqs = WordZipfFreqDist(args.target_word_freqs)
+        args.tl_word_freqs = WordZipfFreqDistDoubleLinked(args.target_word_freqs)
     else:
         args.tl_word_freqs = None
 
@@ -465,8 +466,15 @@ def perform_training(args):
 
     features_file.seek(0)
 
+
+    feat_captions = None
     if args.dump_features:
         logging.info("Dumping features to " + os.path.abspath(args.dump_features.name))
+        source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+        target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+
+        feat_captions = build_features_generator(source_tokenizer,target_tokenizer,args).get_feat_captions()
+        args.dump_features.write(str(feat_captions))
         for i in features_file:
             args.dump_features.write(i)
         args.dump_features.close()
@@ -508,7 +516,9 @@ def perform_training(args):
 
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
+        if feat_captions == None:
+            feat_captions = build_features_generator(source_tokenizer,target_tokenizer,args).get_feat_captions()
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, feat_captions)
         features_train.close()
         features_test.close()
 

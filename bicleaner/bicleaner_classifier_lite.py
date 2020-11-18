@@ -15,14 +15,14 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .features import feature_extract
+    from .features import build_features_generator
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
     from .bicleaner_hardrules import *
     from .tokenizer import Tokenizer
 except (ImportError, SystemError):
-    from features import feature_extract
+    from features import build_features_generator
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
     from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
@@ -210,6 +210,7 @@ def classify(args):
     
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+    feature_generator = build_features_generator(source_tokenizer, target_tokenizer, args)
     
     if not args.disable_lm_filter:
         lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
@@ -240,7 +241,7 @@ def classify(args):
                        
         if sl_sentence and tl_sentence and len(sl_sentence.strip()) != 0 and len(tl_sentence.strip()) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence.strip(),tl_sentence.strip(), args, lm_filter, porn_removal, porn_tokenizer)== False):
             buf_sent.append((1, i))
-            features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
+            features = feature_generator(sl_sentence, tl_sentence)
             buf_feat.append([float(v) for v in features])
         else:
             buf_sent.append((0, i))
