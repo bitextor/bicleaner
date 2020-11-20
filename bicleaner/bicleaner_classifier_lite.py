@@ -7,6 +7,7 @@ import logging
 import traceback
 import yaml
 import joblib
+import fasttext
 import numpy as np
 
 from tempfile import NamedTemporaryFile, gettempdir
@@ -15,18 +16,20 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
+    from .classify import classify
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-    from .bicleaner_hardrules import *
+    from .bicleaner_hardrules import load_lm_filter
     from .tokenizer import Tokenizer
 except (ImportError, SystemError):
+    from classify import classify
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
     from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-    from bicleaner_hardrules import *
+    from bicleaner_hardrules import load_lm_filter
     from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
@@ -38,15 +41,12 @@ __version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sá
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 __version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
-nline = 0
 logging_level = 0
 
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
-    global nline
     global logging_level
     
-    nline = 0
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
     # Initialization of the argparse class
@@ -67,6 +67,7 @@ def initialization():
 
 
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
+    groupO.add_argument('-b', '--block_size', type=int, default=10000, help="Sentence pairs per block")
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
     groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
     #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
@@ -176,6 +177,7 @@ def initialization():
                 except:
                     args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         else:
+            args.porn_removal = None
             logging.info("Porn removal disabled")
                
         
@@ -199,107 +201,31 @@ def initialization():
     logging.info("Arguments processed.")
     return args
 
-#def profile_classifier_process(i, jobs_queue, output_queue,args):
-#    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
+# Filtering input texts
+def perform_classification(args):
+    time_start = default_timer()
+    logging.info("Starting process")
 
-def classify(args):
-    global nline
-    batch_size = 10000
-    buf_sent = []
-    buf_feat = []
-    
+    # Load tokenizers and LM
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
-    
+
     if not args.disable_lm_filter:
         lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
     else:
         lm_filter = None
 
     if not args.disable_porn_removal:
-        porn_removal = args.porn_removal
         if args.metadata_yaml['porn_removal_side'] == 'tl':
             porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         else:
             porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     else:
-        porn_removal = None
         porn_tokenizer = None
+    args.clf.set_params(n_jobs = 1)
 
-    for i in args.input:
-        nline += 1
-        parts = i.split("\t")
-        
-        
-        sl_sentence=None
-        tl_sentence=None
-        if len(parts) >= max(args.scol, args.tcol):
-            sl_sentence=parts[args.scol -1].strip()
-            tl_sentence=parts[args.tcol -1].strip()
-        else:
-            logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
-                       
-        if sl_sentence and tl_sentence and len(sl_sentence) != 0 and len(tl_sentence) != 0 and (args.disable_hardrules or wrong_tu(sl_sentence,tl_sentence, args, lm_filter, porn_removal, porn_tokenizer)== False):
-            buf_sent.append((1, i))
-            features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
-            buf_feat.append([float(v) for v in features])
-        else:
-            buf_sent.append((0, i))
-        
-        if (nline % batch_size) == 0:
-            args.clf.set_params(n_jobs = 1)
-            predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
-            p = iter(predictions)
-                
-            for k, l in buf_sent:
-                if k == 1:
-                    if args.score_only:
-                        args.output.write("{0:.3f}".format((next(p)[1])))
-                    else:
-                        args.output.write(l.strip())
-                        args.output.write("\t{0:.3f}".format((next(p)[1])))                       
-                    args.output.write("\n")
-                else:
-                    if args.score_only:
-                        args.output.write("0")
-                    else:    
-                        args.output.write(l.strip("\n"))
-                        args.output.write("\t0")
-                    args.output.write("\n")
-
-            buf_feat = []
-            buf_sent = []
-
-    if len(buf_sent) > 0:
-        predictions = args.clf.predict_proba(np.array(buf_feat)) if len(buf_feat) > 0 else []
-        p = iter(predictions)
-            
-        for k, l in buf_sent:
-            if k == 1:
-                if args.score_only:
-                    args.output.write("{0:.3f}".format((next(p)[1])))
-                else:
-                    args.output.write(l.strip())
-                    args.output.write("\t")
-                    args.output.write("{0:.3f}".format((next(p)[1])))
-                args.output.write("\n")
-            else:
-                if args.score_only:
-                    args.output.write("0")
-                else:    
-                    args.output.write(l.strip("\n"))
-                    args.output.write("\t0")
-                args.output.write("\n")
-                
-                
-# Filtering input texts
-def perform_classification(args):
-    global nline
-    
-    time_start = default_timer()
-    logging.info("Starting process")
-    
-    classify(args)
+    # Score sentences
+    nline = classify(args, args.input, args.output, lm_filter, source_tokenizer, target_tokenizer, porn_tokenizer)
 
     # Stats
     logging.info("Finished")

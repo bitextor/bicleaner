@@ -540,7 +540,7 @@ def feature_character_measurements(sentence):
     
 # Main feature function: uses program options to return a suitable set of
 # features at the output
-def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
+def feature_extract(srcsen, trgsen, srcsen_t, trgsen_t, args):
     length_ratio = args.length_ratio
     dict12 = args.dict_sl_tl
     dict21 = args.dict_tl_sl
@@ -559,11 +559,8 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 
         
     # Sentence tokenization, with and without capital letters
-    lt = tokenize_l.tokenize(srcsen)
-    rt = tokenize_r.tokenize(trgsen)
-
-    left_sentence_orig_tok  = lt[0:250]
-    right_sentence_orig_tok = rt[0:250]
+    left_sentence_orig_tok  = srcsen_t[0:250]
+    right_sentence_orig_tok = trgsen_t[0:250]
 
     left_sentence_tok =  [i.lower() for i in left_sentence_orig_tok]
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]

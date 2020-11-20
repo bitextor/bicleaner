@@ -11,6 +11,7 @@ import re
 import yaml
 import sklearn
 import joblib
+import fasttext
 import numpy as np
 
 
@@ -22,19 +23,18 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .features import feature_extract, Features
+    from .classify import classify
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
     from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-    from .bicleaner_hardrules import *
+    from .bicleaner_hardrules import load_lm_filter
     from .tokenizer import Tokenizer
-    
 except (ImportError, SystemError):
-    from features import feature_extract, Features
+    from classify import classify
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
     from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
-    from bicleaner_hardrules import *
+    from bicleaner_hardrules import load_lm_filter
     from tokenizer import Tokenizer
 
 #import cProfile  # search for "profile" throughout the file
@@ -79,7 +79,7 @@ def initialization():
     groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
-    groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
+    groupO.add_argument('-b', '--block_size', type=int, default=1000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
     
     groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
@@ -125,7 +125,7 @@ def initialization():
         except:            
             args.clf=joblib.load(metadata_yaml["classifier"])
         
-#        args.clf.n_jobs = None    
+        args.clf.n_jobs = 1
         args.classifier_type=metadata_yaml["classifier_type"]
 
 
@@ -177,6 +177,7 @@ def initialization():
         if not args.disable_porn_removal:
             if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
                 args.disable_porn_removal = True
+                args.porn_removal = None
                 logging.warning("Porn removal not present in metadata, disabling.")
             else:
                 try:
@@ -184,6 +185,7 @@ def initialization():
                 except:
                     args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         else:
+            args.porn_removal = None
             logging.info("Porn removal disabled")
          
         if "disable_lang_ident" in metadata_yaml:
@@ -213,7 +215,6 @@ def initialization():
 #    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
-    
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)        
 
@@ -232,6 +233,8 @@ def classifier_process(i, jobs_queue, output_queue, args):
         porn_removal = None
         porn_tokenizer = None
 
+    # If there are still jobs pending
+    # grab one input file and place scores at the output queue
     while True:
         job = jobs_queue.get()
         if job:
@@ -240,69 +243,21 @@ def classifier_process(i, jobs_queue, output_queue, args):
             ojob = None
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir) as fileout:
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
-                feats = []
-                lm_scores=[]
-                
-                #Create the following arrays:
-                #valid_sentences: boolean, length of input. States whether each sentence passed
-                #  hard rules and lm fluency filtering
-                #feats: vector of tuples, input features to the classifier, length equals number
-                #  of sentences in the input that passed hard rules + lm fluency filtering
 
-                valid_sentences=[]
-                for i in filein:
-                    parts = i.split("\t")
-                    sl_sentence=None
-                    tl_sentence=None
-                    if len(parts) >= max(args.scol, args.tcol):
-                        sl_sentence=parts[args.scol-1].strip()
-                        tl_sentence=parts[args.tcol-1].strip()
-                    else:
-                        logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({})".format(args.scol, args.tcol, len(parts)))
-                        
-                    if sl_sentence and tl_sentence and len(sl_sentence) != 0 and len(tl_sentence) != 0 and (args.disable_hardrules or  wrong_tu(sl_sentence,tl_sentence, args, lm_filter, porn_removal, porn_tokenizer)== False):
-                        #if disable_hardrules == 1 --> the second part (and) is always true
-                        features = feature_extract(sl_sentence, tl_sentence, source_tokenizer, target_tokenizer, args)
-                        
-                        feats.append([float(v) for v in features])
-                        valid_sentences.append(True)
-                    else:
-                        valid_sentences.append(False)
-
-                predictions = args.clf.predict_proba(np.array(feats)) if len(feats) > 0 else []
-                filein.seek(0)
-
-                piter = iter(predictions)
-
-                for i, valid_sentence in zip(filein, valid_sentences):
-                    if valid_sentence:
-                        p = next(piter)
-                        if args.score_only:
-                            fileout.write("{0:.3f}".format(p[1]))
-                        else:
-                            fileout.write(i.strip())
-                            fileout.write("\t{0:.3f}".format(p[1]))
-
-                        fileout.write("\n")
-                    else:
-                        if args.score_only:
-                            fileout.write("0")
-                        else:
-                            fileout.write(i.strip("\n"))
-                            fileout.write("\t0")
-                        fileout.write("\n")
+                # Score sentences
+                classify(args, filein, fileout, lm_filter, source_tokenizer, target_tokenizer, porn_tokenizer)
 
                 ojob = (nblock, fileout.name)
                 filein.close()
                 fileout.close()
-             
-            if ojob:                    
+
+            if ojob:
                 output_queue.put(ojob)
-                
+
             os.unlink(filein_name)
         else:
-            logging.debug("Exiting worker")
-            break	
+            logging.debug("Exiting worker {}".format(job.__repr__()))
+            break
 
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")

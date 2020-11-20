@@ -309,24 +309,30 @@ def worker_process(i, jobs_queue, output_queue, args):
             nblock, filein_name, label = job
 
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
-                logging.debug("Filtering: creating temporary file {}".format(fileout.name))
-                for i in filein:
-                    srcsen,trgsen = i.split("\t")[:2]
-                    trgsen = trgsen.strip()
-                    features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
-                    
+                srcsents = []
+                trgsents = []
+                for line in filein:
+                    srcsen, trgsen = line.split("\t")[:2]
+                    srcsents.append(srcsen)
+                    trgsents.append(trgsen)
+                srcsents_tok = source_tokenizer.tokenize(srcsents)
+                trgsents_tok = target_tokenizer.tokenize(trgsents)
+
+                for srcsen, trgsen, srcsen_t, trgsen_t in zip(srcsents, trgsents, srcsents_tok, trgsents_tok):
+                    features = feature_extract(srcsen, trgsen, srcsen_t, trgsen_t, args)
                     for j in features:
                         fileout.write("{}".format(j))
                         fileout.write("\t")
                     fileout.write("{}".format(label))
                     fileout.write("\n")
+
                 ojob = (nblock, fileout.name)
                 fileout.close()
                 filein.close()
                 output_queue.put(ojob)
             os.unlink(filein_name)
         else:
-            logging.debug("Exiting worker")
+            logging.debug("Exiting worker {}".format(i))
             source_tokenizer.close()
             target_tokenizer.close()
             break
@@ -444,10 +450,10 @@ def perform_training(args):
     for _ in workers:
         jobs_queue.put(None)
 
-    logging.info("End computing features.")
-
     for w in workers:
         w.join()
+
+    logging.info("End computing features.")
 
     # Reducer termination
     output_queue.put(None)
