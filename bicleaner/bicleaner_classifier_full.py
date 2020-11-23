@@ -2,14 +2,10 @@
 
 import os
 import sys
-import argparse
 import logging
 import traceback
 import subprocess
-import re
-import yaml
 import joblib
-import fasttext
 
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
@@ -19,32 +15,15 @@ from timeit import default_timer
 
 #Allows to load modules while inside or outside the package
 try:
-    from .classify import classify, argument_parser
-    from .prob_dict import ProbabilisticDictionary
-    from .word_freqs_zipf import WordZipfFreqDist
-    from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from .classify import classify, argument_parser, load_metadata
+    from .util import logging_setup
     from .bicleaner_hardrules import load_lm_filter
     from .tokenizer import Tokenizer
 except (ImportError, SystemError):
-    from classify import classify, argument_parser
-    from prob_dict import ProbabilisticDictionary
-    from word_freqs_zipf import WordZipfFreqDist
-    from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+    from classify import classify, argument_parser, load_metadata
+    from util import logging_setup
     from bicleaner_hardrules import load_lm_filter
     from tokenizer import Tokenizer
-
-#import cProfile  # search for "profile" throughout the file
-
-__author__ = "Sergio Ortiz Rojas"
-__version__ = "Version 0.1 # 28/12/2017 # Initial release # Sergio Ortiz"
-__version__ = "Version 0.8 # 25/05/2018 # Bicleaner + Hardrules integrated # Marta Bañón"
-__version__ = "Version 0.9 # 27/09/2018 # Changed input parameters for feature_extract # Marta Bañón"
-__version__ = "Version 0.9.1 # 03/10/2018 # YAML is mandatory # Marta Bañón"
-__version__ = "Version 0.10.4 # 17/10/2018 # Default block size is now 200 # Marta Bañón"
-__version__ = "Version 0.10.8 # 18/12/2018 # Generalized tokenizer # Leopoldo Pla"
-__version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. Sánchez-Cartagena"
-__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
-__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 
 logging_level = 0
 
@@ -55,119 +34,17 @@ def initialization():
     parser, groupO, _ = argument_parser()
     groupO.add_argument('-b', '--block_size', type=int, default=1000, help="Sentence pairs per block")
     groupO.add_argument('-p', '--processes', type=int, default=max(1, cpu_count()-1), help="Number of processes to use")
-
     args = parser.parse_args()
+
+    # Set up logging
     logging_setup(args)
+    logging_level = logging.getLogger().level
 
-    logging_level = logging.getLogger().level    
-    
-            
-    try: 
-        metadata_yaml = yaml.safe_load(args.metadata)
-        yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
-        metadata_yaml["yamlpath"] = yamlpath
+    # Load metadata YAML
+    args = load_metadata(args, parser)
 
-
-        args.source_lang=metadata_yaml["source_lang"]
-        args.target_lang=metadata_yaml["target_lang"]
-        if "source_tokenizer_command" in metadata_yaml:
-            args.source_tokenizer_command=metadata_yaml["source_tokenizer_command"]
-        if "target_tokenizer_command" in metadata_yaml:
-            args.target_tokenizer_command=metadata_yaml["target_tokenizer_command"]        
-
-        try:
-            args.clf=joblib.load( os.path.join(yamlpath , metadata_yaml["classifier"]))
-        except:            
-            args.clf=joblib.load(metadata_yaml["classifier"])
-        
-        args.clf.n_jobs = 1
-        args.classifier_type=metadata_yaml["classifier_type"]
-
-
-        try:
-            args.dict_sl_tl = ProbabilisticDictionary( os.path.join( yamlpath, metadata_yaml["source_dictionary"]))
-        except:
-            args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])                
-        try:            
-            args.dict_tl_sl = ProbabilisticDictionary( os.path.join( yamlpath , metadata_yaml["target_dictionary"]))        
-        except:
-            args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
-
-        try:
-            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
-        except:
-            try:
-                args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
-            except:
-                args.sl_word_freqs = None
-        try:
-            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
-        except:
-            try:
-                args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
-            except:
-                args.tl_word_freqs = None
-
-        args.normalize_by_length = metadata_yaml["normalize_by_length"]
-        args.treat_oovs = metadata_yaml["treat_oovs"]
-        args.qmax_limit = metadata_yaml["qmax_limit"]
-        args.disable_features_quest = metadata_yaml["disable_features_quest"]
-        args.length_ratio = metadata_yaml["length_ratio"]
-        args.features_version = 1 if  "features_version" not in metadata_yaml else int(metadata_yaml["features_version"])
-
-        threshold = np.argmax(metadata_yaml["accuracy_histogram"])*0.1
-        logging.info("Accuracy histogram: {}".format(metadata_yaml["accuracy_histogram"]))
-        logging.info("Ideal threshold: {:1.1f}".format(threshold))
-        metadata_yaml["threshold"] = threshold
-
-
-        #Try loading metadata for LM filtering                  
-        if not args.disable_lm_filter:
-            if not ("source_lm" in metadata_yaml and "target_lm" in metadata_yaml):
-                args.disable_lm_filter = True
-                logging.warning("LM filter not present in metadata, disabling.")
-        else:
-            logging.info("LM filtering disabled")
-
-        if not args.disable_porn_removal:
-            if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
-                args.disable_porn_removal = True
-                args.porn_removal = None
-                logging.warning("Porn removal not present in metadata, disabling.")
-            else:
-                try:
-                    args.porn_removal = fasttext.load_model(os.path.join(yamlpath, metadata_yaml['porn_removal_file']))
-                except:
-                    args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
-        else:
-            args.porn_removal = None
-            logging.info("Porn removal disabled")
-         
-        if "disable_lang_ident" in metadata_yaml:
-            args.disable_lang_ident = metadata_yaml["disable_lang_ident"]
-        else:
-            args.disable_lang_ident = False
-            
-        logging.debug("YAML")
-        logging.debug(metadata_yaml)
-        args.metadata_yaml = metadata_yaml
-        parser.set_defaults(**metadata_yaml)   
-   
-    except:
-        logging.error("Error loading metadata")
-        traceback.print_exc()
-        sys.exit(1)
-    
-    # Ensure that directory exists; if not, create it
-    if not os.path.exists(args.tmp_dir):
-        os.makedirs(args.tmp_dir)
-
-    logging.debug("Arguments processed: {}".format(str(args)))
-    logging.info("Arguments processed.")
     return args
 
-#def profile_classifier_process(i, jobs_queue, output_queue,args):
-#    cProfile.runctx('classifier_process(i, jobs_queue, output_queue, args)', globals(), locals(), 'profiling-{}.out'.format(i))
 
 def classifier_process(i, jobs_queue, output_queue, args):
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
@@ -302,20 +179,18 @@ def perform_classification(args):
     logging.disable(logging.INFO)
     reduce = Process(target = reduce_process,
                      args   = (output_queue, args))
-    
+
     reduce.start()
     logging.disable(logging.DEBUG)
-    
+
     # Start workers
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
 
     for i in range(worker_count):
-
         filter = Process(target = classifier_process, #profile_classifier_process
                          args   = (i, jobs_queue, output_queue, args))
         filter.daemon = True # dies with the parent process
-
         filter.start()
         workers.append(filter)
 
@@ -326,22 +201,16 @@ def perform_classification(args):
 
     # Worker termination
     for _ in workers:
-
-        jobs_queue.put(None)	
-
+        jobs_queue.put(None)
 
     logging.info("End mapping")
-
 
     for w in workers:
         w.join()
 
     # Reducer termination
-    
-
     output_queue.put(None)
     reduce.join()
-    
 
     # Stats
     logging.info("Finished")
