@@ -1,12 +1,65 @@
+from tempfile import gettempdir
 import numpy as np
 import logging
+import argparse
+import sys
+import os
 
 try:
     from .features import feature_extract
     from .bicleaner_hardrules import wrong_tu
+    from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
 except (ImportError, SystemError):
     from features import feature_extract
     from bicleaner_hardrules import wrong_tu
+    from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
+
+__author__ = "Sergio Ortiz Rojas"
+__version__ = "Version 0.1 # 07/11/2018 # Initial release # Sergio Ortiz"
+__version__ = "Version 0.2 # 19/11/2018 # Forcing sklearn to avoid parallelization # Marta Bañón"
+__version__ = "Version 0.3 # 17/01/2019 # Adding fluency filter # Víctor M. Sánchez-Cartagena"
+__version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
+__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
+
+# Create an argument parser and add all the arguments
+def argument_parser():
+    parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
+    # Mandatory parameters
+    ## Input file. Try to open it to check if it exists
+    parser.add_argument('input', type=argparse.FileType('rt'), default=None, help="Tab-separated files to be classified")      
+    parser.add_argument('output', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help="Output of the classification")
+    parser.add_argument('metadata', type=argparse.FileType('r'), default=None, help="Training metadata (YAML file)")    
+
+    # Options group
+    groupO = parser.add_argument_group('Optional')
+    groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
+    groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
+
+    groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
+    groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
+
+
+    groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
+    groupO.add_argument('-d', '--discarded_tus', type=argparse.FileType('w'), default=None, help="TSV file with discarded TUs. Discarded TUs by the classifier are written in this file in TSV file.")
+    groupO.add_argument('--lm_threshold',type=check_positive_between_zero_and_one, default=0.5, help="Threshold for language model fluency scoring. All TUs whose LM fluency score falls below the threshold will are removed (classifier score set to 0), unless the option --keep_lm_result set.")
+    #groupO.add_argument('--keep_lm_result',action='store_true', help="Add an additional column to the results with the language model fluency score and do not discard any TU based on that score.")
+     
+    groupO.add_argument('--score_only',action='store_true', help="Only output one column which is the bicleaner score", default=False)
+     
+    groupO.add_argument('--disable_hardrules',action = 'store_true', help = "Disables the bicleaner_hardrules filtering (only bicleaner_classify is applied)")
+    groupO.add_argument('--disable_lm_filter', action = 'store_true', help = "Disables LM filtering")
+    groupO.add_argument('--disable_porn_removal', default=False, action='store_true', help="Don't apply porn removal")
+    groupO.add_argument('--disable_minimal_length', default=False, action='store_true', help="Don't apply minimal length rule")
+
+    # Logging group
+    groupL = parser.add_argument_group('Logging')
+    groupL.add_argument('-q', '--quiet', action='store_true', help='Silent logging mode')
+    groupL.add_argument('--debug', action='store_true', help='Debug logging mode')
+    groupL.add_argument('--logfile', type=argparse.FileType('a'), default=sys.stderr, help="Store log to a file")
+    groupL.add_argument('-v', '--version', action='version', version="%(prog)s " + __version__, help="show version of this script and exit")
+
+    return parser, groupO, groupL
+
 
 # Classify sentences from input and place them at output
 # that can be either files or stdin/stdout
