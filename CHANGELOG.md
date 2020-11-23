@@ -1,3 +1,11 @@
+Bicleaner 0.15:
+* Bicleaner train changes:
+  * Qmax bug fixing.
+  * Classifier training uses the number of processes given by argument.
+* Bicleaner classify changes:
+  * Refactored classifier scripts: code cleaning and remove lot of duplicated code.
+  * Buffered tokenization: improve speed of external tokenization tokenizing blocks of lines instead of line by line.
+
 Bicleaner 0.14: 
 * Bicleaner hardrules changes:
   * New rule: filter out sentences containing gluedWordsLikeThis.

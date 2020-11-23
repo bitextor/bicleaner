@@ -43,15 +43,6 @@ except (SystemError, ImportError):
     from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
     from tokenizer import Tokenizer
 
-__author__ = "Sergio Ortiz-Rojas"
-# Please, don't delete the previous descriptions. Just add new version description at the end.
-
-__version__ = "Version 0.1 # December 2017 # Initial version # Sergio Ortiz-Rojas"
-__version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong examples from a file # Jorge Ferrández-Tordera"
-__version__ = "Version 0.3 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
-__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
-
-
 logging_level = 0
     
 # Argument parsing
