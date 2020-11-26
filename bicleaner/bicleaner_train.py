@@ -74,6 +74,7 @@ def initialization():
     groupM.add_argument('-F', '--target_word_freqs', type=argparse.FileType('r'), default=None, required=True, help="R language gzipped list of word frequencies")
 
     groupO = parser.add_argument_group('Options')
+    groupO.add_argument('-P', '--pretokenized_input', action='store_true', default=False, help="If flag enabled, Bicleaner expects extra fields in the TSV input that contain the tokenized version of the source and target segments.")
     groupO.add_argument('-S', '--source_tokenizer_command', help="Source language tokenizer full command")
     groupO.add_argument('-T', '--target_tokenizer_command', help="Target language tokenizer full command")
     groupO.add_argument('--normalize_by_length', action='store_true', help="Normalize by length in qmax dict feature")
@@ -302,8 +303,8 @@ def reduce_process(output_queue, output_file):
 
 # Calculates all the features needed for the training
 def worker_process(i, jobs_queue, output_queue, args):
-    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang, args.pretokenized_input)
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang, args.pretokenized_input)
 
     features_generator = build_features_generator(source_tokenizer, target_tokenizer, args)
     while True:
@@ -411,8 +412,9 @@ def perform_training(args):
         input_f.seek(0)
 
         # Shuffle and get length ratio
-        noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
-        noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+        noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang, args.pretokenized_input)
+        noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang, args.pretokenized_input)
+
         noise_props = [float(p)/100.0 for p in args.noise_proportions.split(",")]
         total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, noise_props, args.sl_word_freqs, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
         noisy_target_tokenizer.close()
@@ -470,10 +472,8 @@ def perform_training(args):
     feat_captions = None
     if args.dump_features:
         logging.info("Dumping features to " + os.path.abspath(args.dump_features.name))
-        source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-        target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
-        feat_captions = build_features_generator(source_tokenizer,target_tokenizer,args).get_feat_captions()
+        feat_captions = build_features_generator(None, None, args).get_feat_captions()
         args.dump_features.write(str(feat_captions))
         for i in features_file:
             args.dump_features.write(i)
@@ -517,7 +517,7 @@ def perform_training(args):
         features_train.seek(0)
         features_test.seek(0)
         if feat_captions == None:
-            feat_captions = build_features_generator(source_tokenizer,target_tokenizer,args).get_feat_captions()
+            feat_captions = build_features_generator(None, None, args).get_feat_captions()
         hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, feat_captions)
         features_train.close()
         features_test.close()

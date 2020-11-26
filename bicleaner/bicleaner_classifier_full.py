@@ -74,6 +74,7 @@ def initialization():
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
     groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
+    groupO.add_argument('-P', '--pretokenized_input', action='store_true', default=False, help="If flag enabled, Bicleaner expects extra fields in the TSV input that contain the tokenized version of the source and target segments.")
 
     groupO.add_argument("--dump_feats",  type=argparse.FileType('w'), default=None, help ="If defined, all feats are dumped to the file specified")
     groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
@@ -222,8 +223,9 @@ def initialization():
 
 def classifier_process(i, jobs_queue, output_queue, args):
     
-    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)        
+    source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang, args.pretokenized_input)
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang, args.pretokenized_input)
+
     features_generator = build_features_generator(source_tokenizer, target_tokenizer, args)
 
     if not args.disable_lm_filter:
@@ -234,9 +236,9 @@ def classifier_process(i, jobs_queue, output_queue, args):
     if not args.disable_porn_removal:
         porn_removal = args.porn_removal
         if args.metadata_yaml['porn_removal_side'] == 'tl':
-            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang, args.pretokenized_input)
         else:
-            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
+            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang, args.pretokenized_input)
     else:
         porn_removal = None
         porn_tokenizer = None
@@ -263,6 +265,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                     parts = i.split("\t")
                     sl_sentence=None
                     tl_sentence=None
+
                     if len(parts) >= max(args.scol, args.tcol):
                         sl_sentence=parts[args.scol-1]
                         tl_sentence=parts[args.tcol-1]

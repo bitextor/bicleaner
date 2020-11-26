@@ -395,10 +395,6 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
     right_noise_to_idx=int(from_idx+2*(to_idx-from_idx)/3)
     left_right_noise_to_idx=to_idx
 
-    print(from_idx)
-    print(left_noise_to_idx)
-    print(right_noise_to_idx)
-    print(left_right_noise_to_idx)
     if from_idx < to_idx:
         for i in offsets[from_idx:left_noise_to_idx+1]:
             temp.seek(i)

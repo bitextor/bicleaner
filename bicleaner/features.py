@@ -45,12 +45,19 @@ regex_malayalam        = regex.compile("[\p{Malayalam}]")
 regex_other            = regex.compile("[^\p{Arabic}\p{Greek}\p{Han}\p{Hangul}\p{Hebrew}\p{Latin}\p{InLatin_Extended-A}\p{InLatin_Extended-B}\p{InLatin-1_Supplement}\p{InBasic_Latin}\p{Hiragana}\p{Katakana}\p{Cyrillic}\p{Devanagari}\p{Malayalam}]")
 
 class SegmentPair(object):
-    def __init__(self, sseg, tseg, stokenizer, ttokenizer):
+    def __init__(self, sseg, tseg, stokenizer, ttokenizer, toksseg=None, toktseg=None):
         self.source = sseg
         self.target = tseg
 
-        lt = stokenizer.tokenize(sseg)
-        rt = ttokenizer.tokenize(tseg)
+        if stokenizer is None:
+            lt = toksseg
+        else:
+            lt = stokenizer.tokenize(sseg)
+
+        if ttokenizer is None:
+            rt = toktseg
+        else:
+            rt = ttokenizer.tokenize(tseg)
     
         left_sentence_orig_tok  = lt[0:250]
         right_sentence_orig_tok = rt[0:250]
@@ -618,8 +625,8 @@ class Features(object):
     def add_featclass(self, fclass):
         self.featclasses.append(fclass)
 
-    def run(self, source_seg, target_seg):
-        segment_pair = SegmentPair(source_seg, target_seg, self.stokenizer, self.ttokenizer)
+    def run(self, source_seg, target_seg, tok_source_seg=None, tok_target_seg=None):
+        segment_pair = SegmentPair(source_seg, target_seg, self.stokenizer, self.ttokenizer, tok_source_seg, tok_target_seg)
         feats = []
         for feat_gen in self.featclasses:
             #logging.info(feat_gen.captions)

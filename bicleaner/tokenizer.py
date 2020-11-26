@@ -9,8 +9,14 @@ except (SystemError, ImportError):
 
 
 class Tokenizer:
-    def __init__(self, command=None,  l="en"):
-        if command:
+    def __init__(self, command=None,  l="en", pretokenized=False):
+        self.pretokenized = pretokenized
+        if pretokenized:
+            self.command = None
+            self.tokenizer = None
+            self.external = True
+            self.spm = False
+        elif command:
             self.command = command
             self.tokenizer=ToolWrapper(command.split(' '))
             self.external =  True
@@ -21,9 +27,9 @@ class Tokenizer:
             self.spm = False
 
     def tokenize(self, text):
-        if self.external:
-            if self.tokenizer.closed:
-                self.tokenizer=ToolWrapper(self.command.split(' '))
+        if self.pretokenized:
+            return text.split()
+        elif self.external:
             self.tokenizer.writeline(text.rstrip('\n'))
             tmp_output = [t for t in self.tokenizer.readline().rstrip('\n').split()]
             output = []
@@ -43,7 +49,7 @@ class Tokenizer:
             return ' '.join(text)
 
     def close(self):
-        if self.external:
+        if not self.pretokenized and self.external:
             try:
                 self.tokenizer.close()
             except:
