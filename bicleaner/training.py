@@ -278,7 +278,7 @@ def old_shuffle(input, n_aligned, n_misaligned, wrong_examples_file):
 # Random shuffle corpora to ensure fairness of training and estimates.
 def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, percentage_noise, source_zipf_freqs=None, target_zipf_freqs=None, noisy_target_tokenizer=None, noisy_source_tokenizer=None):
     logging.info("Building training set.")
-    good_sentences  = TemporaryFile("w+")
+    good_sentences = TemporaryFile("w+")
     wrong_sentences = TemporaryFile("w+")
     total_size   = 0
     length_ratio = 0
@@ -335,7 +335,6 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, percent
             logging.info("Building wrong sentences with synthetic method.")
             init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
-            #frequence_based_noise(init_wrong_offsets, end_wrong_offsets, offsets, temp, wrong_sentences, double_linked_zipf_freqs, noisy_target_tokenizer)
             logging.info("Noise percentages: "+str(percentage_noise))
             freq_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)*percentage_noise[0])
             shuf_sent_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)*sum(percentage_noise[0:2]))
@@ -348,6 +347,7 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, percent
                 frequence_based_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
                                     source_zipf_freqs, target_zipf_freqs, noisy_source_tokenizer, noisy_target_tokenizer)
             shuffle_sent_noise(freq_noise_end_offset+1, shuf_sent_noise_end_offset, offsets, temp, wrong_sentences)
+            #shuffled_chars_noise(shuf_sent_noise_end_offset+1, shuf_word_noise_end_offset, offsets, temp, wrong_sentences)
             shuffled_words_noise(shuf_sent_noise_end_offset+1, shuf_word_noise_end_offset, offsets, temp, wrong_sentences ,noisy_source_tokenizer,noisy_target_tokenizer)
             missing_words_noise(shuf_word_noise_end_offset+1, deletion_noise_end_offset, offsets, temp, wrong_sentences,
                                 noisy_source_tokenizer, noisy_target_tokenizer)
@@ -367,6 +367,8 @@ def shuffle_sent_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
     random.shuffle ( random_idxs )
     sorted_idx = range(from_idx, to_idx)
     logging.info("Adding sentence-shuffled noise: %s." % str(to_idx-from_idx))
+    logging.debug("Init noise: "+str(from_idx))
+    logging.debug("End noise: "+str(to_idx))
 
     for sidx,tidx in zip(sorted_idx, random_idxs):
         temp.seek(offsets[sidx])
@@ -394,6 +396,10 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
     left_noise_to_idx=int(from_idx+(to_idx-from_idx)/3)
     right_noise_to_idx=int(from_idx+2*(to_idx-from_idx)/3)
     left_right_noise_to_idx=to_idx
+    logging.debug("Init noise: "+str(from_idx))
+    logging.debug("End left noise: "+str(left_noise_to_idx))
+    logging.debug("End right noise: "+str(right_noise_to_idx))
+    logging.debug("End left right noise: "+str(left_right_noise_to_idx))
 
     if from_idx < to_idx:
         for i in offsets[from_idx:left_noise_to_idx+1]:
@@ -404,11 +410,11 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
             s_toks = noisy_source_tokenizer.tokenize(parts[0])
             sbatch.append(s_toks)
             tbatch.append(parts[1])
+
             if len(tbatch) >= batch_size:
-                logging.info("Running batch")
                 noisy_sbatch = frequency_base_noise_batch(sbatch,source_double_linked_zipf_freqs)
                 #parts[1] = noisy_target_tokenizer.detokenize(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
-                for ssent,tsent in zip(noisy_sbatch,t_batch):
+                for ssent,tsent in zip(noisy_sbatch,tbatch):
                     wrong_sentences.write(noisy_source_tokenizer.detokenize(ssent))
                     wrong_sentences.write("\t")
                     wrong_sentences.write(tsent)
@@ -425,6 +431,7 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
 
         sbatch = []
         tbatch = []
+
         for i in offsets[left_noise_to_idx:right_noise_to_idx+1]:
             temp.seek(i)
             line = temp.readline()
@@ -434,7 +441,6 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
             sbatch.append(parts[0])
             tbatch.append(t_toks)
             if len(tbatch) >= batch_size:
-                logging.info("Running batch")
                 noisy_tbatch = frequency_base_noise_batch(tbatch,target_double_linked_zipf_freqs)
                 #parts[1] = noisy_target_tokenizer.detokenize(add_freqency_replacement_noise_to_sentence(t_toks, double_linked_zipf_freqs))
                 for ssent,tsent in zip(sbatch,noisy_tbatch):
@@ -442,6 +448,7 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
                     wrong_sentences.write("\t")
                     wrong_sentences.write(noisy_target_tokenizer.detokenize(tsent))
                     wrong_sentences.write("\n")
+
                 sbatch = []
                 tbatch = []
         if len(sbatch) > 0:
@@ -464,7 +471,6 @@ def frequence_based_noise(from_idx, to_idx, offsets, temp, wrong_sentences, sour
             sbatch.append(s_toks)
             tbatch.append(t_toks)
             if len(tbatch) >= batch_size:
-                logging.info("Running batch")
                 noisy_sbatch = frequency_base_noise_batch(sbatch,source_double_linked_zipf_freqs)
                 noisy_tbatch = frequency_base_noise_batch(tbatch,target_double_linked_zipf_freqs)
                 for ssent,tsent in zip(noisy_sbatch,noisy_tbatch):
@@ -511,14 +517,14 @@ def frequency_base_noise_batch(sentences, double_linked_zipf_freqs):
     currentw = 0
     for w,sents_pos in map_words_pos_sents.items():
         currentw += 1
-        #logging.info("Word "+str(currentw)+" of "+str(len(map_words_pos_sents.keys())))
-
-
         wfreq = double_linked_zipf_freqs.get_word_freq(w)
         all_alternatives = double_linked_zipf_freqs.get_words_for_freq(wfreq)
         if all_alternatives is not None:
             alternatives = list(all_alternatives)
-            random.shuffle(alternatives)
+            if len(alternatives) > 1:
+                if w in alternatives:
+                    alternatives.remove(w)
+                random.shuffle(alternatives)
             for sidx,wposset in sents_pos.items():
                 #logging.info("\tReplacing in sentence "+str(sidx))
                 for wpos in wposset:
@@ -527,7 +533,10 @@ def frequency_base_noise_batch(sentences, double_linked_zipf_freqs):
                     sentences[sidx][wpos] = alt
                     if len(alternatives) == 0:
                         alternatives = list(all_alternatives)
-                        random.shuffle(alternatives)
+                        if len(alternatives) > 1:
+                            if w in alternatives:
+                                alternatives.remove(w)
+                            random.shuffle(alternatives)
 
     return sentences
 
@@ -616,6 +625,11 @@ def missing_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences, noisy_
     left_noise_to_idx=int(from_idx+(to_idx-from_idx)/3)
     right_noise_to_idx=int(from_idx+2*(to_idx-from_idx)/3)
     left_right_noise_to_idx=to_idx
+    logging.debug("Init noise: "+str(from_idx))
+    logging.debug("End left noise: "+str(left_noise_to_idx))
+    logging.debug("End right noise: "+str(right_noise_to_idx))
+    logging.debug("End left right noise: "+str(left_right_noise_to_idx))
+
     for i in offsets[from_idx:left_noise_to_idx+1]:
         temp.seek(i)
         line = temp.readline()
@@ -659,6 +673,46 @@ def remove_words_randomly_from_sentence(sentence):
         del sentence[wordpos]
     return sentence
 
+def shuffled_chars_noise(from_idx, to_idx, offsets, temp, wrong_sentences):
+    logging.info("Adding word-shuffled noise: %s." % str(to_idx-from_idx))
+
+    left_noise_to_idx=int(from_idx+(to_idx-from_idx)/3)
+    right_noise_to_idx=int(from_idx+2*(to_idx-from_idx)/3)
+    left_right_noise_to_idx=to_idx
+
+    for i in offsets[from_idx:left_noise_to_idx+1]:
+        temp.seek(i)
+        line = temp.readline()
+        parts = line.rstrip("\n").split("\t")
+        s_chars=[char for char in parts[0]]
+
+        wrong_sentences.write("".join(randomly_shuffle_list(s_toks)))
+        wrong_sentences.write("\t")
+        wrong_sentences.write(parts[1])
+        wrong_sentences.write("\n")
+
+    for i in offsets[left_noise_to_idx:right_noise_to_idx+1]:
+        temp.seek(i)
+        line = temp.readline()
+        parts = line.rstrip("\n").split("\t")
+        t_toks=[char for char in parts[1]]
+
+        wrong_sentences.write(parts[0])
+        wrong_sentences.write("\t")
+        wrong_sentences.write("".join(randomly_shuffle_list(t_toks)))
+        wrong_sentences.write("\n")
+
+    for i in offsets[right_noise_to_idx:left_right_noise_to_idx+1]:
+        temp.seek(i)
+        line = temp.readline()
+        parts = line.rstrip("\n").split("\t")
+        s_toks=[char for char in parts[0]]
+        t_toks=[char for char in parts[1]]
+
+        wrong_sentences.write("".join(randomly_shuffle_list(s_toks)))
+        wrong_sentences.write("\t")
+        wrong_sentences.write("".join(randomly_shuffle_list(t_toks)))
+        wrong_sentences.write("\n")
 
 def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , noisy_source_tokenizer, noisy_target_tokenizer):
     logging.info("Adding word-shuffled noise: %s." % str(to_idx-from_idx))
@@ -673,7 +727,7 @@ def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , nois
         parts = line.rstrip("\n").split("\t")
         s_toks=noisy_source_tokenizer.tokenize(parts[0])
 
-        wrong_sentences.write(noisy_source_tokenizer.detokenize(randomly_shuffle_words(s_toks)))
+        wrong_sentences.write(noisy_source_tokenizer.detokenize(randomly_shuffle_list(s_toks)))
         wrong_sentences.write("\t")
         wrong_sentences.write(parts[1])
         wrong_sentences.write("\n")
@@ -686,7 +740,7 @@ def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , nois
 
         wrong_sentences.write(parts[0])
         wrong_sentences.write("\t")
-        wrong_sentences.write(noisy_target_tokenizer.detokenize(randomly_shuffle_words(t_toks)))
+        wrong_sentences.write(noisy_target_tokenizer.detokenize(randomly_shuffle_list(t_toks)))
         wrong_sentences.write("\n")
 
     for i in offsets[right_noise_to_idx:left_right_noise_to_idx+1]:
@@ -696,36 +750,37 @@ def shuffled_words_noise(from_idx, to_idx, offsets, temp, wrong_sentences , nois
         s_toks=noisy_source_tokenizer.tokenize(parts[0])
         t_toks=noisy_target_tokenizer.tokenize(parts[1])
 
-        wrong_sentences.write(noisy_source_tokenizer.detokenize(randomly_shuffle_words(s_toks)))
+        wrong_sentences.write(noisy_source_tokenizer.detokenize(randomly_shuffle_list(s_toks)))
         wrong_sentences.write("\t")
-        wrong_sentences.write(noisy_target_tokenizer.detokenize(randomly_shuffle_words(t_toks)))
+        wrong_sentences.write(noisy_target_tokenizer.detokenize(randomly_shuffle_list(t_toks)))
         wrong_sentences.write("\n")
 
 # If shuffle_rate is None, a random shuffle rate (from a uniform distribution)
 # is chosen
-def randomly_shuffle_words(sentence,shuffle_rate=None):
-    num_words=len(sentence)
+def randomly_shuffle_list(lst,shuffle_rate=None):
+    num_items=len(lst)
 
     #Run only if there is anything to shuffle
-    if num_words > 1:
+    if num_items > 1:
         #Decide how many words will be shuffled
         if shuffle_rate is None:
-            num_shuffled=random.randint(1, num_words)
+            num_shuffled=random.randint(1, num_items)
+            #num_shuffled=random.randint(int(num_items/2), num_items)
         else:
-            num_shuffled=int(shuffle_rate*num_words)
+            num_shuffled=int(shuffle_rate*num_items)
     
         #Decide which words will be shuffled
-        chosen_idx=sorted(numpy.random.choice(num_words,size=num_shuffled,replace=False))
+        chosen_idx=sorted(numpy.random.choice(num_items,size=num_shuffled,replace=False))
         shuffled_idx=chosen_idx[:]
         numpy.random.shuffle(shuffled_idx)
     
         #Randomly shuffle the chosen words
-        result=sentence[:]
+        result=lst[:]
         for i,s in zip(chosen_idx,shuffled_idx):
-            result[i]=sentence[s]
+            result[i]=lst[s]
         return result
     else:
-        return sentence
+        return lst
 
 # Calculate precision, recall and accuracy over the 0.0,1.0,0.1 histogram of
 # good and  wrong alignments
