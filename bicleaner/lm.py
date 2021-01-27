@@ -48,7 +48,7 @@ class UnicodeWordClassifier:
 
 class LMFluencyFilter:
     
-    def __init__(self, lm_type:LMType , language:str, tokenizer_command):
+    def __init__(self, lm_type:LMType , language:str, tokenizer_command, pretokenized_input=False):
         """
             lm_type: LMType
             language: language code
@@ -59,7 +59,7 @@ class LMFluencyFilter:
         if type(tokenizer_command) == Tokenizer:
             self.tokenizer = tokenizer_command
         else:
-            self.tokenizer=Tokenizer(tokenizer_command, self.language)
+            self.tokenizer=Tokenizer(tokenizer_command, self.language, pretokenized_input)
         self.normalizer=MosesPunctNormalizer(lang=self.language)
         self.type=lm_type
     
