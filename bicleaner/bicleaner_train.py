@@ -89,6 +89,7 @@ def initialization():
     groupO.add_argument('--features_version', type=check_positive, default=FEATURES_VERSION , help="Version of the features")
     groupO.add_argument('--disable_lang_ident', default=False, action='store_true', help="Don't apply features that use language detecting")
     groupO.add_argument('--seed', default=None, type=int, help="Seed for random number generation: by default, no seeed is used")
+    groupO.add_argument('--correct_samples_proportion', default=100, type=int, help="Percentage of correct samples for training")
     groupO.add_argument('--relative_paths', action='store_true', help="Ask training to save model files by relative path if they are in the same directory as metadata. Useful if you are going to train distributable models.")
     groupO.add_argument('--noise_proportions', default="17,17,17,17,17,17", help="Six types of noise are implemented in bicleaner: adding sentences that are unrelated (not parallel), replacing some words in one of the sentences by a diffeent word with similar freqnecy, replacing words randomly in one of the sentences, shuffilng words in one of the sentences, shuffling characters in one of the sentences, and truncating one of the sentences. By default, the total amount of noise is equally divided between these six types, but percentages can be modified by providing a comma-separated list of percentages. Default: 17,17,17,17,17,17")
 
@@ -415,8 +416,16 @@ def perform_training(args):
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang, args.pretokenized_input)
         noisy_source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang, args.pretokenized_input)
 
+        correct_prop = float(args.correct_samples_proportion)/100.0
         noise_props = [float(p)/100.0 for p in args.noise_proportions.split(",")]
-        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, count_input_lines//2, count_input_lines//2, args.wrong_examples_file, noise_props, args.sl_word_freqs, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
+        sys.stderr.write("Correct prop: "+str(correct_prop)+"\n")
+        if correct_prop >= 1.0:
+            num_aligned = count_input_lines
+            num_missaligned = int(count_input_lines*(1.0/correct_prop))
+        else:
+            num_aligned = int(count_input_lines*correct_prop)
+            num_missaligned = count_input_lines
+        total_size, length_ratio, good_sentences, wrong_sentences = build_noisy_set(args.input, num_aligned, num_missaligned, args.wrong_examples_file, noise_props, args.sl_word_freqs, args.tl_word_freqs, noisy_target_tokenizer, noisy_source_tokenizer)
         noisy_target_tokenizer.close()
         noisy_source_tokenizer.close()
     os.remove(input.name)
@@ -474,7 +483,7 @@ def perform_training(args):
         logging.info("Dumping features to " + os.path.abspath(args.dump_features.name))
 
         feat_captions = build_features_generator(None, None, args).get_feat_captions()
-        args.dump_features.write(str(feat_captions))
+        args.dump_features.write("\t".join(feat_captions)+"\n")
         for i in features_file:
             args.dump_features.write(i)
         args.dump_features.close()
@@ -487,12 +496,12 @@ def perform_training(args):
         good_examples = int(count_input_lines*0.9)
         good_examples_test = int(count_input_lines*0.1)
         wrong_examples = 0
-        with args.examples_file as file:
+        with args.wrong_examples_file as file:
             wrong_examples = sum(1 for line in file)
         wrong_esamples_test = min(good_examples_test, int(wrong_examples*0.1))
     else:
-        good_examples = int(count_input_lines//2*0.9)
-        good_examples_test = int(count_input_lines//2*0.1)
+        good_examples = int(count_input_lines*0.9)
+        good_examples_test = int(count_input_lines*0.1)
         wrong_examples = good_examples
         wrong_examples_test = good_examples_test
 
