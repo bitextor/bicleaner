@@ -71,15 +71,23 @@ def train_lms_for_feature(args):
         return None
     logging.info("Training LMs for features.")
 
-    lm_sl=LMFluencyFilter(LMType.CHARACTER,args.source_lang, args.source_tokenizer_command)
-    lm_sl.train_lm(args.lm_training_file_sl)
-    lm_sl.copy_lm(args.lm_file_sl)
-    lm_sl.cleanup()
+    if os.path.isfile(args.lm_file_sl):
+        logging.info("SL LM already exists.")
+    else:
+        logging.info("Building: "+str(args.lm_file_sl)+" from "+str(args.lm_training_file_sl))
+        lm_sl=LMFluencyFilter(LMType.CHARACTER, args.source_lang, args.source_tokenizer_command, args.pretokenized_input)
+        lm_sl.train_lm(args.lm_training_file_sl)
+        lm_sl.copy_lm(args.lm_file_sl)
+        lm_sl.cleanup()
 
-    lm_tl=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command)
-    lm_tl.train_lm(args.lm_training_file_tl)
-    lm_tl.copy_lm(args.lm_file_tl)
-    lm_tl.cleanup()
+    if os.path.isfile(args.lm_file_tl):
+        logging.info("TL LM already exists.")
+    else:
+        logging.info("Building: "+str(args.lm_file_tl)+" from "+str(args.lm_training_file_tl))
+        lm_tl=LMFluencyFilter(LMType.CHARACTER,args.target_lang, args.target_tokenizer_command, args.pretokenized_input)
+        lm_tl.train_lm(args.lm_training_file_tl)
+        lm_tl.copy_lm(args.lm_file_tl)
+        lm_tl.cleanup()
 
 
 def train_fluency_filter(args):
@@ -326,6 +334,8 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, percent
         # (2) Get good sentences
         random.shuffle(offsets)
 
+        logging.info("Number of positive examples: "+str(n_aligned))
+        logging.info("Number of negative examples: "+str(n_misaligned))
         for i in offsets[0:n_aligned]:
             temp.seek(i)
             good_sentences.write(temp.readline())
@@ -339,15 +349,16 @@ def build_noisy_set(input, n_aligned, n_misaligned, wrong_examples_file, percent
                 wrong_sentences.write(i)
         else:
             logging.info("Building wrong sentences with synthetic method.")
-            init_wrong_offsets = n_aligned+1
+            init_wrong_offsets = 0 #Taking all training set to generate noisy data
+            #init_wrong_offsets = n_aligned+1
             end_wrong_offsets = min(n_aligned+n_misaligned, len(offsets))
             logging.info("Noise percentages: "+str(percentage_noise))
-            freq_noise_end_offset           = n_aligned + int((end_wrong_offsets-n_aligned)*percentage_noise[0])
-            random_replace_noise_end_offset = n_aligned + int((end_wrong_offsets-n_aligned)*sum(percentage_noise[0:2]))
-            shuf_sent_noise_end_offset      = n_aligned + int((end_wrong_offsets-n_aligned)*sum(percentage_noise[0:3]))
-            shuf_word_noise_end_offset      = n_aligned + int((end_wrong_offsets-n_aligned)*sum(percentage_noise[0:4]))
-            shuf_char_noise_end_offset      = n_aligned + int((end_wrong_offsets-n_aligned)*sum(percentage_noise[0:5]))
-            deletion_noise_end_offset       = end_wrong_offsets
+            freq_noise_end_offset           = int((end_wrong_offsets)*percentage_noise[0])
+            random_replace_noise_end_offset = int((end_wrong_offsets)*sum(percentage_noise[0:2]))
+            shuf_sent_noise_end_offset      = int((end_wrong_offsets)*sum(percentage_noise[0:3]))
+            shuf_word_noise_end_offset      = int((end_wrong_offsets)*sum(percentage_noise[0:4]))
+            shuf_char_noise_end_offset      = int((end_wrong_offsets)*sum(percentage_noise[0:5]))
+            deletion_noise_end_offset       = min(end_wrong_offsets,int((end_wrong_offsets)*sum(percentage_noise[0:6])))
             #if target_zipf_freqs is not None and source_zipf_freqs is not None:
             #    random_word_replacement_noise(init_wrong_offsets, freq_noise_end_offset, offsets, temp, wrong_sentences,
             #                         source_zipf_freqs, target_zipf_freqs, noisy_source_tokenizer, noisy_target_tokenizer)
