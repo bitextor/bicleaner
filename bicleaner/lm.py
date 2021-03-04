@@ -1,7 +1,8 @@
-import kenlm
-from enum import Enum
-
 from tempfile import TemporaryFile, NamedTemporaryFile
+from sacremoses import MosesPunctNormalizer
+from subprocess import PIPE
+from enum import Enum
+import kenlm
 import subprocess
 import shutil
 import os
@@ -9,8 +10,6 @@ import argparse
 import logging
 import numpy
 import regex
-from sacremoses import MosesPunctNormalizer
-from subprocess import PIPE
 
 try:
     from .tokenizer import Tokenizer
@@ -87,11 +86,9 @@ class LMFluencyFilter:
     @classmethod
     def _estimate_kenlm(cls, corpus:str, lm_file:str, params:str):
         output = subprocess.run("lmplz "+params+" < "+corpus+" > "+lm_file+".arpa", shell=True, stderr=PIPE, stdout=PIPE)
-        logging.debug(output.stderr.decode())
-        logging.debug(output.stdout.decode())
+        cls.__print_output(output)
         output = subprocess.run("build_binary "+lm_file+".arpa "+ lm_file, shell=True, stderr=PIPE, stdout=PIPE)
-        logging.debug(output.stderr.decode())
-        logging.debug(output.stdout.decode())
+        cls.__print_output(output)
     
     def load_lm(self, lm_path:str):
         self.lm_path=lm_path
@@ -165,7 +162,17 @@ class LMFluencyFilter:
         
     def _raw_score(self, sentence:str):
         return self.lm.score(sentence)
-   
+
+    @classmethod
+    def __print_output(cls, output):
+        if output.returncode != 0:
+            logging.error(output.stderr.decode())
+            logging.error(output.stdout.decode())
+            raise SystemExit()
+        else:
+            logging.debug(output.stderr.decode())
+            logging.debug(output.stdout.decode())
+
     @classmethod 
     def estimate_threshold(cls,filter_a,filter_b, dev_corpus_a:str,  dev_corpus_b:str):
         scores=[]
@@ -228,6 +235,13 @@ class DualLMFluencyFilter:
         return self.scoring_stats.perplexity_to_score(self.sl_filter.score(sentence_sl)+self.tl_filter.score(sentence_tl))
     
     def train(self,lm_train_sl:str, lm_train_tl:str,clean_sl:str,clean_tl:str, noisy_sl:str,noisy_tl:str, lm_out_sl:str, lm_out_tl:str) -> DualLMStats :
+        # Chack that KenLM is correctly installed
+        output = subprocess.run("lmplz", shell=True, stderr=PIPE, stdout=PIPE)
+        if output.returncode == 127:
+            logging.error("KenLM is not installed, please check Bicleaner installation instructions on how to do so. If you already done this, check that the -DCMAKE_INSTALL_PREFIX:PATH points to your environment path.")
+            logging.error("stderr: " + output.stderr.decode())
+            logging.error("stdout: " + output.stdout.decode())
+            raise SystemExit()
         try:
             self.sl_filter.train_lm(lm_train_sl)
             self.tl_filter.train_lm(lm_train_tl)
