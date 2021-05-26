@@ -1,7 +1,7 @@
 pycld2==0.31
 regex==2019.08.19
 scikit-learn==0.22.1
-PyYAML==5.1.2
+PyYAML==5.4.1
 numpy>=1.18.1
 scipy==1.4.1
 pytest==5.1.2
