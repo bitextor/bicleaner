@@ -7,6 +7,7 @@ import traceback
 import subprocess
 import joblib
 
+from hardrules.bicleaner_hardrules import load_lm_filter
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile
@@ -17,12 +18,10 @@ from timeit import default_timer
 try:
     from .classify import classify, argument_parser, load_metadata
     from .util import logging_setup
-    from .bicleaner_hardrules import load_lm_filter
     from .tokenizer import Tokenizer
 except (ImportError, SystemError):
     from classify import classify, argument_parser, load_metadata
     from util import logging_setup
-    from bicleaner_hardrules import load_lm_filter
     from tokenizer import Tokenizer
 
 logging_level = 0

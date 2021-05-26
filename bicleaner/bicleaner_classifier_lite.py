@@ -6,17 +6,16 @@ import logging
 import traceback
 
 from timeit import default_timer
+from hardrules.bicleaner_hardrules import load_lm_filter
 
 #Allows to load modules while inside or outside the package
 try:
     from .classify import classify, argument_parser, load_metadata
     from .util import logging_setup
-    from .bicleaner_hardrules import load_lm_filter
     from .tokenizer import Tokenizer
 except (ImportError, SystemError):
     from classify import classify, argument_parser, load_metadata
     from util import logging_setup
-    from bicleaner_hardrules import load_lm_filter
     from tokenizer import Tokenizer
 
 logging_level = 0

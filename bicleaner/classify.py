@@ -1,4 +1,5 @@
 from tempfile import gettempdir
+from hardrules.bicleaner_hardrules import wrong_tu
 import numpy as np
 import traceback
 import argparse
@@ -14,13 +15,11 @@ try:
     from .features import feature_extract
     from .prob_dict import ProbabilisticDictionary
     from .word_freqs_zipf import WordZipfFreqDist
-    from .bicleaner_hardrules import wrong_tu
     from .util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
 except (ImportError, SystemError):
     from features import feature_extract
     from prob_dict import ProbabilisticDictionary
     from word_freqs_zipf import WordZipfFreqDist
-    from bicleaner_hardrules import wrong_tu
     from util import check_positive, check_positive_or_zero, check_positive_between_zero_and_one, logging_setup
 
 __author__ = "Sergio Ortiz Rojas"

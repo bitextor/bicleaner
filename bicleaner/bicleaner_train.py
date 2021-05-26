@@ -12,6 +12,8 @@ from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 
+from hardrules.training import train_fluency_filter, train_porn_removal
+
 import joblib
 from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
@@ -32,7 +34,7 @@ try:
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from .training import build_noisy_set, precision_recall, write_metadata
     from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
@@ -40,7 +42,7 @@ except (SystemError, ImportError):
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from training import build_noisy_set, precision_recall, write_metadata
     from tokenizer import Tokenizer
 
 logging_level = 0

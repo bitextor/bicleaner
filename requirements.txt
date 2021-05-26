@@ -8,4 +8,4 @@ pytest==5.1.2
 toolwrapper==0.4.1
 joblib==0.14.1
 sacremoses==0.0.43
-fasttext==0.9.2
+bicleaner-hardrules==1.0
