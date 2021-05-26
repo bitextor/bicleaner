@@ -6,7 +6,6 @@ import logging
 import traceback
 
 from timeit import default_timer
-from hardrules.bicleaner_hardrules import load_lm_filter
 
 #Allows to load modules while inside or outside the package
 try:
@@ -47,12 +46,13 @@ def perform_classification(args):
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
 
-    if not args.disable_lm_filter:
+    if not args.disable_hardrules and not args.disable_lm_filter:
+        from hardrules.bicleaner_hardrules import load_lm_filter
         lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
     else:
         lm_filter = None
 
-    if not args.disable_porn_removal:
+    if not args.disable_hardrules and not args.disable_porn_removal:
         if args.metadata_yaml['porn_removal_side'] == 'tl':
             porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
         else:

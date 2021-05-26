@@ -1,5 +1,5 @@
 from tempfile import gettempdir
-from hardrules.bicleaner_hardrules import wrong_tu
+from hardrules.hardrules import wrong_tu
 import numpy as np
 import traceback
 import argparse
@@ -154,7 +154,7 @@ def load_metadata(args, parser):
             logging.info("LM filtering disabled")
 
         # Try loading porn_removal model
-        if not args.disable_porn_removal:
+        if not args.disable_hardrules and not args.disable_porn_removal:
             if not ("porn_removal_file" in metadata_yaml and "porn_removal_side" in metadata_yaml):
                 args.porn_removal = None
                 args.disable_porn_removal = True

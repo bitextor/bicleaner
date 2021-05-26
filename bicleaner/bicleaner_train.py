@@ -397,9 +397,12 @@ def perform_training(args):
 
     stats=None
     with open(input.name) as input_f:
-        args.input=input_f
-        stats=train_fluency_filter(args)
-        input_f.seek(0)
+        args.input = input_f
+        if args.lm_file_sl is not None and args.lm_file_tl is not None:
+            stats = train_fluency_filter(args)
+            input_f.seek(0)
+        else:
+            stats = None
 
         # Shuffle and get length ratio
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
