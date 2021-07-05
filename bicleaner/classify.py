@@ -208,7 +208,7 @@ def classify(args, input, output, lm_filter, source_tokenizer, target_tokenizer,
             sl_sentence=parts[args.scol -1].strip()
             tl_sentence=parts[args.tcol -1].strip()
         else:
-            logging.error("ERROR: scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
+            logging.error("scol ({}) or tcol ({}) indexes above column number ({}) on line {}".format(args.scol, args.tcol, len(parts), nline))
 
         buf_sent.append(line)
 
