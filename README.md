@@ -205,7 +205,7 @@ $ cat monolingual.SL \
     | awk '{print tolower($0)}' \
     | tr ' ' '\n' \
     | LC_ALL=C sort | uniq -c \
-    | LC_ALL=C sort -nr \ \
+    | LC_ALL=C sort -nr \
     | grep -v '[[:space:]]*1' \
     | gzip > wordfreq-SL.gz
 $ cat monolingual.TL \
@@ -213,7 +213,7 @@ $ cat monolingual.TL \
     | awk '{print tolower($0)}' \
     | tr ' ' '\n' \
     | LC_ALL=C sort | uniq -c \
-    | LC_ALL=C sort -nr \ \
+    | LC_ALL=C sort -nr \
     | grep -v '[[:space:]]*1' \
     | gzip > wordfreq-TL.gz
 
