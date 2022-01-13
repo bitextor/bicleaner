@@ -55,6 +55,8 @@ logging_level = 0
 # All the scripts should have an initialization according with the usage. Template:
 def initialization():
     global logging_level
+
+    header = "--header" in sys.argv
     
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
@@ -66,17 +68,14 @@ def initialization():
     parser.add_argument('output', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help="Output of the classification")
     parser.add_argument('metadata', type=argparse.FileType('r'), default=None, help="Training metadata (YAML file)")    
 
-    ## Parameters required
-    #groupM = parser.add_argument_group('Mandatory')
-
-
     # Options group
     groupO = parser.add_argument_group('Optional')
     groupO.add_argument("-S", "--source_tokenizer_command", type=str, help="Source language (SL) tokenizer full command")
     groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
-    groupO.add_argument("--scol", default=3, type=check_positive, help ="Source sentence column (starting in 1)")
-    groupO.add_argument("--tcol", default=4, type=check_positive, help ="Target sentence column (starting in 1)")    
+    groupO.add_argument("--header", action='store_true', help="Input and output file will expect and have a header, respectively")
+    groupO.add_argument("--scol", default=3 if not header else "src_text", type=check_positive if not header else str, help ="Source sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")
+    groupO.add_argument("--tcol", default=4 if not header else "trg_text", type=check_positive if not header else str, help ="Target sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")    
     
     groupO.add_argument('--tmp_dir', default=gettempdir(), help="Temporary directory where creating the temporary files of this program")
     groupO.add_argument('-b', '--block_size', type=int, default=200, help="Sentence pairs per block")
@@ -381,6 +380,18 @@ def perform_classification(args):
     time_start = default_timer()
     logging.debug("Starting process")
     logging.debug("Running {0} workers at {1} rows per block".format(args.processes, args.block_size))
+
+    if args.header:
+        header = next(args.input).strip().split("\t")
+
+        # Transform fields to idxs
+        if args.scol not in header:
+            raise Exception(f"The provided --scol '{args.scol}' is not in the input header")
+        if args.tcol not in header:
+            raise Exception(f"The provided --tcol '{args.tcol}' is not in the input header")
+
+        args.scol = int(header.index(args.scol)) + 1
+        args.tcol = int(header.index(args.tcol)) + 1
 
     process_count = max(1, args.processes)
     maxsize = 1000 * process_count
