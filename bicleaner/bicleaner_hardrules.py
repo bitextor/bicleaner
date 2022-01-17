@@ -450,7 +450,7 @@ def reduce_process(output_queue, args):
         logging.debug("Still elements in heap")
 
     while len(h) > 0 and h[0][0] == last_block:
-        nblock, filein_name = heapq.heappop(h)
+        nblock, filein_name = heappop(h)
         last_block += 1
 
         with open(filein_name, 'r') as filein:
