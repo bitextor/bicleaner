@@ -57,6 +57,7 @@ def initialization():
     global logging_level
 
     header = "--header" in sys.argv
+    score_only = "--score_only" in sys.argv
     
     logging.info("Processing arguments...")
     # Getting arguments and options with argparse
@@ -74,6 +75,7 @@ def initialization():
     groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
     groupO.add_argument("--header", action='store_true', help="Input and output file will expect and have a header, respectively")
+    groupO.add_argument("--output_header", action='store_true' if score_only else None, help="Output file header (separated by ','). If --score_only is set, this flag will need to just be set instead of providing the fields")
     groupO.add_argument("--scol", default=3 if not header else "src_text", type=check_positive if not header else str, help ="Source sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")
     groupO.add_argument("--tcol", default=4 if not header else "trg_text", type=check_positive if not header else str, help ="Target sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")    
     
@@ -392,6 +394,12 @@ def perform_classification(args):
 
         args.scol = int(header.index(args.scol)) + 1
         args.tcol = int(header.index(args.tcol)) + 1
+
+    if args.output_header:
+        if not args.score_only:
+            args.output.write('\t'.join(args.output_header.strip().split(',')) + '\t')
+
+        args.output.write("bicleaner_score\n")
 
     process_count = max(1, args.processes)
     maxsize = 1000 * process_count

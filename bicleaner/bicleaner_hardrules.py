@@ -55,7 +55,7 @@ def initialization():
     global logging_level
 
     header = "--header" in sys.argv
-    
+
     parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]), formatter_class=argparse.ArgumentDefaultsHelpFormatter, description=__doc__)
     parser.add_argument('input',  nargs='?', type=argparse.FileType('rt', errors="replace"), default=io.TextIOWrapper(sys.stdin.buffer, errors="replace"),  help="Tab-separated bilingual tagged file")
     parser.add_argument('output', nargs='?', type=argparse.FileType('wt'), default=sys.stdout, help="Output of the classification")
@@ -78,6 +78,7 @@ def initialization():
     groupO.add_argument("-t", "--target_lang", type=str, default=None,  help="Target language (TL) of the input")
 
     groupO.add_argument("--header", action='store_true', help="Input and output file will expect and have a header, respectively")
+    groupO.add_argument("--output_header", help="Output file header (separated by ',')")
     groupO.add_argument("--scol", default=1 if not header else "src_text", type=check_positive if not header else str, help ="Source sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")
     groupO.add_argument("--tcol", default=2 if not header else "trg_text", type=check_positive if not header else str, help ="Target sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")  
     
@@ -575,6 +576,14 @@ def perform_hardrules_filtering(args):
 
         args.scol = int(header.index(args.scol)) + 1
         args.tcol = int(header.index(args.tcol)) + 1
+
+    if args.output_header:
+        args.output.write('\t'.join(args.output_header.strip().split(',')) + "\tbicleaner_score")
+
+        if args.annotated_output:
+            args.output.write("\tbicleaner_evaluation")
+
+        args.output.write('\n')
 
     # Start reducer
     reduce = Process(target = reduce_process,
