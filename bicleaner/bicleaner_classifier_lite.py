@@ -66,7 +66,7 @@ def initialization():
     groupO.add_argument("-T", "--target_tokenizer_command", type=str, help="Target language (TL) tokenizer full command")
 
     groupO.add_argument("--header", action='store_true', help="Input and output file will expect and have a header, respectively")
-    groupO.add_argument("--output_header", action='store_true' if score_only else None, help="Output file header (separated by ','). If --score_only is set, this flag will need to just be set instead of providing the fields")
+    groupO.add_argument("--output_header", action='store_true' if score_only or header else None, help="Output file header (separated by ','). If --header or --score_only is set, this flag will need to just be set instead of providing the fields")
     groupO.add_argument("--scol", default=3 if not header else "src_text", type=check_positive if not header else str, help ="Source sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")
     groupO.add_argument("--tcol", default=4 if not header else "trg_text", type=check_positive if not header else str, help ="Target sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")    
 
@@ -244,10 +244,21 @@ def classify(args):
         args.tcol = int(header.index(args.tcol)) + 1
 
     if args.output_header:
-        if not args.score_only:
-            args.output.write('\t'.join(args.output_header.strip().split(',')) + '\t')
+        if args.header:
+            if not "header" in locals():
+                raise Exception("Unexpected: 'header' should be defined")
 
-        args.output.write("bicleaner_score\n")
+            output_header = header
+        else:
+            output_header = args.output_header.strip().split(",")
+
+        if args.score_only:
+            output_header = ["bicleaner_score"]
+        else:
+            output_header.append("bicleaner_score")
+
+        # Write the output header once
+        args.output.write('\t'.join(output_header) + '\n')
 
     for i in args.input:
         nline += 1
