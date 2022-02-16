@@ -16,8 +16,8 @@ invalid_url(){
 
 if [[ $# -lt 2 ]]
 then
-    echo "Wrong number of arguments: $@" 2>&1
-    usage 2>&1
+    echo "Wrong number of arguments: $@" >&2
+    usage >&2
     exit 1
 fi
 

@@ -214,34 +214,39 @@ def feature_dict_qmax_nosmooth(slwords, tlwords, dict_stot, normalize_by_length,
 def feature_dict_qmax_nosmooth_nolimit(slwords, tlwords, dict_stot, normalize_by_length, fv):
     logresult = 0
 
-    slwords_s_a = set()
-    slwords_s_n = set()
-    for i in slwords:
-        if regex_alpha.match(i):
-            if i in dict_stot.d:
-                slwords_s_a.add(i)
-        else:
-            slwords_s_n.add(i)
+    #slwords_s_a = set()
+    #slwords_s_n = set()
+    slwords.append("NULL")
+    slwords_s = [s for s in set(slwords) if s in dict_stot.d]
+    #    if regex_alpha.match(i):
+    #        if i in dict_stot.d:
+    #            slwords_s_a.add(i)
+    #    else:
+    #        slwords_s_n.add(i)
 
-    slwords_s_n.add("NULL")
     tlwords2 = list(tlwords)
-    tlwords2.sort(key=len, reverse=True)
+    #tlwords2.sort(key=len, reverse=True)
 
+    count_t_in_dict = 0
     for tlword in tlwords2:
-        t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s_a]
-        t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
-        prob = max(t, default=dict_stot.smooth)
-        logresult += math.log(prob)
-        logging.debug("\t"+str(prob)+"\t"+str(logresult))
+        if tlword in dict_stot.dinv:
+            t = [dict_stot.get_prob_alpha(slword, tlword) for slword in slwords_s]
+            #t.extend([dict_stot.get_prob_nonalpha(slword, tlword) for slword in slwords_s_n])
+            prob = max(t, default=dict_stot.smooth)
+            logresult += math.log(prob)
+            logging.debug("\t"+str(prob)+"\t"+str(logresult))
+            count_t_in_dict += 1
 
-    #logging.debug(str(logresult)+"\t"+str(float(logresult) / float(len(tlwords)))+"\t"+str(math.exp(float(logresult) / float(len(tlwords)))))
     if normalize_by_length:
         if fv >= 2:
-            logresult = float(logresult) / float(
-                max(1, len(tlwords)))  # the max is to prevent zero division when tl sentence is empty
+            if count_t_in_dict > 0:
+                logresult = float(logresult) / float(
+                    count_t_in_dict)  # the max is to prevent zero division when tl sentence is empty
+            else:
+                return -1 # no word in T could be found in the dictionary, so this feature cannot be computed and the funciton returns -1
         else:
             # old behavior (it was a bug)
-            logresult = float(logresult) / float(len(tlwords))
+            logresult = float(logresult) / float(count_t_in_dict)
     return math.exp(logresult)
 
 def feature_dict_qmax_nosmooth_nolimit_freq(slwords, tlwords, dict_stot, normalize_by_length, tlwordfreqs, fv):
@@ -359,19 +364,19 @@ def feature_dict_qmax_nosmooth_nolimit_cummulated_prob_freq(slwords, tlwords, di
 
     return math.exp(logresult)
 
-def feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv, limit=20):
+def feature_dict_qmax_nosmooth_zipf_freq(slwords, tlwords, dict_stot, normalize_by_length, freqs, fv, limit=20):
     t_word_splits = freqs.split_sentence_by_freq(tlwords[0:limit])
     output = []
     for i in range(0, 4):
-        output.append(feature_dict_qmax_nosmooth_nolimit_cummulated_prob(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
+        output.append(feature_dict_qmax_nosmooth_nolimit(slwords, t_word_splits[i], dict_stot, normalize_by_length, fv))
     return output
 
 # Coverage
 def feature_dict_coverage(slwords, tlwords, dict_stot):
-    tlwords_s = set(tlwords)
-    slfound = [slword for slword in slwords if slword in dict_stot]
-    slwithtrans = [ slword for slword in slfound if  len(set(dict_stot[slword]) & tlwords_s ) >0 ]
-    return [ len(slfound)*1.0 / (1+len(slwords)) , len(slwithtrans)*1.0 /(1+len(slfound)) if len(slfound) > 0 else 1.0 ]
+    slwords_s = set(slwords)
+    tlfound = [tlword for tlword in tlwords if tlword in dict_stot.dinv]
+    tlwithtrans = [ tlword for tlword in tlfound if  len(dict_stot.dinv[tlword] & slwords_s ) >0 ]
+    return [ len(tlfound)*1.0 / (1+len(tlwords)) , len(tlwithtrans)*1.0 /(1+len(tlfound)) if len(tlfound) > 0 else 1.0 ]
 
 def feature_dict_coverage_zipf_freq(slwords, tlwords, dict_stot, freqs):
     t_word_splits = freqs.split_sentence_by_freq(tlwords)
@@ -535,7 +540,7 @@ def feature_character_measurements(sentence):
     
 # Main feature function: uses program options to return a suitable set of
 # features at the output
-def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
+def feature_extract(srcsen, trgsen, srcsen_t, trgsen_t, args):
     length_ratio = args.length_ratio
     dict12 = args.dict_sl_tl
     dict21 = args.dict_tl_sl
@@ -554,11 +559,8 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
 
         
     # Sentence tokenization, with and without capital letters
-    lt = tokenize_l.tokenize(srcsen)
-    rt = tokenize_r.tokenize(trgsen)
-
-    left_sentence_orig_tok  = lt[0:250]
-    right_sentence_orig_tok = rt[0:250]
+    left_sentence_orig_tok  = srcsen_t[0:250]
+    right_sentence_orig_tok = trgsen_t[0:250]
 
     left_sentence_tok =  [i.lower() for i in left_sentence_orig_tok]
     right_sentence_tok = [i.lower() for i in right_sentence_orig_tok]
@@ -586,9 +588,9 @@ def feature_extract(srcsen, trgsen, tokenize_l, tokenize_r, args):
         features.extend(feature_dict_coverage(right_sentence_tok, left_sentence_tok, dict21))
     else:
         # Feature version 4 using cummulated probabilities in qmax and word frecuencies
-        qmax1to2 = feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(left_sentence_tok, right_sentence_tok,
+        qmax1to2 = feature_dict_qmax_nosmooth_zipf_freq(left_sentence_tok, right_sentence_tok,
                                                                                 dict12, normalize_by_length, l2freqs, fv, qmax_limit)
-        qmax2to1 = feature_dict_qmax_nosmooth_cummulated_prob_zipf_freq(right_sentence_tok, left_sentence_tok,
+        qmax2to1 = feature_dict_qmax_nosmooth_zipf_freq(right_sentence_tok, left_sentence_tok,
                                                                                 dict21, normalize_by_length, l1freqs, fv, qmax_limit)
         features.extend(qmax1to2)
         features.extend(qmax2to1)

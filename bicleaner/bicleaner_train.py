@@ -12,6 +12,8 @@ from sklearn import svm
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 
+from hardrules.training import train_fluency_filter, train_porn_removal
+
 import joblib
 from sklearn import metrics
 from tempfile import TemporaryFile, NamedTemporaryFile
@@ -32,7 +34,7 @@ try:
     from .word_freqs_zipf import WordZipfFreqDist
     from .word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from .util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from .training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from .training import build_noisy_set, precision_recall, write_metadata
     from .tokenizer import Tokenizer
 except (SystemError, ImportError):
     from features import feature_extract, FEATURES_VERSION, Features
@@ -40,17 +42,8 @@ except (SystemError, ImportError):
     from word_freqs_zipf import WordZipfFreqDist
     from word_freqs_zipf_double_linked import WordZipfFreqDistDoubleLinked
     from util import no_escaping, check_positive, check_positive_or_zero, logging_setup
-    from training import build_noisy_set, precision_recall, write_metadata, train_fluency_filter, train_porn_removal
+    from training import build_noisy_set, precision_recall, write_metadata
     from tokenizer import Tokenizer
-
-__author__ = "Sergio Ortiz-Rojas"
-# Please, don't delete the previous descriptions. Just add new version description at the end.
-
-__version__ = "Version 0.1 # December 2017 # Initial version # Sergio Ortiz-Rojas"
-__version__ = "Version 0.2 # 09/01/2018 # Adding argument for injecting wrong examples from a file # Jorge Ferrández-Tordera"
-__version__ = "Version 0.3 # 18/01/2019 # Integrated training of LM and refactor to avoid code duplicity # Víctor M. Sánchez-Cartagena"
-__version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
-
 
 logging_level = 0
     
@@ -125,7 +118,7 @@ def initialization():
 # Training function: receives two file descriptors, input and test, and a
 # type classifiers and trains a classifier storing it in classifier_output
 # and returns some quality estimates.
-def train_classifier(input_features, test_features, classifier_type, classifier_output, feat_names):
+def train_classifier(input_features, test_features, classifier_type, classifier_output, feat_names, n_jobs):
     feats=[]
     labels=[]
 
@@ -141,9 +134,9 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
 
     # Train classifier
     if classifier_type == "svm":
-        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True))
+        clf = make_pipeline(MinMaxScaler(), svm.SVC(gamma=0.001, C=100., probability=True, n_jobs=n_jobs))
     elif classifier_type == "mlp":
-        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1)
+        clf = MLPClassifier(verbose=True, solver='adam', alpha=1e-5, hidden_layer_sizes=(100,), random_state=1, shuffle=True, early_stopping=True, validation_fraction=0.1, n_jobs=n_jobs)
     elif classifier_type == "extra_trees":
         parameters = {
             'criterion': ('gini','entropy'),
@@ -165,9 +158,9 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
                 verbose=0,
                 warm_start=False)
     elif classifier_type == "nn":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
+        clf = neighbors.KNeighborsClassifier(n_neighbors=5, n_jobs=n_jobs)
     elif classifier_type == "nn1":
-        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=-1)
+        clf = neighbors.KNeighborsClassifier(n_neighbors=1, n_jobs=n_jobs)
     elif classifier_type == "adaboost":
         clf = AdaBoostClassifier(n_estimators=100)
     elif classifier_type == "random_forest":
@@ -200,7 +193,7 @@ def train_classifier(input_features, test_features, classifier_type, classifier_
     except NameError:
         pass
     else:
-        clf = GridSearchCV(clf, parameters, n_jobs=-1)
+        clf = GridSearchCV(clf, parameters, n_jobs=n_jobs)
 
     clf.fit(dataset['data'], dataset['target'])
 
@@ -309,24 +302,30 @@ def worker_process(i, jobs_queue, output_queue, args):
             nblock, filein_name, label = job
 
             with open(filein_name, 'r') as filein, NamedTemporaryFile(mode="w", delete=False) as fileout:
-                logging.debug("Filtering: creating temporary file {}".format(fileout.name))
-                for i in filein:
-                    srcsen,trgsen = i.split("\t")[:2]
-                    trgsen = trgsen.strip()
-                    features = feature_extract(srcsen, trgsen, source_tokenizer, target_tokenizer, args)
-                    
+                srcsents = []
+                trgsents = []
+                for line in filein:
+                    srcsen, trgsen = line.split("\t")[:2]
+                    srcsents.append(srcsen)
+                    trgsents.append(trgsen)
+                srcsents_tok = source_tokenizer.tokenize(srcsents)
+                trgsents_tok = target_tokenizer.tokenize(trgsents)
+
+                for srcsen, trgsen, srcsen_t, trgsen_t in zip(srcsents, trgsents, srcsents_tok, trgsents_tok):
+                    features = feature_extract(srcsen, trgsen, srcsen_t, trgsen_t, args)
                     for j in features:
                         fileout.write("{}".format(j))
                         fileout.write("\t")
                     fileout.write("{}".format(label))
                     fileout.write("\n")
+
                 ojob = (nblock, fileout.name)
                 fileout.close()
                 filein.close()
                 output_queue.put(ojob)
             os.unlink(filein_name)
         else:
-            logging.debug("Exiting worker")
+            logging.debug("Exiting worker {}".format(i))
             source_tokenizer.close()
             target_tokenizer.close()
             break
@@ -398,9 +397,12 @@ def perform_training(args):
 
     stats=None
     with open(input.name) as input_f:
-        args.input=input_f
-        stats=train_fluency_filter(args)
-        input_f.seek(0)
+        args.input = input_f
+        if args.lm_file_sl is not None and args.lm_file_tl is not None:
+            stats = train_fluency_filter(args)
+            input_f.seek(0)
+        else:
+            stats = None
 
         # Shuffle and get length ratio
         noisy_target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
@@ -444,10 +446,10 @@ def perform_training(args):
     for _ in workers:
         jobs_queue.put(None)
 
-    logging.info("End computing features.")
-
     for w in workers:
         w.join()
+
+    logging.info("End computing features.")
 
     # Reducer termination
     output_queue.put(None)
@@ -498,7 +500,7 @@ def perform_training(args):
         
         features_train.seek(0)
         features_test.seek(0)
-        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles)
+        hgood, hwrong = train_classifier(features_train, features_test, args.classifier_type, args.classifier, Features(None, args.disable_features_quest, args.disable_lang_ident).titles, args.processes)
         features_train.close()
         features_test.close()
 
