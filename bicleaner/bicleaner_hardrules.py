@@ -78,7 +78,6 @@ def initialization():
     groupO.add_argument("-t", "--target_lang", type=str, default=None,  help="Target language (TL) of the input")
 
     groupO.add_argument("--header", action='store_true', help="Input and output file will expect and have a header, respectively")
-    groupO.add_argument("--output_header", action='store_true' if header else None, help="Output file header (separated by ','). If --header is set, this flag will need to just be set instead of providing the fields")
     groupO.add_argument("--scol", default=1 if not header else "src_text", type=check_positive if not header else str, help ="Source sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")
     groupO.add_argument("--tcol", default=2 if not header else "trg_text", type=check_positive if not header else str, help ="Target sentence column (starting in 1). The name of the field is expected instead of the position if --header is set")  
     
@@ -577,14 +576,7 @@ def perform_hardrules_filtering(args):
         args.scol = int(header.index(args.scol)) + 1
         args.tcol = int(header.index(args.tcol)) + 1
 
-    if args.output_header:
-        if args.header:
-            if not "header" in locals():
-                raise Exception("Unexpected: 'header' should be defined")
-
-            output_header = header
-        else:
-            output_header = args.output_header.strip().split(",")
+        output_header = header
 
         output_header.append("bicleaner_score")
 
