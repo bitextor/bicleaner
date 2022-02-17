@@ -1,11 +1,11 @@
 pycld2==0.31
-regex==2019.08.19
+regex>=2019.08.19
 scikit-learn==0.22.1
 PyYAML==5.4.1
 numpy>=1.18.1
-scipy==1.4.1
+scipy>=1.4.1
 pytest==5.1.2
 toolwrapper==0.4.1
-joblib==0.14.1
+joblib>=0.14.1
 sacremoses==0.0.43
 bicleaner-hardrules==1.2
