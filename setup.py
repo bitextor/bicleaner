@@ -9,13 +9,13 @@ with open("requirements.txt") as rf:
     
 setuptools.setup(
     name="bicleaner",
-    version="0.14",
+    version="0.15",
     install_requires=requirements,
     license="GNU General Public License v3.0",
     author="Prompsit Language Engineering",
     author_email="info@prompsit.com",
-    maintainer="Marta Bañón",
-    maintainer_email="mbanon@prompsit.com",
+    maintainer="Jaume Zaragoza",
+    maintainer_email="jzaragoza@prompsit.com",
     description="Parallel corpus classifier, indicating the likelihood of a pair of sentences being mutual translations or not",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -42,6 +42,5 @@ setuptools.setup(
          "scripts/bicleaner-classify",
          "scripts/bicleaner-train",
          "scripts/bicleaner-classify-lite",
-         "scripts/bicleaner-hardrules"
          ]
 )

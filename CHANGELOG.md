@@ -1,3 +1,15 @@
+Bicleaner 0.15:
+* Bicleaner hard-rules changes:
+  * Split hard-rules into a separated package.
+  * KenLM does not need to be installed when LM fluency filter isn't used.
+  * Update hardrules to 2.0, see [CHANGELOG](https://github.com/bitextor/bicleaner-hardrules/blob/6a7ea449c932ad8cf2a101e7841670f128335286/CHANGELOG.md).
+* Bicleaner train changes:
+  * Qmax bug fixing.
+  * Classifier training uses the number of processes given by argument.
+* Bicleaner classify changes:
+  * Refactored classifier scripts: code cleaning and remove lot of duplicated code.
+  * Buffered tokenization: improve speed of external tokenization tokenizing blocks of lines instead of line by line.
+
 Bicleaner 0.14: 
 * Bicleaner hardrules changes:
   * New rule: filter out sentences containing gluedWordsLikeThis.
