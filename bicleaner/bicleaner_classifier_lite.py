@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import traceback
+from hardrules.hardrules import Hardrules
 
 from timeit import default_timer
 
@@ -42,27 +43,15 @@ def perform_classification(args):
     time_start = default_timer()
     logging.info("Starting process")
 
-    # Load tokenizers and LM
+    # Load tokenizers and Hardrules object
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+    hardrules = Hardrules(args)
 
-    if not args.disable_hardrules and not args.disable_lm_filter:
-        from hardrules.bicleaner_hardrules import load_lm_filter
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
-    else:
-        lm_filter = None
-
-    if not args.disable_hardrules and not args.disable_porn_removal:
-        if args.metadata_yaml['porn_removal_side'] == 'tl':
-            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
-        else:
-            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-    else:
-        porn_tokenizer = None
     args.clf.set_params(n_jobs = 1)
 
     # Score sentences
-    nline = classify(args, args.input, args.output, lm_filter, source_tokenizer, target_tokenizer, porn_tokenizer)
+    nline = classify(args, args.input, args.output, source_tokenizer, target_tokenizer, hardrules)
 
     # Stats
     logging.info("Finished")

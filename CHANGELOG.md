@@ -2,6 +2,7 @@ Bicleaner 0.15:
 * Bicleaner hard-rules changes:
   * Split hard-rules into a separated package.
   * KenLM does not need to be installed when LM fluency filter isn't used.
+  * Update hardrules to 2.0, see [CHANGELOG](https://github.com/bitextor/bicleaner-hardrules/blob/6a7ea449c932ad8cf2a101e7841670f128335286/CHANGELOG.md).
 * Bicleaner train changes:
   * Qmax bug fixing.
   * Classifier training uses the number of processes given by argument.

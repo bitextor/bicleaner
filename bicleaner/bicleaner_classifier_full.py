@@ -7,7 +7,7 @@ import traceback
 import subprocess
 import joblib
 
-from hardrules.bicleaner_hardrules import load_lm_filter
+from hardrules.hardrules import Hardrules
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile
@@ -46,23 +46,10 @@ def initialization():
 
 
 def classifier_process(i, jobs_queue, output_queue, args):
+    # Load tokenizers and Hardrules object
     source_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)        
-
-    if not args.disable_lm_filter:
-        lm_filter = load_lm_filter(args.source_lang, args.target_lang, args.metadata_yaml, args.source_tokenizer_command, args.target_tokenizer_command)
-    else:
-        lm_filter = None
-
-    if not args.disable_porn_removal:
-        porn_removal = args.porn_removal
-        if args.metadata_yaml['porn_removal_side'] == 'tl':
-            porn_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
-        else:
-            porn_tokenizer = Tokenizer(args.source_tokenizer_command, args.source_lang)
-    else:
-        porn_removal = None
-        porn_tokenizer = None
+    target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
+    hardrules = Hardrules(args)
 
     # If there are still jobs pending
     # grab one input file and place scores at the output queue
@@ -76,7 +63,7 @@ def classifier_process(i, jobs_queue, output_queue, args):
                 logging.debug("Classification: creating temporary filename {0}".format(fileout.name))
 
                 # Score sentences
-                classify(args, filein, fileout, lm_filter, source_tokenizer, target_tokenizer, porn_tokenizer)
+                classify(args, filein, fileout, source_tokenizer, target_tokenizer, hardrules)
 
                 ojob = (nblock, fileout.name)
                 filein.close()

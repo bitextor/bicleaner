@@ -42,6 +42,5 @@ setuptools.setup(
          "scripts/bicleaner-classify",
          "scripts/bicleaner-train",
          "scripts/bicleaner-classify-lite",
-         "scripts/bicleaner-hardrules"
          ]
 )
