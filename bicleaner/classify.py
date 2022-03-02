@@ -32,7 +32,7 @@ __version__ = "Version 0.11.0 # 17/01/2019 # Added fluency filter # Víctor M. S
 __version__ = "Version 0.12 # 29/08/2019 # # Marta Bañón"
 __version__ = "Version 0.13 # 30/10/2019 # Features version 3  # Marta Bañón"
 __version__ = "Version 0.14 # 04/08/2020 # Features version 4 # Miquel Esplà, Jaume Zaragoza and Marta Bañón"
-__version__ = "Version 0.15 # # # Miquel Esplà, Jaume Zaragoza and Marta Bañón"
+__version__ = "Version 0.15 # 02/03/2022 # # Miquel Esplà, Jaume Zaragoza and Marta Bañón"
 
 
 # Create an argument parser and add all the arguments
