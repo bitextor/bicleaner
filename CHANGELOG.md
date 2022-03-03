@@ -1,3 +1,6 @@
+Bicleaner 0.15.1:
+* Fix requirements and installation
+
 Bicleaner 0.15:
 * Bicleaner hard-rules changes:
   * Split hard-rules into a separated package.
