@@ -1,3 +1,6 @@
+Bicleaner 0.15.2:
+* Fix tests
+
 Bicleaner 0.15.1:
 * Fix requirements and installation
 
