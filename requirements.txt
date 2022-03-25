@@ -4,6 +4,7 @@ PyYAML
 numpy
 scipy
 pytest
+pycld2
 toolwrapper>=0.4.1,<=2.1.0
 joblib
 sacremoses>=0.0.35,<=0.0.47
