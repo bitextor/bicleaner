@@ -35,7 +35,6 @@ test:
   requires:
     - pytest
   commands:
-    - conda update --all -y
     - pushd tests; pytest; popd
 
 about:
