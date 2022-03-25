@@ -1,0 +1,44 @@
+
+{% set rdir = "../.." %}
+{% set data = load_setup_py_data(setup_file=''+rdir+'/setup.py', from_recipe_dir=True) %}
+
+package:
+  name: bicleaner
+  version: {{ data.get('version') }}
+
+source:
+  path: {{ rdir }}
+
+build:
+  string: {{ environ.get('GIT_DESCRIBE_HASH') }}
+  preserve_egg_dir: True
+
+requirements:
+  build:
+    - pip
+    - setuptools
+    - python>=3.7
+    - cython
+    - hunspell
+    - scikit-learn=0.22.1
+  run:
+    - python>=3.7
+    - cython
+    - kenlm
+    - hunspell
+    - hunspell-en
+    - scikit-learn=0.22.1
+
+test:
+  source_files:
+    - tests/*
+  requires:
+    - pytest
+  commands:
+    - conda update --all -y
+    - pushd tests; pytest; popd
+
+about:
+  home: https://github.com/bitextor/bicleaner
+  license: GPL3
+  summary: Bicleaner is a parallel corpus classifier/cleaner that aims at detecting noisy sentence pairs in a parallel corpus
