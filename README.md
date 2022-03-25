@@ -72,6 +72,12 @@ make -j all install
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
 
+Also, you can install the conda package (KenLM is already included):
+
+```bash
+conda install -c conda-forge -c bitextor bicleaner
+```
+
 After installation, three binary files (`bicleaner-train`, `bicleaner-classify` and `bicleaner-classify-lite`) will be located in your `python/installation/prefix/bin` directory. This is usually `$HOME/.local/bin` or `/usr/local/bin/`.
 
 ## Cleaning
