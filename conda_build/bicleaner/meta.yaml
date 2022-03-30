@@ -10,24 +10,18 @@ source:
   path: {{ rdir }}
 
 build:
-  string: {{ environ.get('GIT_DESCRIBE_HASH') }}
+  string: "py{{ environ.get('CONDA_PY') }}_{{ environ.get('GIT_DESCRIBE_HASH') }}"
   preserve_egg_dir: True
 
 requirements:
-  build:
+  host:
     - pip
     - setuptools
-    - python>=3.7
-    - cython
-    - hunspell
-    - scikit-learn=0.22.1
+    - python {{ python }}
   run:
-    - python>=3.7
-    - cython
+    - python {{ python }}
     - kenlm
-    - hunspell
-    - hunspell-en
-    - scikit-learn=0.22.1
+    - fastspell
 
 test:
   source_files:
