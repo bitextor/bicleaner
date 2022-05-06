@@ -312,8 +312,11 @@ def check_relative_paths(args):
                 path = value if isinstance(value, str) else value.name
                 dirname = os.path.dirname(os.path.abspath(path))
                 if dirname != yaml_path:
-                    logging.warning("{} is not in the same directory as metadata. Absolute paths will be used instead of relative.".format(var))
-                    return False
+                    if var != "classifier_type":                    
+                        logging.warning("{} is not in the same directory as metadata. Absolute paths will be used instead of relative.".format(var))
+                        return False
+                    else:
+                        continue    
     return True
 
 
@@ -334,6 +337,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats):
     logging.debug(accuracy_hist)
 
     if check_relative_paths(myargs):
+        logging.info("USING RELATIVE PATHS")
         classifier = myargs.classifier.name
         source_dictionary = myargs.source_dictionary.name
         target_dictionary = myargs.target_dictionary.name
@@ -345,6 +349,7 @@ def write_metadata(myargs, length_ratio, hgood, hwrong, lm_stats):
         if myargs.porn_removal_file is not None:
             porn_removal_file = myargs.porn_removal_file
     else:
+        logging.info("NOT USING RELATIVE PATHS")
         classifier = os.path.abspath(myargs.classifier.name)
         source_dictionary = os.path.abspath(myargs.source_dictionary.name)
         target_dictionary = os.path.abspath(myargs.target_dictionary.name)
