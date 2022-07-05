@@ -7,7 +7,7 @@ __version__ = "Version 0.1 # 28/09/2018 # Classifier test # Marta Bañón"
 import subprocess
 import bicleaner
 
-def setup_function():
+def setup_module():
 
 	print("Running test setup...")
 	
@@ -22,7 +22,7 @@ def setup_function():
 	
 	
 
-def teardown_function():
+def teardown_module():
 	print("Running test teardown...")
 		
 	command = "rm -r test_langpacks && rm tests/test-corpus.en-de.classified"
