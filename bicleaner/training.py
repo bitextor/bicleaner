@@ -227,7 +227,7 @@ def add_freqency_replacement_noise_to_sentence(sentence, double_linked_zipf_freq
         wfreq = double_linked_zipf_freqs.get_word_freq(w)
         alternatives = double_linked_zipf_freqs.get_words_for_freq(wfreq)
         if alternatives is not None:
-            sentence[wordpos] = random.choice(list(alternatives))
+            sentence[wordpos] = random.choice(list(sorted(alternatives)))
     return sentence
 
 
