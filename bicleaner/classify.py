@@ -203,7 +203,7 @@ def classify(args, input, output, source_tokenizer, target_tokenizer, hardrules)
 
     if args.header:
         args.header = False # We only need to execute the following code once
-        header = next(args.input).strip().split("\t")
+        header = next(input).strip().split("\t")
 
         # Transform fields to idxs
         if args.scol not in header:
