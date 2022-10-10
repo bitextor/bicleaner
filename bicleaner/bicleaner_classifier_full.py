@@ -51,6 +51,8 @@ def classifier_process(i, jobs_queue, output_queue, args):
     target_tokenizer = Tokenizer(args.target_tokenizer_command, args.target_lang)
     hardrules = Hardrules(args)
 
+    setattr(args, "job_id", i)
+
     # If there are still jobs pending
     # grab one input file and place scores at the output queue
     while True:
@@ -77,11 +79,18 @@ def classifier_process(i, jobs_queue, output_queue, args):
             logging.debug("Exiting worker {}".format(job.__repr__()))
             break
 
+    delattr(args, "job_id")
+
 def mapping_process(args, jobs_queue):
     logging.info("Start mapping")
     nblock = 0
     nline = 0
     mytemp = None
+    header = ""
+
+    if args.header:
+        header = next(args.input)
+
     for line in args.input:
         if (nline % args.block_size) == 0:
             logging.debug("Creating block {}".format(nblock))
@@ -92,6 +101,10 @@ def mapping_process(args, jobs_queue):
                 nblock += 1
             mytemp = NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir)
             logging.debug("Mapping: creating temporary filename {0}".format(mytemp.name))
+
+            if header:
+                mytemp.write(header)
+
         mytemp.write(line)
 
         nline += 1

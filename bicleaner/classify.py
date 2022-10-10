@@ -223,8 +223,9 @@ def classify(args, input, output, source_tokenizer, target_tokenizer, hardrules)
         else:
             output_header.append("bicleaner_score")
 
-        # Write the output header once
-        args.output.write('\t'.join(output_header) + '\n')
+        if not "job_id" in dir(args) or args.job_id == 0:
+            # Write the output header once
+            args.output.write('\t'.join(output_header) + '\n')
 
     # Read from input file/stdin
     for line in input:
