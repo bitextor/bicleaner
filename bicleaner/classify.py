@@ -202,14 +202,22 @@ def classify(args, input, output, source_tokenizer, target_tokenizer, hardrules)
     buf_score = []
 
     if args.header:
+        output_header_ready = False
+        lite = not "job_id" in dir(args)
+
+        if isinstance(args.header, list):
+            header = args.header
+            output_header_ready = True
+        else:
+            header = next(input).strip().split("\t")
+
         args.header = False # We only need to execute the following code once
-        header = next(input).strip().split("\t")
 
         # Transform fields to idxs
         if args.scol not in header:
-            raise Exception(f"The provided --scol '{args.scol}' is not in the input header")
+            raise Exception(f"The provided --scol '{args.scol}' is not in the input header: {str(header)}")
         if args.tcol not in header:
-            raise Exception(f"The provided --tcol '{args.tcol}' is not in the input header")
+            raise Exception(f"The provided --tcol '{args.tcol}' is not in the input header: {str(header)}")
 
         args.scol = int(header.index(args.scol)) + 1
         args.tcol = int(header.index(args.tcol)) + 1
@@ -218,14 +226,17 @@ def classify(args, input, output, source_tokenizer, target_tokenizer, hardrules)
 
         output_header = header
 
-        if args.score_only:
-            output_header = ["bicleaner_score"]
-        else:
-            output_header.append("bicleaner_score")
+        if not output_header_ready:
+            if args.score_only:
+                output_header = ["bicleaner_score"]
+            else:
+                output_header.append("bicleaner_score")
 
-        if not "job_id" in dir(args) or args.job_id == 0:
+        output_header = '\t'.join(output_header) + '\n'
+
+        if lite:
             # Write the output header once
-            args.output.write('\t'.join(output_header) + '\n')
+            args.output.write(output_header)
 
     # Read from input file/stdin
     for line in input:

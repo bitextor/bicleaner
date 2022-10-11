@@ -86,10 +86,6 @@ def mapping_process(args, jobs_queue):
     nblock = 0
     nline = 0
     mytemp = None
-    header = ""
-
-    if args.header:
-        header = next(args.input)
 
     for line in args.input:
         if (nline % args.block_size) == 0:
@@ -101,9 +97,6 @@ def mapping_process(args, jobs_queue):
                 nblock += 1
             mytemp = NamedTemporaryFile(mode="w", delete=False, dir=args.tmp_dir)
             logging.debug("Mapping: creating temporary filename {0}".format(mytemp.name))
-
-            if header:
-                mytemp.write(header)
 
         mytemp.write(line)
 
@@ -186,13 +179,30 @@ def perform_classification(args):
     jobs_queue = Queue(maxsize = maxsize)
     workers = []
 
+    # Output header
+    if args.header:
+        header = next(args.input).strip().split("\t")
+        output_header = header
+
+        setattr(args, "header", output_header)
+
+        if args.score_only:
+            output_header = ["bicleaner_score"]
+        else:
+            output_header.append("bicleaner_score")
+
+        output_header = '\t'.join(output_header) + '\n'
+
+        # Write the output header once
+        args.output.write(output_header)
+        args.output.flush()
+
     for i in range(worker_count):
         filter = Process(target = classifier_process, #profile_classifier_process
                          args   = (i, jobs_queue, output_queue, args))
         filter.daemon = True # dies with the parent process
         filter.start()
         workers.append(filter)
-
 
     # Mapper process (foreground - parent)
     nline = mapping_process(args, jobs_queue)
