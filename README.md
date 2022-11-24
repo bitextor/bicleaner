@@ -53,21 +53,11 @@ If you find Bicleaner useful, please consider citing the following papers:
 
 ## Installation & Requirements
 
-Bicleaner is written in Python and can be installed using `pip`:
+Bicleaner is written in Python and can be installed using pip. It also requires the KenLM Python bindings with support for 7-gram language models. You can easily install it by running the following commands:
 
 ```bash
-python3.7 -m pip install bicleaner
-```
-
-Bicleaner Hard-rules requires the [KenLM](https://github.com/kpu/kenlm) Python bindings with support for 7-gram language models. You can easily install it by running the following commands:
-
-```bash
-git clone https://github.com/kpu/kenlm
-cd kenlm
-python3.7 -m pip install . --install-option="--max_order 7"
-mkdir -p build && cd build
-cmake .. -DKENLM_MAX_ORDER=7 -DCMAKE_INSTALL_PREFIX:PATH=/your/prefix/path
-make -j all install
+pip install bicleaner
+pip install https://github.com/kpu/kenlm/archive/master.zip --install-option="--max_order 7"
 ```
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
