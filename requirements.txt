@@ -1,7 +1,7 @@
 regex
 scikit-learn==0.22.1
 PyYAML
-numpy==1.21.6
+numpy
 pytest
 pycld2==0.41
 toolwrapper>=0.4.1,<=2.1.0
