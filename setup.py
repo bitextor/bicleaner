@@ -11,6 +11,7 @@ setuptools.setup(
     name="bicleaner",
     version="0.15.3",
     install_requires=requirements,
+    python_requires='>=3.7',
     license="GNU General Public License v3.0",
     author="Prompsit Language Engineering",
     author_email="info@prompsit.com",
