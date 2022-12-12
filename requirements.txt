@@ -8,4 +8,4 @@ pycld2
 toolwrapper>=0.4.1,<=2.1.0
 joblib
 sacremoses>=0.0.35,<=0.0.47
-bicleaner-hardrules==2.5
+bicleaner-hardrules==2.5.1
