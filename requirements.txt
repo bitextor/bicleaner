@@ -1,10 +1,9 @@
 regex
 scikit-learn==0.22.1
 PyYAML
-numpy
-scipy
+numpy==1.21.6
 pytest
-pycld2
+pycld2==0.41
 toolwrapper>=0.4.1,<=2.1.0
 joblib
 sacremoses==0.0.53
