@@ -8,6 +8,7 @@ import subprocess
 import joblib
 
 from hardrules.hardrules import Hardrules
+from fastspell import FastSpell
 from heapq import heappush, heappop
 from multiprocessing import Queue, Process, Value, cpu_count
 from tempfile import NamedTemporaryFile
@@ -41,6 +42,12 @@ def initialization():
 
     # Load metadata YAML
     args = load_metadata(args, parser)
+
+    if not args.disable_lang_ident:
+        # Load a FastSpell objet to trigger download of fasttext langid
+        # before running classification
+        fs_obj = FastSpell("en", mode="aggr")
+        del fs_obj
 
     return args
 
