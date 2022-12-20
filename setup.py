@@ -11,7 +11,7 @@ setuptools.setup(
     name="bicleaner",
     version="0.16",
     install_requires=requirements,
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     license="GNU General Public License v3.0",
     author="Prompsit Language Engineering",
     author_email="info@prompsit.com",
@@ -26,7 +26,7 @@ setuptools.setup(
     classifiers=[
         "Environment :: Console",
         "Intended Audience :: Science/Research",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: POSIX :: Linux",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",

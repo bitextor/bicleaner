@@ -1,3 +1,9 @@
+Bicleaner 0.16.0:
+* Update requirements for scikit-learn, scipy
+  * Fix training code for new scikit-learn version
+* New Python version constraint
+* New Bicleaner models trained with updated requirements
+
 Bicleaner 0.15.2:
 * Fix tests
 
