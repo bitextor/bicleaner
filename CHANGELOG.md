@@ -1,3 +1,6 @@
+Bicleaner 0.16.1:
+* Update bicleaner-hardrules requirement to new release
+
 Bicleaner 0.16.0:
 * Update requirements for scikit-learn, scipy
   * Fix training code for new scikit-learn version
