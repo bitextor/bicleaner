@@ -513,11 +513,9 @@ def perform_training(args):
     logging.info("Elapsed time {:.2f}s.".format(elapsed_time))
 
 # Main function: setup logging and calling the main loop
-def main(args):
-
-    # Filtering
+def main():
+    args = initialization()
     perform_training(args)
 
 if __name__ == '__main__':
-    args = initialization()
-    main(args)
+    main()

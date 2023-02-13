@@ -60,16 +60,16 @@ def perform_classification(args):
     logging.info("Elapsed time {0:.2f} s".format(elapsed_time))
     logging.info("Troughput: {0} rows/s".format(int((nline*1.0)/elapsed_time)))
 
-def main(args):
+def main():
+    logging_setup()
+    args = initialization() # Parsing parameters
     logging.info("Executing main program...")
     perform_classification(args)
     logging.info("Program finished")
 
 if __name__ == '__main__':
     try:
-        logging_setup()
-        args = initialization() # Parsing parameters
-        main(args)  # Running main program
+        main()  # Running main program
     except Exception as ex:
         tb = traceback.format_exc()
         logging.error(tb)

@@ -241,7 +241,9 @@ def perform_classification(args):
     return errors
 ### END PARALLELIZATION METHODS ###
 
-def main(args):
+def main():
+    logging_setup()
+    args = initialization() # Parsing parameters
     logging.info("Executing main program...")
     errors = perform_classification(args)
     if errors:
@@ -252,9 +254,7 @@ def main(args):
 
 if __name__ == '__main__':
     try:
-        logging_setup()
-        args = initialization() # Parsing parameters
-        main(args)  # Running main program
+        main()  # Running main program
     except Exception as ex:
         tb = traceback.format_exc()
         logging.error(tb)
