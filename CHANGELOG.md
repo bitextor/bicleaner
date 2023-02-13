@@ -1,3 +1,8 @@
+Bicleaner 0.16.2:
+* Migrate to pyproject and src/ code structure.
+* Remove old moses tokenizer stuff.
+* Drop support of Python 3.7.
+
 Bicleaner 0.16.1:
 * Update bicleaner-hardrules requirement to new release
 
