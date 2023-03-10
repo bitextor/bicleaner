@@ -19,7 +19,7 @@ dependencies = [ "regex",
     "toolwrapper>=0.4.1,<=2.1.0",
     "joblib",
     "sacremoses==0.0.53",
-    "bicleaner-hardrules==2.7.0",
+    "bicleaner-hardrules==2.8.0",
 ]
 classifiers = [ "Environment :: Console",
     "Intended Audience :: Science/Research",
