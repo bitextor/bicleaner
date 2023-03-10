@@ -1,6 +1,6 @@
 [project]
 name = "bicleaner"
-version = "0.16.2"
+version = "0.17.0"
 description = "Parallel corpus classifier, indicating the likelihood of a pair of sentences being mutual translations or not"
 readme = "README.md"
 maintainers = [

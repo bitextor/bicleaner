@@ -1,3 +1,10 @@
+Bicleaner 0.17.0:
+* Update to Hardrules 2.8.0
+  * Update FastSpell to 0.8
+    * Dictionaries installed as a dependency.
+    * Better coverage for Icelandic.
+* Update installation instructions.
+
 Bicleaner 0.16.2:
 * Migrate to pyproject and src/ code structure.
 * Remove old moses tokenizer stuff.
