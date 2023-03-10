@@ -57,7 +57,7 @@ Bicleaner is written in Python and can be installed using pip. It also requires 
 
 ```bash
 pip install bicleaner
-pip install https://github.com/kpu/kenlm/archive/master.zip --install-option="--max_order 7"
+pip install --config-settings="--build-option=--max_order=7" https://github.com/kpu/kenlm/archive/master.zip
 ```
 
 The remaining extra modules required by Bicleaner will be automatically downloaded and installed/upgraded (if required) with the first command.
