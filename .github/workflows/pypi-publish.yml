@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Upload Python Package to PyPi
 
 on:
   release:
@@ -27,23 +27,16 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.x'
-        
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install build
     - name: Build package
       run: python -m build
-      
-    - name: Publish to Test PyPy
+
+    - name: Publish package
       uses: pypa/gh-action-pypi-publish@v1.6.2
       with:
         user: __token__
-        password: ${{ secrets.PYPI_TEST_JZARAGOZA }}
-        repository_url: https://test.pypi.org/legacy/
-        
-#    - name: Publish package
-#      uses: pypa/gh-action-pypi-publish@v1.6.2
-#      with:
-#        user: __token__
-#        password: ${{ secrets.PYPI_BIFIXER }}
+        password: ${{ secrets.PYPI_BICLEANER }}
