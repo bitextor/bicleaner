@@ -8,7 +8,7 @@ Bicleaner (`bicleaner-classify`) is a tool in Python that aims at detecting nois
 indicates the likelihood of a pair of sentences being mutual translations (with a value near to 1) or not (with a value near to 0). Sentence pairs considered very noisy are scored with 0.
 
 Although a training tool (`bicleaner-train`) is provided, you may want to use the available ready-to-use language packages. 
-Please, visit https://github.com/bitextor/bicleaner-data/releases/latest or use `./utils/download-pack.sh` to download the latest language packages.
+Please, visit https://github.com/bitextor/bicleaner-data/releases/latest or use `bicleaner-download` to download the latest language packages.
 Visit our [Wiki](https://github.com/bitextor/bicleaner/wiki/How-to-train-your-Bicleaner) for a detailed example on Bicleaner training.
 
 ## Citation 
