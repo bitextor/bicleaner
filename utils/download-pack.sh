@@ -37,12 +37,12 @@ then
     then
         >&2 echo $L2-$L1 language pack does not exist
     else
-        wget -P $DOWNLOAD_PATH $URL/$L2-$L1.tar.gz
+        wget --no-verbose -P $DOWNLOAD_PATH $URL/$L2-$L1.tar.gz
         tar xvf $DOWNLOAD_PATH/$L2-$L1.tar.gz -C $DOWNLOAD_PATH
         rm $DOWNLOAD_PATH/$L2-$L1.tar.gz
     fi
 else
-    wget -P $DOWNLOAD_PATH $URL/$L1-$L2.tar.gz
+    wget --no-verbose -P $DOWNLOAD_PATH $URL/$L1-$L2.tar.gz
     tar xvf $DOWNLOAD_PATH/$L1-$L2.tar.gz -C $DOWNLOAD_PATH
     rm $DOWNLOAD_PATH/$L1-$L2.tar.gz
 fi
