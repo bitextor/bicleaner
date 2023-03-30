@@ -1,3 +1,7 @@
+Bicleaner 0.17.2:
+* Port download command to Python
+* Install download command as `bicleaner-download`
+
 Bicleaner 0.17.0:
 * Update to Hardrules 2.8.0
   * Update FastSpell to 0.8

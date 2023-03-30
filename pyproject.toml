@@ -1,6 +1,6 @@
 [project]
 name = "bicleaner"
-version = "0.17.1"
+version = "0.17.2"
 description = "Parallel corpus classifier, indicating the likelihood of a pair of sentences being mutual translations or not"
 readme = "README.md"
 maintainers = [
@@ -48,6 +48,7 @@ build-backend = "setuptools.build_meta"
 bicleaner-classify = "bicleaner.bicleaner_classifier_full:main"
 bicleaner-classify-lite = "bicleaner.bicleaner_classifier_lite:main"
 bicleaner-train = "bicleaner.bicleaner_train:main"
+bicleaner-download = "bicleaner.bicleaner_download:main"
 
 [project.urls]
 Homepage = "https://github.com/bitextor/bicleaner"
