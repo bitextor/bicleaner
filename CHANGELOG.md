@@ -1,3 +1,6 @@
+Bicleaner 0.17.4:
+* Bump bicleaner-hardrules requirement  to 2.10.3 and fix compatibility issues.
+
 Bicleaner 0.17.3:
 * Bump bicleaner-hardrules requirement to 2.8.1 to avoid hunspell installation issues.
 

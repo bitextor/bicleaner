@@ -73,8 +73,8 @@ def load_metadata(args, parser):
     try:
         # Load YAML
         metadata_yaml = yaml.safe_load(args.metadata)
-        yamlpath = os.path.dirname(os.path.abspath(args.metadata.name))
-        metadata_yaml["yamlpath"] = yamlpath
+        yamldir = os.path.dirname(os.path.abspath(args.metadata.name))
+        metadata_yaml["yamldir"] = yamldir
 
         # Read language pair and tokenizers
         args.source_lang=metadata_yaml["source_lang"]
@@ -86,7 +86,7 @@ def load_metadata(args, parser):
 
         # Load classifier
         try:
-            args.clf=joblib.load( os.path.join( yamlpath , metadata_yaml["classifier"]))
+            args.clf=joblib.load( os.path.join( yamldir , metadata_yaml["classifier"]))
         except:
             args.clf=joblib.load(metadata_yaml["classifier"])
         args.clf.n_jobs = 1
@@ -94,24 +94,24 @@ def load_metadata(args, parser):
 
         # Load probabilistic dictionaries
         try:
-            args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["source_dictionary"]))
+            args.dict_sl_tl = ProbabilisticDictionary( os.path.join(yamldir , metadata_yaml["source_dictionary"]))
         except:
             args.dict_sl_tl = ProbabilisticDictionary(metadata_yaml["source_dictionary"])
         try:
-            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamlpath , metadata_yaml["target_dictionary"]))
+            args.dict_tl_sl = ProbabilisticDictionary( os.path.join(yamldir , metadata_yaml["target_dictionary"]))
         except:
             args.dict_tl_sl = ProbabilisticDictionary(metadata_yaml["target_dictionary"])
 
         # Load wordfreqs
         try:
-            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath, metadata_yaml["source_word_freqs"]))
+            args.sl_word_freqs = WordZipfFreqDist( os.path.join( yamldir, metadata_yaml["source_word_freqs"]))
         except:
             try:
                 args.sl_word_freqs = WordZipfFreqDist(metadata_yaml["source_word_freqs"])
             except:
                 args.sl_word_freqs = None
         try:
-            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamlpath , metadata_yaml["target_word_freqs"]))
+            args.tl_word_freqs = WordZipfFreqDist( os.path.join( yamldir , metadata_yaml["target_word_freqs"]))
         except:
             try:
                 args.tl_word_freqs = WordZipfFreqDist(metadata_yaml["target_word_freqs"])
@@ -153,7 +153,7 @@ def load_metadata(args, parser):
                 logging.warning("Porn removal not present in metadata, disabling.")
             else:
                 try:
-                    args.porn_removal = fasttext.load_model(os.path.join(yamlpath, metadata_yaml['porn_removal_file']))
+                    args.porn_removal = fasttext.load_model(os.path.join(yamldir, metadata_yaml['porn_removal_file']))
                 except:
                     args.porn_removal = fasttext.load_model(args.metadata_yaml['porn_removal_file'])
         else:

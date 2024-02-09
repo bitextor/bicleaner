@@ -1,6 +1,6 @@
 [project]
 name = "bicleaner"
-version = "0.17.3"
+version = "0.17.4"
 description = "Parallel corpus classifier, indicating the likelihood of a pair of sentences being mutual translations or not"
 readme = "README.md"
 maintainers = [
@@ -19,7 +19,7 @@ dependencies = [ "regex",
     "toolwrapper>=0.4.1,<=2.1.0",
     "joblib",
     "sacremoses==0.0.53",
-    "bicleaner-hardrules==2.8.1",
+    "bicleaner-hardrules==2.10.3",
 ]
 classifiers = [ "Environment :: Console",
     "Intended Audience :: Science/Research",
